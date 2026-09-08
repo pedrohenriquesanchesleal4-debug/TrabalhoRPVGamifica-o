@@ -1,26 +1,175 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  SAFRA DF · direção visual "Terra Cerrado".
+
+  A identidade nasce do lugar: areia batida do cerrado, verde de mata de
+  galeria, terracota de terra revirada. Nada de dark-mode genérico, nada de
+  gradiente roxo, nada de card branco flutuando em cinza claro.
+
+  Duas superfícies com exigências opostas:
+  - projetor do professor: contraste alto, número grande, legível a 6 metros;
+  - celular do aluno: alvo de toque generoso, uma coluna, texto curto.
+
+  Tudo é SVG e CSS. Nenhuma imagem, nenhum vídeo, nenhum WebGL.
+*/
+
+@theme {
+  /* Terra */
+  --color-areia-50: #faf7f2;
+  --color-areia-100: #f4efe6;
+  --color-areia-200: #e8dfd0;
+  --color-areia-300: #d6c8b2;
+  --color-areia-400: #b9a58a;
+
+  /* Mata */
+  --color-mata-900: #131c16;
+  --color-mata-800: #1f2a22;
+  --color-mata-700: #2c4636;
+  --color-mata-600: #3d5d45;
+  --color-mata-500: #4e7a4a;
+  --color-mata-400: #6f9a63;
+
+  /* Terracota: o acento. Usado com parcimônia, para o que exige decisão. */
+  --color-terra-600: #8f3f1f;
+  --color-terra-500: #b4552d;
+  --color-terra-400: #cd7247;
+
+  /* Indicadores: cada um tem cor própria e forma própria, nunca só cor. */
+  --color-financas: #8f6b1f;
+  --color-producao: #4e7a4a;
+  --color-tecnologia: #2f5e73;
+  --color-sustentabilidade: #3f7a5f;
+
+  --color-alerta: #a3401b;
+  --color-sucesso: #3f7a4a;
+
+  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+
+  /* Faixas de terra: a separação horizontal que estrutura as telas. */
+  --spacing-faixa: 1px;
+
+  --radius-carta: 4px;
+  --radius-pill: 999px;
+
+  --shadow-carta: 0 1px 0 var(--color-areia-300), 0 12px 32px -24px rgba(19, 28, 22, 0.5);
+  --shadow-erguida: 0 2px 0 var(--color-areia-300), 0 24px 48px -28px rgba(19, 28, 22, 0.55);
+
+  --animate-faixa: faixa 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sobe: sobe 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-brasa: brasa 2.4s ease-in-out infinite;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes faixa {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 0 0 0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes sobe {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes brasa {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-areia-100);
+    color: var(--color-mata-800);
+    font-family: var(--font-sans);
+    /* Textura de terra batida: dois gradientes muito sutis, custo zero. */
+    background-image:
+      radial-gradient(circle at 15% -10%, rgba(180, 85, 45, 0.06), transparent 55%),
+      radial-gradient(circle at 85% 110%, rgba(78, 122, 74, 0.07), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  /* Números alinham em coluna: indicador que dança a cada atualização cansa. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
+  :focus-visible {
+    outline: 2px solid var(--color-terra-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Quem pediu menos movimento recebe menos movimento. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* A faixa de terra: régua horizontal que separa seções sem virar borda de card. */
+  .faixa-terra {
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      var(--color-areia-300) 0%,
+      var(--color-areia-400) 45%,
+      transparent 100%
+    );
+  }
+
+  .carta {
+    background-color: var(--color-areia-50);
+    border: 1px solid var(--color-areia-200);
+    border-radius: var(--radius-carta);
+    box-shadow: var(--shadow-carta);
+  }
+
+  /* Rótulo de seção: caixa alta, pequeno, espaçado. Estrutura sem peso visual. */
+  .rotulo {
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-mata-600);
+    font-weight: 500;
+  }
 }
