@@ -4,14 +4,16 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { formatMoney } from '@/components/ui/primitives';
 
 /**
- * A abertura da partida.
+ * A abertura da partida: a primeira página do caderno sendo datilografada.
  *
- * Quatro frases em sequência, uma vez só, na primeira rodada. Existe para dar
+ * Quatro linhas em sequência, uma vez só, na primeira rodada. Existe para dar
  * peso ao começo ("uma nova safra começa", "vocês têm R$ 80.000"), não para
  * exibir animação: passa em menos de quatro segundos e tem "Pular" sempre
  * visível, porque a atividade inteira cabe em vinte minutos de aula.
  *
- * Só CSS, nenhuma biblioteca de animação.
+ * A tela é a folha vista sob a luz da manhã: papel escuro, tinta clara, e cada
+ * linha revelada por `clip-path` em passos, como caractere saindo do carro da
+ * máquina. Só CSS, nenhuma biblioteca de animação.
  */
 
 /** Duração total da sequência, em milissegundos. */
@@ -63,48 +65,68 @@ export function OpeningSequence({
   }, [reducedMotion, onDone]);
 
   const lines = [
-    { text: 'BRASÍLIA · 06:20', className: 'rotulo text-areia-300' },
-    { text: 'Uma nova safra começa.', className: 'text-3xl text-areia-100 sm:text-4xl' },
+    {
+      text: 'BRASÍLIA · 06:20',
+      className: 'font-maquina text-sm tracking-[0.28em] text-papel-400',
+    },
+    {
+      text: 'Uma nova safra começa.',
+      className: 'font-maquina text-3xl font-bold text-papel-000 sm:text-4xl',
+    },
     {
       text: `Vocês têm ${formatMoney(budget)}.`,
-      className: 'tabular text-2xl text-terra-400 sm:text-3xl',
+      className: 'tabular text-2xl font-bold text-carimbo-400 sm:text-3xl',
     },
     {
       text: 'Cada decisão muda o futuro da propriedade.',
-      className: 'text-lg text-areia-200',
+      className: 'font-caderno text-lg text-papel-200',
+      cursor: true,
     },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-mata-900 px-7 py-10 sm:px-16"
+      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-tinta-900 px-7 py-10 sm:px-16"
       role="dialog"
       aria-modal="true"
       aria-label="Abertura da partida"
     >
-      {lines.map((line, index) => (
-        <p
-          key={line.text}
-          className={line.className}
-          style={
-            reducedMotion
-              ? undefined
-              : { animation: 'var(--animate-sobe)', animationDelay: `${BEATS[index]}ms` }
-          }
+      {/* A pauta da folha continua visível no escuro: é o mesmo caderno. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.13]"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--color-papel-200) 27px, var(--color-papel-200) 28px)',
+        }}
+      />
+
+      <div className="relative flex flex-col gap-5">
+        {lines.map((line, index) => (
+          <p
+            key={line.text}
+            className={`${line.className}${line.cursor && !reducedMotion ? ' cursor-maquina' : ''}`}
+            style={
+              reducedMotion
+                ? undefined
+                : {
+                    animation: 'var(--animate-escreve)',
+                    animationDelay: `${BEATS[index]}ms`,
+                  }
+            }
+          >
+            {line.text}
+          </p>
+        ))}
+
+        <button
+          type="button"
+          onClick={onDone}
+          className="mt-3 inline-flex min-h-11 w-fit items-center border border-papel-400/50 px-4 font-maquina text-sm font-bold uppercase tracking-[0.14em] text-papel-200 hover:border-papel-200 hover:text-papel-000"
         >
-          {line.text}
-        </p>
-      ))}
-
-      <div className="faixa-terra mt-2 w-40 opacity-40" />
-
-      <button
-        type="button"
-        onClick={onDone}
-        className="mt-2 inline-flex min-h-11 items-center rounded-carta border border-areia-400/40 px-4 text-sm font-medium text-areia-200 hover:border-areia-200 hover:text-areia-50"
-      >
-        {reducedMotion ? 'Seguir para a partida' : 'Pular'}
-      </button>
+          {reducedMotion ? 'Seguir para a partida' : 'Pular'}
+        </button>
+      </div>
     </div>
   );
 }

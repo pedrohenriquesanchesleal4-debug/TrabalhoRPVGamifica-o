@@ -2,16 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  CheckCircle2,
-  Hourglass,
-  Loader2,
-  PauseCircle,
-  RefreshCcw,
-  Sprout,
-  TriangleAlert,
-  Users,
-} from 'lucide-react';
 import { fetchPlayerView, sendHeartbeat, submitDecision, RequestError } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
@@ -24,10 +14,10 @@ import {
   TOTAL_ROUNDS,
   phaseForRound,
 } from '@/types/game';
-import { Button, Pill, SectionHeading } from '@/components/ui/primitives';
+import { Button, Carimbo, LinhaRegistro, SectionHeading } from '@/components/ui/primitives';
 import { IndicatorPanel } from '@/components/game/indicator-panel';
 import { TeamRoster } from '@/components/game/team-roster';
-import { EventCard } from '@/components/game/event-card';
+import { EventCard, DecisionStamp } from '@/components/game/event-card';
 import { RoundTimer } from '@/components/game/round-timer';
 import { OpeningSequence } from '@/components/game/opening-sequence';
 import { PropertyScene } from '@/components/game/property-scene';
@@ -146,7 +136,7 @@ export default function JogarPage() {
   if (!session) return null;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-5 px-4 py-5 sm:px-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-4 px-3 py-4 sm:px-5 sm:py-6">
       {showOpening && view ? (
         <OpeningSequence
           budget={view.team.state.cash}
@@ -167,23 +157,45 @@ export default function JogarPage() {
 
 function LoadingScreen() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-mata-600">
-      <Loader2 size={28} className="animate-spin" aria-hidden="true" />
-      <p className="text-sm">Carregando a partida...</p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-2">
+      <span className="rotulo">Abrindo o caderno</span>
+      <p className="font-maquina text-sm text-tinta-500 cursor-maquina">Carregando a partida</p>
     </div>
   );
 }
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-      <TriangleAlert size={28} className="text-alerta" aria-hidden="true" />
-      <p className="max-w-xs text-sm text-mata-700">{message}</p>
-      <Button type="button" variant="secundario" onClick={onRetry}>
-        <RefreshCcw size={16} aria-hidden="true" />
+    <div className="ficha ficha-margem flex flex-col gap-3 py-5 pr-5">
+      <span className="rotulo text-carimbo-600">Falhou</span>
+      <p className="font-caderno text-sm text-tinta-700">{message}</p>
+      <Button type="button" variant="secundario" onClick={onRetry} className="self-start">
         Tentar de novo
       </Button>
     </div>
+  );
+}
+
+/**
+ * Uma folha do caderno com título datilografado no alto.
+ *
+ * Substitui o cartão genérico: o rótulo fica na dobra superior e o conteúdo
+ * corre logo abaixo, sem moldura extra em volta de cada parágrafo.
+ */
+function Folha({
+  titulo,
+  children,
+  className,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`ficha ficha-margem py-4 pr-4 ${className ?? ''}`}>
+      <span className="rotulo">{titulo}</span>
+      <div className="mt-2">{children}</div>
+    </section>
   );
 }
 
@@ -199,17 +211,23 @@ function GameBody({
   const roundMeta = ROUND_META[phase];
 
   return (
-    <div className="flex flex-1 flex-col gap-5">
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Sprout size={18} className="text-terra-600" aria-hidden="true" />
-            <span className="text-sm font-medium text-mata-800">{view.team.name}</span>
-          </div>
-          <Pill tone={view.game.status === 'paused' ? 'alerta' : 'neutro'}>
-            Rodada {view.game.currentRound} de {TOTAL_ROUNDS} · {roundMeta.title}
-          </Pill>
+    <div className="flex flex-1 flex-col gap-4">
+      {/*
+        O cabeçalho fixo do caderno: qual propriedade, qual rodada, quanto
+        tempo. Fica grudado no topo porque o aluno rola a ficha da ocorrência
+        e não pode perder de vista o caixa enquanto decide gastar.
+      */}
+      <header className="ficha sticky top-0 z-10 flex flex-col gap-3 p-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="truncate font-maquina text-sm font-bold uppercase tracking-wider text-tinta-900">
+            {view.team.name}
+          </span>
+          <span className="shrink-0 font-maquina text-[0.6875rem] uppercase tracking-[0.12em] text-tinta-500">
+            R{view.game.currentRound}/{TOTAL_ROUNDS} · {roundMeta.title}
+          </span>
         </div>
+
+        <div className="regua" />
 
         <IndicatorPanel
           indicators={view.team.state}
@@ -218,15 +236,15 @@ function GameBody({
         />
       </header>
 
-      <div className="faixa-terra" />
-
       {property ? (
-        <PropertyScene
-          propertyKey={property.key}
-          production={view.team.state.production}
-          technology={view.team.state.technology}
-          sustainability={view.team.state.sustainability}
-        />
+        <figure className="ficha">
+          <PropertyScene
+            propertyKey={property.key}
+            production={view.team.state.production}
+            technology={view.team.state.technology}
+            sustainability={view.team.state.sustainability}
+          />
+        </figure>
       ) : null}
 
       <StatusBody view={view} onConfirm={onConfirm} />
@@ -291,101 +309,90 @@ function StatusBody({
   return <WaitingRoundScreen view={view} />;
 }
 
+/** Linha de espera: sempre a mesma marca, para o aluno reconhecer o estado. */
+function Aguardando({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="py-4 text-center font-maquina text-sm uppercase tracking-[0.14em] text-tinta-500 cursor-maquina">
+      {children}
+    </p>
+  );
+}
+
 function LobbyScreen({ view }: { view: PlayerView }) {
   const property = PROPERTY_BY_KEY[view.team.propertyKey];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="carta flex flex-col gap-2 p-5">
-        <span className="rotulo text-terra-600">Sua propriedade</span>
-        <h2 className="text-xl text-mata-900">{property?.name ?? view.team.name}</h2>
+    <div className="flex flex-col gap-4">
+      <Folha titulo="Sua propriedade">
+        <h2 className="text-xl uppercase text-tinta-900">{property?.name ?? view.team.name}</h2>
         {property ? (
           <>
-            <p className="text-sm text-mata-600">{property.region}</p>
-            <p className="text-sm text-mata-700">{property.tagline}</p>
-            <div className="mt-2 flex flex-col gap-1.5 text-sm text-mata-700">
-              <p>
-                <span className="font-medium text-mata-900">Força: </span>
-                {property.strength}
-              </p>
-              <p>
-                <span className="font-medium text-mata-900">Dificuldade: </span>
-                {property.weakness}
-              </p>
+            <p className="mt-0.5 font-maquina text-xs uppercase tracking-wider text-tinta-500">
+              {property.region}
+            </p>
+            <p className="mt-2 font-caderno text-sm text-tinta-700">{property.tagline}</p>
+            <div className="mt-3 flex flex-col gap-2 border-t border-dashed border-papel-300 pt-3">
+              <div>
+                <span className="rotulo text-producao">O que ajuda</span>
+                <p className="font-caderno text-sm text-tinta-700">{property.strength}</p>
+              </div>
+              <div>
+                <span className="rotulo text-carimbo-600">O que atrapalha</span>
+                <p className="font-caderno text-sm text-tinta-700">{property.weakness}</p>
+              </div>
             </div>
           </>
         ) : null}
-      </div>
+      </Folha>
 
-      <div className="carta flex flex-col gap-2 p-5">
-        <span className="rotulo text-terra-600">Sua função</span>
-        <h3 className="text-lg text-mata-900">{ROLE_LABEL[view.player.role]}</h3>
-        <p className="text-sm text-mata-700">{ROLE_MISSION[view.player.role]}</p>
-      </div>
+      <Folha titulo="Sua função na equipe">
+        <h3 className="text-lg uppercase text-tinta-900">{ROLE_LABEL[view.player.role]}</h3>
+        <p className="mt-1 font-caderno text-sm text-tinta-700">
+          {ROLE_MISSION[view.player.role]}
+        </p>
+      </Folha>
 
-      <div className="carta flex flex-col gap-3 p-5">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
-        </div>
+      <Folha titulo="Lista de presença">
         <TeamRoster members={view.teammates} />
-      </div>
+      </Folha>
 
-      <div className="flex items-center justify-center gap-2 py-4 text-sm text-mata-600">
-        <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
-        Aguardando o professor iniciar a partida
-      </div>
+      <Aguardando>Aguardando o professor iniciar</Aguardando>
     </div>
   );
 }
 
 function PausedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="carta flex items-center gap-3 border-terra-400 bg-terra-500/10 p-4">
-        <PauseCircle size={22} className="shrink-0 text-terra-600" aria-hidden="true" />
-        <p className="text-sm text-mata-800">
+    <div className="flex flex-col gap-4">
+      <div className="ficha border-carimbo-500 p-4">
+        <span className="rotulo text-carimbo-600">Partida pausada</span>
+        <p className="mt-1 font-caderno text-sm text-tinta-900">
           O professor pausou a partida. A rodada continua de onde parou assim que ele retomar.
         </p>
       </div>
 
-      <div className="carta flex flex-col gap-3 p-5">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
-        </div>
+      <Folha titulo="Lista de presença">
         <TeamRoster members={view.teammates} />
-      </div>
+      </Folha>
     </div>
   );
 }
 
 function LockedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <RoundTimer endsAt={view.game.roundEndsAt} active />
       </div>
 
-      <div className="carta flex flex-col gap-2 p-5">
-        <div className="flex items-center gap-2 text-mata-700">
-          <CheckCircle2 size={18} aria-hidden="true" />
-          <span className="rotulo">Decisão registrada</span>
-        </div>
-        <p className="text-lg text-mata-900">{view.decision?.optionLabel}</p>
-        <p className="text-sm text-mata-600">
-          A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam
-          o que os colegas ainda estão fazendo.
-        </p>
-      </div>
+      <DecisionStamp
+        optionLabel={view.decision?.optionLabel ?? 'Decisão registrada'}
+        round={view.game.currentRound}
+      />
 
-      <div className="carta flex flex-col gap-3 p-5">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
-        </div>
+      <Folha titulo="Lista de presença">
         <TeamRoster members={view.teammates} />
-      </div>
+      </Folha>
     </div>
   );
 }
@@ -402,91 +409,82 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
   if (!resolution) return null;
 
   return (
-    <div className="flex flex-col gap-5" aria-live="polite">
+    <div className="flex flex-col gap-4" aria-live="polite">
       <SectionHeading overline="O que aconteceu" title="Consequência da decisão" />
 
-      <div className="carta flex flex-col gap-3 p-5">
+      <article className="ficha ficha-margem py-4 pr-4">
         {resolution.optionLabel ? (
-          <p className="text-sm text-mata-600">
-            A equipe escolheu <span className="font-medium text-mata-900">{resolution.optionLabel}</span>.
+          <p className="font-maquina text-xs uppercase tracking-wider text-tinta-500">
+            Lançado: {resolution.optionLabel}
           </p>
         ) : null}
-        <p className="text-base text-mata-900">{resolution.outcome}</p>
+
+        <p className="mt-2 font-caderno text-base leading-relaxed text-tinta-900">
+          {resolution.outcome}
+        </p>
 
         {resolution.notes.length > 0 ? (
-          <ul className="flex flex-col gap-1.5 border-t border-areia-200 pt-3 text-sm text-mata-700">
+          <ul className="mt-3 flex flex-col gap-1.5 border-t border-dashed border-papel-300 pt-3">
             {resolution.notes.map((note, index) => (
-              <li key={`${index}-${note}`}>{note}</li>
+              <li key={`${index}-${note}`} className="font-caderno text-sm text-tinta-700">
+                {note}
+              </li>
             ))}
           </ul>
         ) : null}
 
         {resolution.effects.length > 0 ? (
-          <ul className="flex flex-col gap-1.5 border-t border-areia-200 pt-3 text-sm">
+          <div className="mt-3 flex flex-col gap-1 border-t border-dashed border-papel-300 pt-3">
+            <span className="rotulo mb-1">Lançamentos no caixa e nos índices</span>
             {resolution.effects.map((effect, index) => (
-              <li
+              <LinhaRegistro
                 key={`${index}-${effect.indicator}`}
-                className={
-                  effect.delta > 0
-                    ? 'tabular text-sucesso'
-                    : effect.delta < 0
-                      ? 'tabular text-alerta'
-                      : 'tabular text-mata-600'
+                label={INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}
+                value={
+                  <span className={effect.delta > 0 ? 'text-sucesso' : effect.delta < 0 ? 'text-carimbo-600' : ''}>
+                    {effect.delta > 0 ? '+' : ''}
+                    {effect.delta}
+                  </span>
                 }
-              >
-                {INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}: {effect.delta > 0 ? '+' : ''}
-                {effect.delta}
-              </li>
+              />
             ))}
-          </ul>
+          </div>
         ) : null}
-      </div>
+      </article>
 
-      <div className="flex items-center justify-center gap-2 py-2 text-sm text-mata-600">
-        <Hourglass size={16} aria-hidden="true" />
-        A próxima rodada começa em instantes
-      </div>
+      <Aguardando>A próxima rodada começa em instantes</Aguardando>
     </div>
   );
 }
 
 function WaitingRoundScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-center gap-2 py-6 text-sm text-mata-600">
-        <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
-        Aguardando a próxima rodada
-      </div>
+    <div className="flex flex-col gap-4">
+      <Aguardando>Aguardando a próxima rodada</Aguardando>
 
-      <div className="carta flex flex-col gap-3 p-5">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
-        </div>
+      <Folha titulo="Lista de presença">
         <TeamRoster members={view.teammates} />
-      </div>
+      </Folha>
     </div>
   );
 }
 
 function FinishedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="carta flex flex-col gap-2 p-5">
-        <div className="flex items-center gap-2 text-mata-700">
-          <CheckCircle2 size={18} aria-hidden="true" />
-          <span className="rotulo">Partida encerrada</span>
-        </div>
-        <p className="text-base text-mata-900">
-          A safra da equipe {view.team.name} terminou por aqui. O professor vai conduzir o debate
-          com a turma inteira a partir dos resultados de cada equipe.
+    <div className="flex flex-col gap-4">
+      <div className="ficha ficha-margem flex flex-col items-center gap-4 py-6 pr-5 text-center">
+        <Carimbo detail={`Equipe ${view.team.name}`} bate>
+          Safra encerrada
+        </Carimbo>
+        <p className="font-caderno text-sm text-tinta-700">
+          A safra terminou por aqui. O professor vai conduzir o debate com a turma inteira a
+          partir dos resultados de cada equipe.
         </p>
       </div>
 
-      <div className="carta flex flex-col gap-4 p-5">
-        <span className="rotulo">Indicadores finais</span>
+      <Folha titulo="Fechamento dos índices">
         <IndicatorPanel indicators={view.team.state} variant="full" />
-      </div>
+      </Folha>
     </div>
   );
 }

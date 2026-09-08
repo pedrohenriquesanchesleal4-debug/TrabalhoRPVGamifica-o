@@ -210,7 +210,7 @@ async function main() {
   );
 
   const timerText = await first.page.locator('[role="timer"]').first().innerText();
-  check('cronômetro contando', /\d:\d\d/.test(timerText) && !timerText.includes('--:--'), timerText.replace(/\n/g, ' '));
+  check('cronômetro contando', /\d:\d\d/.test(timerText) && !timerText.includes('··:··'), timerText.replace(/\n/g, ' '));
   await first.page.screenshot({ path: `${SHOTS}/4-aluno-evento.png`, fullPage: true });
 
   // -----------------------------------------------------------------------

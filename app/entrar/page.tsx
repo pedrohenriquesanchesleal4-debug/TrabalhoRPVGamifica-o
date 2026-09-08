@@ -2,16 +2,17 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Sprout, TriangleAlert } from 'lucide-react';
 import { joinGame, RequestError } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
 import { Button, Field } from '@/components/ui/primitives';
 
 /**
- * Entrada do aluno.
+ * Entrada do aluno: a ficha de inscrição na safra.
  *
  * Meta de sala de aula: menos de um minuto entre abrir esta tela e estar
- * jogando. Sem tutorial, sem etapa extra: código, nome, confirmar.
+ * jogando. Sem tutorial, sem etapa extra, sem login: código, nome, confirmar.
+ * O campo do código é grande e monoespaçado de propósito, porque ele vai ser
+ * copiado de um telão do outro lado da sala.
  */
 
 export default function EntrarPage() {
@@ -67,106 +68,109 @@ export default function EntrarPage() {
 
   if (!showForm && existing) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-terra-600">
-            <Sprout size={20} aria-hidden="true" />
-            <span className="rotulo">SAFRA DF</span>
-          </div>
-          <h1 className="text-2xl text-mata-900">Continuar como {existing.playerName}</h1>
-          <p className="text-sm text-mata-600">
-            Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <Button
-            type="button"
-            variant="principal"
-            size="grande"
-            onClick={() => router.push('/jogar')}
-          >
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
+        <div className="ficha ficha-margem py-6 pr-5">
+          <span className="rotulo text-carimbo-600">Safra DF · retomar</span>
+          <h1 className="mt-1 text-2xl uppercase leading-tight text-tinta-900">
             Continuar como {existing.playerName}
-            <ArrowRight size={18} aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="silencioso"
-            onClick={() => {
-              playerSession.clear();
-              setShowForm(true);
-            }}
-          >
-            Entrar com outro código
-          </Button>
+          </h1>
+
+          <div className="regua my-4" />
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline gap-2">
+              <span className="rotulo">Equipe</span>
+              <span className="pontilhado" aria-hidden="true" />
+              <span className="tabular text-sm text-tinta-900">{existing.teamName}</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="rotulo">Partida</span>
+              <span className="pontilhado" aria-hidden="true" />
+              <span className="tabular text-sm text-tinta-900">{existing.gameCode}</span>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="principal"
+              size="grande"
+              onClick={() => router.push('/jogar')}
+            >
+              Voltar para a partida
+            </Button>
+            <Button
+              type="button"
+              variant="silencioso"
+              onClick={() => {
+                playerSession.clear();
+                setShowForm(true);
+              }}
+            >
+              Entrar com outro código
+            </Button>
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-terra-600">
-          <Sprout size={20} aria-hidden="true" />
-          <span className="rotulo">SAFRA DF</span>
-        </div>
-        <h1 className="text-2xl text-mata-900">Entrar na partida</h1>
-        <p className="text-sm text-mata-600">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-8">
+      <div className="ficha ficha-margem py-6 pr-5">
+        <span className="rotulo text-carimbo-600">Safra DF · inscrição</span>
+        <h1 className="mt-1 text-2xl uppercase leading-tight text-tinta-900">
+          Entrar na partida
+        </h1>
+        <p className="mt-2 font-caderno text-sm text-tinta-500">
           Peça o código de 4 a 8 letras que o professor está projetando na tela.
         </p>
+
+        <div className="regua my-5" />
+
+        <form className="flex flex-col gap-6" onSubmit={handleSubmit} noValidate>
+          <Field
+            label="Código da partida"
+            name="codigo"
+            value={code}
+            onChange={(event) => handleCodeChange(event.target.value)}
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={8}
+            placeholder="SAFRA1"
+            className="h-16 text-center text-3xl font-bold uppercase tracking-[0.3em]"
+            hint="Só letras e números, sem espaço."
+            disabled={submitting}
+          />
+
+          <Field
+            label="Seu nome"
+            name="nome"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoComplete="name"
+            maxLength={40}
+            placeholder="Como o time deve te chamar"
+            disabled={submitting}
+          />
+
+          {error ? (
+            <p
+              role="alert"
+              className="border border-carimbo-500 px-3 py-2 font-maquina text-sm text-carimbo-600"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <Button type="submit" variant="principal" size="grande" disabled={submitting}>
+            {submitting ? 'Entrando...' : 'Entrar na safra'}
+          </Button>
+        </form>
       </div>
-
-      <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-        <Field
-          label="Código da partida"
-          name="codigo"
-          value={code}
-          onChange={(event) => handleCodeChange(event.target.value)}
-          inputMode="text"
-          autoCapitalize="characters"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={8}
-          placeholder="EX: SAFRA1"
-          className="tracking-[0.2em] text-center text-2xl font-semibold uppercase"
-          hint="Só letras e números, sem espaço."
-          disabled={submitting}
-        />
-
-        <Field
-          label="Seu nome"
-          name="nome"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoComplete="name"
-          maxLength={40}
-          placeholder="Como o time deve te chamar"
-          disabled={submitting}
-        />
-
-        {error ? (
-          <p role="alert" className="flex items-start gap-2 text-sm text-alerta">
-            <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-            {error}
-          </p>
-        ) : null}
-
-        <Button type="submit" variant="principal" size="grande" disabled={submitting}>
-          {submitting ? (
-            <>
-              <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-              Entrando...
-            </>
-          ) : (
-            <>
-              Entrar
-              <ArrowRight size={18} aria-hidden="true" />
-            </>
-          )}
-        </Button>
-      </form>
     </main>
   );
 }

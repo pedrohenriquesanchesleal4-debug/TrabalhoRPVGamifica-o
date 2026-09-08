@@ -73,11 +73,41 @@ interface mostra consequência; o professor interpreta.
 - Zero travessão "—" e zero hífen duplo "--" em qualquer texto: use "·", ":" ou
   ponto final. Hífen simples em palavra composta continua normal. Há teste
   (`tests/content.test.ts`) que falha se aparecer no conteúdo.
-- Zero emoji decorativo em UI; ícone via `lucide-react`.
-- Direção visual "Terra Cerrado", com tokens em `app/globals.css`. Proibido
-  gradiente roxo/violeta/rosa, glassmorphism, `rounded-2xl` uniforme, imagem,
-  vídeo, WebGL e qualquer biblioteca de animação: a propriedade visual é SVG
-  gerado em `components/game/property-scene.tsx`.
+- Zero emoji decorativo em UI. Ícone só em `/admin`, via `lucide-react`, onde o
+  professor opera sob pressão e a forma do triângulo de "iniciar" é lida mais
+  rápido que a palavra. Nas outras telas o sinal é tipográfico (`×`, `○`, `/`).
 - Duas superfícies com exigências opostas: telas do aluno são mobile-first com
   alvo de toque de 44px; telas `/admin` e `/host/**` são para projetor, com
   número grande e sem depender de hover.
+
+## A direção visual: "Caderno de Campo"
+
+A tela é uma folha do caderno em que o agricultor familiar anota tudo, não um
+painel de software. Tokens e classes em `app/globals.css`; primitivas em
+`components/ui/primitives.tsx`. Quatro regras que sustentam a direção:
+
+1. **Nada flutua.** Não existe card: existe `.ficha`, que é folha com borda de
+   1px, deslocamento duro de 2px (papel sobre papel), linha de margem
+   (`.ficha-margem`) e furos de fichário (`.ficha-furos`). Raio zero
+   (`--radius-ficha: 0px`). O separador é a `.regua` pontilhada, e a relação
+   entre rótulo e valor é o `.pontilhado`, o preenchimento de livro-caixa.
+2. **Número é registro datilografado.** Courier Prime (`font-maquina`) em dado,
+   rótulo, código, título e opção; Archivo (`font-caderno`) só na narrativa das
+   cartas, que é o único texto longo. Não troque a hierarquia: sans em rótulo
+   descaracteriza a direção inteira.
+3. **Decisão é carimbo.** `<Carimbo bate>` marca os dois momentos irreversíveis
+   do jogo (decisão confirmada e safra encerrada). Não use carimbo em mais nada:
+   ele vale porque é raro.
+4. **Indicador nunca depende só de cor.** `Meter` desenha dez blocos com trama
+   própria por indicador (`.trama-financas`, `.trama-producao`,
+   `.trama-tecnologia`, `.trama-sustentabilidade`), mais o número escrito ao
+   lado. São quatro canais: quantidade, textura, número e cor.
+
+Proibido, como antes: gradiente roxo/violeta/rosa, glassmorphism, `rounded-2xl`
+uniforme, sombra difusa, imagem, vídeo, WebGL e qualquer biblioteca de animação.
+A propriedade é um croqui a nanquim gerado em
+`components/game/property-scene.tsx`: traço de tinta e hachura, com lápis de cor
+só nos três pontos que os indicadores governam (lavoura, equipamentos, água e
+mata). Ali, jitter e coordenadas passam por `round2` e por um hash inteiro, e não
+por `Math.sin`, porque `Math.sin` é definido pela implementação e divergia entre
+servidor e cliente, quebrando a hidratação nas telas que desenham o croqui.

@@ -172,7 +172,8 @@ export function useRoundTimer(endsAt: string | null, active: boolean) {
 
 /** Formata segundos como m:ss para a interface. */
 export function formatClock(seconds: number | null): string {
-  if (seconds === null) return '--:--';
+  // Placeholder sem tempo: pontinhos, nunca hífen duplo, que é proibido em texto de tela.
+  if (seconds === null) return '··:··';
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${minutes}:${String(rest).padStart(2, '0')}`;

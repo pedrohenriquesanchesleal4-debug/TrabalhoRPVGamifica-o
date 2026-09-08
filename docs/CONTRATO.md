@@ -69,28 +69,48 @@ código, vê equipes se formando, controla rodadas) → `/host/[gameId]` (proje�
 `/host/[gameId]/diagnostico` (diagnóstico da turma),
 `/host/[gameId]/resultado` (ranking, perfis e debriefing).
 
-## Direção visual: Terra Cerrado
+## Direção visual: Caderno de Campo
 
-Tokens já definidos em `app/globals.css` (Tailwind v4, use como classe utilitária:
-`bg-areia-100`, `text-mata-800`, `border-areia-200`, `text-terra-500`, etc.).
+A tela é uma folha do caderno em que o agricultor familiar anota tudo, e não um
+painel de software. Tokens em `app/globals.css` (Tailwind v4, use como classe
+utilitária: `bg-papel-100`, `text-tinta-900`, `border-papel-300`,
+`text-carimbo-500`).
 
-- **Terra**: `areia-50/100/200/300/400` (superfícies)
-- **Mata**: `mata-900/800/700/600/500/400` (texto e superfícies escuras)
-- **Terracota**: `terra-600/500/400` · o acento, reservado para o que exige
-  decisão (botão de confirmar, rodada ativa, alerta). Usar pouco.
-- **Indicadores**: `financas`, `producao`, `tecnologia`, `sustentabilidade`
-- **Fontes**: `font-display` (Fraunces, serif editorial, só títulos) e
-  `font-sans` (IBM Plex Sans, corpo e números)
-- **Classes prontas**: `.carta`, `.faixa-terra`, `.rotulo`, `.tabular`
-- **Animações**: `animate-faixa` (revelação de seção), `animate-sobe` (entrada
-  discreta), `animate-brasa` (pulso lento de estado ativo)
+- **Papel**: `papel-000/100/200/300/400` · a folha, do branco da ficha nova ao
+  kraft do miolo.
+- **Tinta**: `tinta-900/700/500/400/200` · azul ferro-gálica quase preto, a cor
+  da escrita.
+- **Carimbo**: `carimbo-600/500/400` · o acento único, reservado para decisão,
+  urgência e erro. Nunca decoração.
+- **Indicadores**: `financas`, `producao`, `tecnologia`, `sustentabilidade`,
+  cada um com uma trama própria (`.trama-*`) além da cor.
+- **Fontes**: `font-maquina` (Courier Prime) em todo dado, rótulo, código,
+  título e opção; `font-caderno` (Archivo) só na narrativa das cartas, que é o
+  único texto longo do jogo.
+- **Classes prontas**: `.ficha`, `.ficha-margem`, `.ficha-furos`, `.regua`,
+  `.pontilhado`, `.rotulo`, `.carimbo`, `.trama-*`, `.tabular`,
+  `.cursor-maquina`.
+- **Animações**: `animate-bate` (o carimbo assentando), `animate-escreve`
+  (linha saindo da máquina, na abertura), `animate-risca` (traço de caneta sob
+  o título), `animate-pisca` (cursor e urgência do cronômetro).
+
+Três decisões que sustentam a direção e não devem ser desfeitas sem trocar a
+direção inteira:
+
+1. **Nada flutua.** O contêiner é `.ficha`: borda de 1px, deslocamento duro de
+   2px, raio zero. Sem card, sem sombra difusa, sem fundo cinza.
+2. **Decisão é carimbo.** `<Carimbo bate>` marca só os dois momentos
+   irreversíveis (decisão confirmada, safra encerrada). Ele vale porque é raro.
+3. **Indicador em blocos.** `Meter` desenha dez quadrinhos com trama por
+   indicador mais o número ao lado: quantidade, textura, número e cor, quatro
+   canais para o mesmo dado.
 
 Proibido, sem exceção:
 1. gradiente roxo, violeta, fúcsia ou rosa;
 2. travessão "—" e hífen duplo "--" em qualquer texto de UI (use "·", ":" ou
    ponto final; hífen simples em palavra composta é normal);
-3. emoji decorativo em texto de interface (ícone `lucide-react` quando precisar
-   de símbolo);
+3. emoji decorativo em texto de interface. Ícone `lucide-react` só em `/admin`,
+   onde o professor opera sob pressão; nas outras telas o sinal é tipográfico;
 4. hero centralizado com três cards idênticos embaixo;
 5. `rounded-2xl` uniforme em tudo, glassmorphism, sombra difusa em card branco;
 6. imagem, vídeo, WebGL, Canvas grande, biblioteca de animação. Só SVG e CSS;

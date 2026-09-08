@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, Lightbulb } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { SectionHeading } from '@/components/ui/primitives';
@@ -13,11 +12,12 @@ import { ROUND_META } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
 
 /**
- * Diagnóstico da turma: a peça central da aula.
+ * O levantamento da turma: a peça central da aula.
  *
- * Nada aqui classifica equipe como certa ou errada. O painel só conta o que a
- * turma fez, com barra visual e o histórico rodada a rodada de cada grupo,
- * para o professor puxar o fio da exposição teórica a partir de fatos.
+ * Nada aqui classifica equipe como certa ou errada. A folha só conta o que a
+ * turma fez, com a régua de contagem e o histórico rodada a rodada de cada
+ * grupo, para o professor puxar o fio da exposição teórica a partir de fatos
+ * que acabaram de acontecer na sala.
  */
 export default function DiagnosticoPage() {
   const params = useParams<{ gameId: string }>();
@@ -68,9 +68,9 @@ export default function DiagnosticoPage() {
 
   if (error && !view) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-        <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-mata-700">{error}</p>
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="rotulo text-carimbo-600">Falhou</span>
+        <p className="font-caderno text-lg text-tinta-700">{error}</p>
       </main>
     );
   }
@@ -78,7 +78,9 @@ export default function DiagnosticoPage() {
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-xl text-mata-600">Carregando diagnóstico...</p>
+        <p className="font-maquina text-xl uppercase tracking-[0.14em] text-tinta-500 cursor-maquina">
+          Carregando diagnóstico
+        </p>
       </main>
     );
   }
@@ -89,38 +91,36 @@ export default function DiagnosticoPage() {
   );
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10">
-      <SectionHeading
-        overline="SAFRA DF · Diagnóstico da turma"
-        title="O que a turma decidiu"
-        description="Este painel não diz quem acertou. Ele mostra o que aconteceu na turma inteira, para virar pergunta na aula."
-      />
+    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-8 px-6 py-8 sm:px-10 sm:py-10">
+      <div className="ficha ficha-furos pl-10 pr-8 py-7">
+        <SectionHeading
+          overline="Safra DF · levantamento da turma"
+          title="O que a turma decidiu"
+          description="Esta folha não diz quem acertou. Ela mostra o que aconteceu na turma inteira, para virar pergunta na aula."
+        />
 
-      {!hasDecisions ? (
-        <div className="carta flex items-center gap-3 p-6">
-          <AlertTriangle className="shrink-0 text-mata-500" size={22} aria-hidden />
-          <p className="text-mata-700">
-            Ainda não há decisões suficientes registradas. O diagnóstico ganha corpo à medida que
-            as equipes jogam as rodadas.
-          </p>
+        <div className="mt-6">
+          {!hasDecisions ? (
+            <p className="font-caderno text-tinta-700">
+              Ainda não há decisões suficientes registradas. O levantamento ganha corpo à medida
+              que as equipes jogam as rodadas.
+            </p>
+          ) : (
+            <DiagnosticBars entries={view.diagnostics} />
+          )}
         </div>
-      ) : (
-        <section className="carta p-6">
-          <DiagnosticBars entries={view.diagnostics} />
-        </section>
-      )}
+      </div>
 
       {view.teachingHooks.length > 0 ? (
         <section className="flex flex-col gap-4">
           <SectionHeading overline="Ganchos para o debate" title="Perguntas prontas para a turma" />
           <ul className="flex flex-col gap-3">
             {view.teachingHooks.map((hook, index) => (
-              <li
-                key={index}
-                className="carta flex items-start gap-3 border-l-4 border-l-terra-500 p-5 text-lg text-mata-800"
-              >
-                <Lightbulb className="mt-1 shrink-0 text-terra-500" size={20} aria-hidden />
-                <span>{hook}</span>
+              <li key={index} className="ficha flex items-baseline gap-4 p-5">
+                <span className="tabular shrink-0 text-lg text-carimbo-600" aria-hidden="true">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="font-caderno text-lg leading-relaxed text-tinta-900">{hook}</span>
               </li>
             ))}
           </ul>
@@ -128,24 +128,25 @@ export default function DiagnosticoPage() {
       ) : null}
 
       <section className="flex flex-col gap-4">
-        <SectionHeading
-          overline="Por equipe"
-          title="Histórico de decisões, rodada a rodada"
-        />
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SectionHeading overline="Por equipe" title="Histórico de decisões, rodada a rodada" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {view.teams.map((team) => {
             const property = PROPERTY_BY_KEY[team.propertyKey];
             return (
-              <div key={team.id} className="carta flex flex-col gap-3 p-5">
-                <header className="flex flex-col gap-0.5">
+              <div key={team.id} className="ficha ficha-margem py-4 pr-4">
+                <header className="flex flex-col">
                   <span className="rotulo">{property?.region ?? 'Propriedade'}</span>
-                  <h3 className="text-xl text-mata-900">{team.name}</h3>
+                  <h3 className="text-xl uppercase text-tinta-900">{team.name}</h3>
                 </header>
 
+                <div className="regua my-3" />
+
                 {team.history.length === 0 ? (
-                  <p className="text-sm text-mata-500">Nenhuma decisão registrada ainda.</p>
+                  <p className="font-caderno text-sm text-tinta-400">
+                    Nenhuma decisão registrada ainda.
+                  </p>
                 ) : (
-                  <ol className="flex flex-col gap-2">
+                  <ol className="flex flex-col">
                     {team.history.map((entry) => {
                       const phase = ROUND_META[
                         (Object.keys(ROUND_META) as (keyof typeof ROUND_META)[]).find(
@@ -155,12 +156,13 @@ export default function DiagnosticoPage() {
                       return (
                         <li
                           key={`${team.id}-${entry.roundIndex}`}
-                          className="flex items-baseline justify-between gap-3 border-t border-areia-200 pt-2 first:border-t-0 first:pt-0"
+                          className="flex items-baseline gap-2 border-t border-dotted border-papel-300 py-1.5 first:border-t-0 first:pt-0"
                         >
-                          <span className="text-sm text-mata-600">
-                            Rodada {entry.roundIndex} · {phase.title}
+                          <span className="rotulo shrink-0">
+                            R{entry.roundIndex} {phase.title}
                           </span>
-                          <span className="text-right text-sm font-medium text-mata-900">
+                          <span className="pontilhado" aria-hidden="true" />
+                          <span className="shrink-0 text-right font-maquina text-sm font-bold text-tinta-900">
                             {entry.optionLabel}
                           </span>
                         </li>
@@ -175,7 +177,7 @@ export default function DiagnosticoPage() {
       </section>
 
       {showPolicyDisclaimer ? (
-        <p className="border-t border-areia-200 pt-4 text-xs text-mata-500">
+        <p className="border-t border-dashed border-papel-300 pt-4 font-maquina text-xs leading-relaxed text-tinta-400">
           {POLICY_DISCLAIMER}
         </p>
       ) : null}

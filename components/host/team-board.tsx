@@ -1,4 +1,3 @@
-import { Users, Wifi, WifiOff, CircleDot, CheckCircle2 } from 'lucide-react';
 import { Meter, Pill, formatMoney } from '@/components/ui/primitives';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { ROLE_LABEL } from '@/types/game';
@@ -6,7 +5,7 @@ import type { HostTeamView } from '@/lib/game-service';
 import { PropertyScene } from '@/components/game/property-scene';
 
 /**
- * Cartão de equipe para a projeção.
+ * A folha de uma equipe no caderno do professor.
  *
  * Mostra os quatro indicadores sempre; mostra O QUE a equipe escolheu só
  * quando `revealDecision` é verdadeiro (rodada resolvida ou lobby). Enquanto a
@@ -37,34 +36,39 @@ export function TeamBoard({
   const decided = team.currentDecision !== null;
 
   return (
-    <article className="carta flex flex-col gap-4 p-5" aria-label={`Equipe ${team.name}`}>
+    <article className="ficha ficha-margem flex flex-col gap-4 py-4 pr-4" aria-label={`Equipe ${team.name}`}>
       <header className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="rotulo">{property?.region ?? 'Propriedade'}</span>
-          <h3 className={dense ? 'text-lg text-mata-900' : 'text-xl text-mata-900'}>
+        <div className="flex min-w-0 flex-col">
+          <span className="rotulo truncate">{property?.region ?? 'Propriedade'}</span>
+          <h3
+            className={
+              dense
+                ? 'truncate text-lg uppercase text-tinta-900'
+                : 'truncate text-xl uppercase text-tinta-900'
+            }
+          >
             {team.name}
           </h3>
         </div>
 
-        <Pill tone={decided ? 'pronto' : 'neutro'}>
-          {decided ? <CheckCircle2 size={14} aria-hidden /> : <CircleDot size={14} aria-hidden />}
-          {decided ? 'Decidiu' : 'Pensando'}
-        </Pill>
+        <Pill tone={decided ? 'pronto' : 'neutro'}>{decided ? '× decidiu' : '○ pensando'}</Pill>
       </header>
 
       {!dense ? (
-        <PropertyScene
-          propertyKey={team.propertyKey}
-          production={team.state.production}
-          technology={team.state.technology}
-          sustainability={team.state.sustainability}
-        />
+        <div className="border-y border-papel-300">
+          <PropertyScene
+            propertyKey={team.propertyKey}
+            production={team.state.production}
+            technology={team.state.technology}
+            sustainability={team.state.sustainability}
+          />
+        </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-3">
         <Meter
           kind="financas"
-          label="Finanças"
+          label="Caixa"
           value={cashPercent}
           display={formatMoney(team.state.cash)}
         />
@@ -89,42 +93,42 @@ export function TeamBoard({
       </div>
 
       {revealDecision ? (
-        team.currentDecision ? (
-          <p className="border-t border-areia-200 pt-3 text-sm text-mata-700">
-            Escolheu: <span className="font-semibold text-mata-900">{team.currentDecision.optionLabel}</span>
-          </p>
-        ) : (
-          <p className="border-t border-areia-200 pt-3 text-sm text-mata-500">
-            Sem decisão confirmada nesta rodada.
-          </p>
-        )
+        <div className="border-t border-dashed border-papel-300 pt-3">
+          <span className="rotulo">Lançou na rodada</span>
+          {team.currentDecision ? (
+            <p className="font-maquina text-sm font-bold text-tinta-900">
+              {team.currentDecision.optionLabel}
+            </p>
+          ) : (
+            <p className="font-maquina text-sm text-tinta-400">Nada lançado nesta rodada.</p>
+          )}
+        </div>
       ) : null}
 
-      <div className="flex flex-col gap-1.5 border-t border-areia-200 pt-3">
-        <span className="rotulo flex items-center gap-1.5">
-          <Users size={12} aria-hidden />
-          Integrantes
-        </span>
-        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+      <div className="flex flex-col gap-1 border-t border-dashed border-papel-300 pt-3">
+        <span className="rotulo">Presentes</span>
+        <ul className="flex flex-col">
           {team.players.map((player) => (
             <li
               key={player.id}
-              className="flex items-center gap-1.5 text-sm text-mata-700"
+              className="flex items-baseline gap-2 text-sm"
               title={player.connected ? 'Conectado' : 'Desconectado'}
             >
-              {player.connected ? (
-                <Wifi size={13} className="text-mata-500" aria-hidden />
-              ) : (
-                <WifiOff size={13} className="text-areia-400" aria-hidden />
-              )}
-              <span className={player.connected ? '' : 'text-areia-400 line-through'}>
+              <span
+                className={
+                  player.connected
+                    ? 'truncate font-maquina text-tinta-900'
+                    : 'truncate font-maquina text-papel-400 line-through'
+                }
+              >
                 {player.name}
               </span>
-              <span className="text-xs text-mata-500">{ROLE_LABEL[player.role]}</span>
+              <span className="pontilhado" aria-hidden="true" />
+              <span className="rotulo shrink-0">{ROLE_LABEL[player.role]}</span>
             </li>
           ))}
           {team.players.length === 0 ? (
-            <li className="text-sm text-areia-400">Ninguém entrou ainda.</li>
+            <li className="font-caderno text-sm text-tinta-400">Ninguém entrou ainda.</li>
           ) : null}
         </ul>
       </div>

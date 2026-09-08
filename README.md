@@ -60,12 +60,16 @@ exposição e no debate que vêm depois.
 | Front e back | Next.js 16 (App Router) + TypeScript + Tailwind v4 | grátis |
 | Banco | PostgreSQL no Supabase | plano Free |
 | Tempo real | Supabase Realtime (Postgres Changes) | plano Free |
-| Ícones | lucide-react | grátis |
+| Tipografia | Courier Prime e Archivo, autoexpedidas no build | grátis |
+| Ícones | lucide-react, só no painel do professor | grátis |
 | Hospedagem | Vercel Hobby | grátis |
 | Testes | Vitest | grátis |
 
 Sem IA, sem API paga, sem serviço externo pago, sem imagem ou vídeo pesado. A
-propriedade visual é SVG gerado em código.
+propriedade visual é um croqui SVG gerado em código, e a direção visual inteira
+("Caderno de Campo": a tela é uma folha do caderno de anotação do agricultor)
+sai de CSS e SVG, sem nenhuma biblioteca de animação. O detalhamento está em
+[`docs/CONTRATO.md`](docs/CONTRATO.md).
 
 ---
 

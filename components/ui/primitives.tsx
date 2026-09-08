@@ -1,12 +1,12 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 
 /**
- * Primitivas compartilhadas entre a tela do aluno (celular) e as telas do
- * professor (projetor).
+ * Primitivas do caderno de campo.
  *
- * Não é design system: é o mínimo para que as duas superfícies não divirjam em
- * botão, campo e barra de indicador. Tudo com token de "Terra Cerrado" e alvo
- * de toque adequado ao celular.
+ * Não é design system: é o mínimo para que a tela do aluno (celular) e as
+ * telas do professor (projetor) não divirjam em botão, campo, selo e leitura
+ * de indicador. Tudo obedece à mesma metáfora, que é folha de caderno com
+ * pauta, régua pontilhada e carimbo.
  */
 
 function classes(...values: (string | false | null | undefined)[]): string {
@@ -20,14 +20,20 @@ function classes(...values: (string | false | null | undefined)[]): string {
 type ButtonVariant = 'principal' | 'secundario' | 'silencioso' | 'perigo';
 type ButtonSize = 'normal' | 'grande';
 
+/**
+ * O botão principal é o único elemento com tinta cheia na tela, e existe no
+ * máximo um por vez: é sempre a ação que fecha alguma coisa. Os demais são
+ * traço sobre papel.
+ */
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   principal:
-    'bg-terra-500 text-areia-50 border-terra-600 hover:bg-terra-600 active:bg-terra-600',
+    'bg-carimbo-500 text-papel-000 border-carimbo-600 hover:bg-carimbo-600 active:translate-y-px',
   secundario:
-    'bg-areia-50 text-mata-800 border-areia-300 hover:border-mata-500 hover:bg-areia-100',
+    'bg-papel-000 text-tinta-900 border-tinta-900/35 hover:border-tinta-900 hover:bg-papel-100',
   silencioso:
-    'bg-transparent text-mata-700 border-transparent hover:bg-areia-200/70 hover:text-mata-900',
-  perigo: 'bg-areia-50 text-alerta border-alerta/40 hover:bg-alerta/10',
+    'bg-transparent text-tinta-700 border-transparent underline decoration-dotted underline-offset-4 hover:text-tinta-900',
+  perigo:
+    'bg-papel-000 text-carimbo-600 border-carimbo-500/50 hover:border-carimbo-500 hover:bg-carimbo-500/8',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
@@ -51,9 +57,9 @@ export function Button({
     <button
       {...props}
       className={classes(
-        'inline-flex items-center justify-center gap-2 rounded-carta border font-medium',
+        'inline-flex items-center justify-center gap-2 rounded-ficha border font-maquina font-bold uppercase tracking-[0.1em]',
         'transition-colors duration-150',
-        'disabled:cursor-not-allowed disabled:opacity-45',
+        'disabled:cursor-not-allowed disabled:opacity-40',
         BUTTON_VARIANT[variant],
         BUTTON_SIZE[size],
         className,
@@ -63,7 +69,7 @@ export function Button({
 }
 
 // ---------------------------------------------------------------------------
-// Campo de texto
+// Campo de preenchimento
 // ---------------------------------------------------------------------------
 
 export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -72,12 +78,16 @@ export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
 }
 
+/**
+ * Campo desenhado como lacuna de formulário em papel: sem caixa fechada, só a
+ * linha de baixo, que é onde se escreve. A linha engrossa no foco.
+ */
 export function Field({ label, hint, error, id, className, ...props }: FieldProps) {
   const inputId = id ?? props.name ?? label.toLowerCase().replace(/\s+/g, '-');
   const describedBy = error ? `${inputId}-erro` : hint ? `${inputId}-dica` : undefined;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <label htmlFor={inputId} className="rotulo">
         {label}
       </label>
@@ -88,19 +98,21 @@ export function Field({ label, hint, error, id, className, ...props }: FieldProp
         aria-describedby={describedBy}
         aria-invalid={error ? true : undefined}
         className={classes(
-          'min-h-14 rounded-carta border bg-areia-50 px-4 text-lg text-mata-900',
-          'placeholder:text-areia-400',
-          error ? 'border-alerta' : 'border-areia-300 focus:border-mata-500',
+          'min-h-14 rounded-ficha border-0 border-b-2 bg-transparent px-1 font-maquina text-lg text-tinta-900',
+          'placeholder:text-tinta-200 focus:outline-none',
+          error
+            ? 'border-b-carimbo-500'
+            : 'border-b-papel-400 focus:border-b-tinta-900',
           className,
         )}
       />
 
       {error ? (
-        <p id={`${inputId}-erro`} role="alert" className="text-sm text-alerta">
+        <p id={`${inputId}-erro`} role="alert" className="font-maquina text-sm text-carimbo-600">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-dica`} className="text-sm text-mata-600">
+        <p id={`${inputId}-dica`} className="text-sm text-tinta-500">
           {hint}
         </p>
       ) : null}
@@ -109,18 +121,22 @@ export function Field({ label, hint, error, id, className, ...props }: FieldProp
 }
 
 // ---------------------------------------------------------------------------
-// Pílula de estado
+// Selo de estado
 // ---------------------------------------------------------------------------
 
 type PillTone = 'neutro' | 'ativo' | 'pronto' | 'alerta';
 
 const PILL_TONE: Record<PillTone, string> = {
-  neutro: 'border-areia-300 bg-areia-100 text-mata-700',
-  ativo: 'border-terra-400 bg-terra-500/10 text-terra-600',
-  pronto: 'border-mata-400 bg-mata-500/10 text-mata-700',
-  alerta: 'border-alerta/40 bg-alerta/10 text-alerta',
+  neutro: 'border-papel-400 text-tinta-700',
+  ativo: 'border-carimbo-500 text-carimbo-600',
+  pronto: 'border-producao text-producao',
+  alerta: 'border-alerta text-alerta',
 };
 
+/**
+ * Selo: etiqueta datilografada de estado, com traço fino e nada de fundo
+ * colorido. Fica legível tanto no celular quanto projetado.
+ */
 export function Pill({
   children,
   tone = 'neutro',
@@ -133,8 +149,8 @@ export function Pill({
   return (
     <span
       className={classes(
-        'inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1',
-        'text-xs font-medium tracking-wide',
+        'inline-flex items-center gap-1.5 rounded-selo border px-2 py-1',
+        'font-maquina text-[0.6875rem] font-bold uppercase leading-none tracking-[0.12em]',
         PILL_TONE[tone],
         className,
       )}
@@ -145,21 +161,96 @@ export function Pill({
 }
 
 // ---------------------------------------------------------------------------
-// Barra de indicador
+// Carimbo
 // ---------------------------------------------------------------------------
 
-const METER_COLOR = {
-  financas: 'bg-financas',
-  producao: 'bg-producao',
-  tecnologia: 'bg-tecnologia',
-  sustentabilidade: 'bg-sustentabilidade',
-} as const;
+/**
+ * O carimbo é a marca de "isto está fechado".
+ *
+ * Aparece quando a equipe confirma a decisão e quando a partida encerra: os
+ * dois momentos irreversíveis do jogo. Com `bate`, entra girado e grande e
+ * assenta torto; com movimento reduzido, o CSS global zera a duração e ele
+ * simplesmente já está lá.
+ */
+export function Carimbo({
+  children,
+  detail,
+  bate = false,
+  className,
+}: {
+  children: ReactNode;
+  /** Linha pequena embaixo do carimbo: rodada, horário, o que datar. */
+  detail?: string;
+  bate?: boolean;
+  className?: string;
+}) {
+  return (
+    <span className={classes('inline-flex flex-col items-center gap-1', className)}>
+      <span className={classes('carimbo', bate && 'animate-bate')}>{children}</span>
+      {detail ? (
+        <span className="tabular text-[0.6875rem] uppercase tracking-[0.14em] text-tinta-400">
+          {detail}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Linha de registro
+// ---------------------------------------------------------------------------
 
 /**
- * Barra 0..100 com valor sempre em texto ao lado.
+ * Linha de livro-caixa: rótulo à esquerda, pontinhos preenchendo o vão, valor
+ * à direita. É o jeito de listar dado neste projeto, no lugar de tabela ou de
+ * grade de cartõezinhos.
+ */
+export function LinhaRegistro({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className={emphasis ? 'rotulo text-tinta-900' : 'rotulo'}>{label}</span>
+      <span className="pontilhado" aria-hidden="true" />
+      <span
+        className={classes(
+          'tabular shrink-0',
+          emphasis ? 'text-base font-bold text-tinta-900' : 'text-sm text-tinta-700',
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Indicador
+// ---------------------------------------------------------------------------
+
+const TRAMA = {
+  financas: 'trama-financas',
+  producao: 'trama-producao',
+  tecnologia: 'trama-tecnologia',
+  sustentabilidade: 'trama-sustentabilidade',
+} as const;
+
+const TOTAL_BLOCOS = 10;
+
+/**
+ * Indicador em blocos, não em barra.
  *
- * O número acompanha a barra de propósito: cor e comprimento não podem ser a
- * única forma de ler o indicador (requisito de acessibilidade e de projeção).
+ * Dez quadrinhos preenchidos por décimo, cada indicador com uma trama própria
+ * (sólido, listra, contra-listra, pontilhado). São três canais para a mesma
+ * informação: quantidade de blocos, textura e o número escrito ao lado. Cor é
+ * o quarto, e nunca o único, que é o requisito de acessibilidade do contrato e
+ * também o que salva a leitura num projetor desbotado.
  */
 export function Meter({
   kind,
@@ -167,49 +258,72 @@ export function Meter({
   value,
   display,
   delta,
+  size = 'normal',
 }: {
-  kind: keyof typeof METER_COLOR;
+  kind: keyof typeof TRAMA;
   label: string;
-  /** 0..100 para desenhar a barra. */
+  /** 0..100 para preencher os blocos. */
   value: number;
   /** Texto do valor: pode ser "R$ 62.000" ou "58". */
   display: string;
   /** Variação da última rodada, se houver. */
   delta?: number | null;
+  size?: 'normal' | 'grande';
 }) {
-  const width = Math.max(0, Math.min(100, value));
+  const percent = Math.max(0, Math.min(100, value));
+  const cheios = Math.round((percent / 100) * TOTAL_BLOCOS);
+  const grande = size === 'grande';
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="rotulo">{label}</span>
-        <span className="tabular text-base font-semibold text-mata-900">{display}</span>
-      </div>
-
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-pill bg-areia-200"
-        role="meter"
-        aria-valuenow={width}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${label}: ${display}`}
-      >
-        <div
-          className={classes('h-full rounded-pill transition-[width] duration-500', METER_COLOR[kind])}
-          style={{ width: `${width}%` }}
-        />
-      </div>
-
-      {delta !== undefined && delta !== null && delta !== 0 ? (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex items-baseline gap-2">
+        <span className="rotulo truncate tracking-[0.06em]">{label}</span>
+        <span className="pontilhado" aria-hidden="true" />
         <span
           className={classes(
-            'tabular text-xs',
-            delta > 0 ? 'text-sucesso' : 'text-alerta',
+            'tabular shrink-0 font-bold text-tinta-900',
+            grande ? 'text-2xl' : 'text-base',
           )}
         >
-          {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
+          {display}
         </span>
-      ) : null}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div
+          className={classes('flex', grande ? 'gap-1' : 'gap-[3px]')}
+          role="meter"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${label}: ${display}`}
+        >
+          {Array.from({ length: TOTAL_BLOCOS }).map((_, index) => (
+            <span
+              key={index}
+              className={classes(
+                grande ? 'h-4 w-4' : 'h-2.5 w-2.5',
+                'border',
+                index < cheios
+                  ? `${TRAMA[kind]} border-tinta-900/25`
+                  : 'border-papel-300 bg-papel-100',
+              )}
+            />
+          ))}
+        </div>
+
+        {delta !== undefined && delta !== null && delta !== 0 ? (
+          <span
+            className={classes(
+              'tabular text-xs font-bold',
+              delta > 0 ? 'text-sucesso' : 'text-carimbo-600',
+            )}
+          >
+            {delta > 0 ? '+' : ''}
+            {delta}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -218,6 +332,10 @@ export function Meter({
 // Cabeçalho de seção
 // ---------------------------------------------------------------------------
 
+/**
+ * Cabeçalho no formato de abertura de página de caderno: número ou etiqueta em
+ * cima, título datilografado, e a régua pontilhada que fecha o bloco.
+ */
 export function SectionHeading({
   overline,
   title,
@@ -229,10 +347,12 @@ export function SectionHeading({
 }) {
   return (
     <header className="flex flex-col gap-1.5">
-      {overline ? <span className="rotulo">{overline}</span> : null}
-      <h2 className="text-2xl text-mata-900">{title}</h2>
-      {description ? <p className="max-w-prose text-sm text-mata-600">{description}</p> : null}
-      <div className="faixa-terra mt-2" />
+      {overline ? <span className="rotulo text-carimbo-600">{overline}</span> : null}
+      <h2 className="text-2xl uppercase tracking-tight text-tinta-900">{title}</h2>
+      {description ? (
+        <p className="max-w-prose text-sm text-tinta-500">{description}</p>
+      ) : null}
+      <div className="regua mt-2 origin-left animate-risca" />
     </header>
   );
 }

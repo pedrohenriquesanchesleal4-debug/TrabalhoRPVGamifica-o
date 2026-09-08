@@ -1,97 +1,122 @@
 @import 'tailwindcss';
 
 /*
-  SAFRA DF · direção visual "Terra Cerrado".
+  SAFRA DF · direção visual "Caderno de Campo".
 
-  A identidade nasce do lugar: areia batida do cerrado, verde de mata de
-  galeria, terracota de terra revirada. Nada de dark-mode genérico, nada de
-  gradiente roxo, nada de card branco flutuando em cinza claro.
+  A identidade nasce de um objeto real: o caderno em que o agricultor familiar
+  anota tudo. Chuva, custo, praga, o que o comprador pagou. A tela é uma folha
+  desse caderno, não um painel de software.
 
-  Duas superfícies com exigências opostas:
-  - projetor do professor: contraste alto, número grande, legível a 6 metros;
-  - celular do aluno: alvo de toque generoso, uma coluna, texto curto.
+  Três consequências que valem para toda tela:
 
-  Tudo é SVG e CSS. Nenhuma imagem, nenhum vídeo, nenhum WebGL.
+  1. Nada flutua. Não existe card com sombra e canto arredondado: existe FICHA,
+     que é uma folha com pauta, furos de fichário e linha de margem. A régua
+     pontilhada separa; a sombra não.
+
+  2. Número é registro datilografado. Courier Prime em tudo que é dado, rótulo,
+     código e opção. Archivo só onde há texto corrido para ler no celular.
+
+  3. Decisão é carimbo. Confirmar bate um carimbo torto e irreversível na ficha.
+     A regra do jogo diz que a equipe não pode voltar atrás; o carimbo faz essa
+     regra ser sentida, não lida.
+
+  Duas superfícies com exigências opostas continuam valendo: projetor do
+  professor pede número grande e contraste alto; celular do aluno pede alvo de
+  toque de 44px e uma coluna. Tudo é CSS e SVG: nenhuma imagem, nenhum vídeo,
+  nenhum WebGL, nenhuma biblioteca de animação.
 */
 
 @theme {
-  /* Terra */
-  --color-areia-50: #faf7f2;
-  --color-areia-100: #f4efe6;
-  --color-areia-200: #e8dfd0;
-  --color-areia-300: #d6c8b2;
-  --color-areia-400: #b9a58a;
+  /* Papel: a folha. Do kraft do miolo ao branco da ficha nova. */
+  --color-papel-000: #fdfbf5;
+  --color-papel-100: #f5f0e2;
+  --color-papel-200: #eae2cd;
+  --color-papel-300: #d8ccae;
+  --color-papel-400: #bcac89;
 
-  /* Mata */
-  --color-mata-900: #131c16;
-  --color-mata-800: #1f2a22;
-  --color-mata-700: #2c4636;
-  --color-mata-600: #3d5d45;
-  --color-mata-500: #4e7a4a;
-  --color-mata-400: #6f9a63;
+  /* Tinta ferro-gálica: azul quase preto, a cor da escrita. */
+  --color-tinta-900: #14212c;
+  --color-tinta-700: #243747;
+  --color-tinta-500: #45606f;
+  --color-tinta-400: #6b8393;
+  --color-tinta-200: #a4b3bc;
 
-  /* Terracota: o acento. Usado com parcimônia, para o que exige decisão. */
-  --color-terra-600: #8f3f1f;
-  --color-terra-500: #b4552d;
-  --color-terra-400: #cd7247;
+  /* Carimbo: acento único. Só decisão, urgência e erro. Nunca decoração. */
+  --color-carimbo-600: #7a1e15;
+  --color-carimbo-500: #9d2b1f;
+  --color-carimbo-400: #b9483a;
 
-  /* Indicadores: cada um tem cor própria e forma própria, nunca só cor. */
-  --color-financas: #8f6b1f;
-  --color-producao: #4e7a4a;
-  --color-tecnologia: #2f5e73;
-  --color-sustentabilidade: #3f7a5f;
+  /*
+    Os quatro indicadores como quatro lápis de cor diferentes. Cada um tem
+    também uma trama própria (`.trama-*`), porque cor sozinha não pode ser o
+    único canal de leitura: vale para daltonismo e vale para projetor ruim.
+  */
+  --color-financas: #2f4a63;
+  --color-producao: #4a7238;
+  --color-tecnologia: #8a5712;
+  --color-sustentabilidade: #1c6b5b;
 
-  --color-alerta: #a3401b;
-  --color-sucesso: #3f7a4a;
+  --color-alerta: #9d2b1f;
+  --color-sucesso: #3d6b33;
 
-  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
-  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-maquina: var(--font-courier), 'Courier New', ui-monospace, monospace;
+  --font-caderno: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
-  /* Faixas de terra: a separação horizontal que estrutura as telas. */
-  --spacing-faixa: 1px;
+  /* Altura da pauta: a mesma medida governa o fundo e o ritmo vertical. */
+  --spacing-pauta: 1.75rem;
 
-  --radius-carta: 4px;
-  --radius-pill: 999px;
+  --radius-ficha: 0px;
+  --radius-selo: 2px;
 
-  --shadow-carta: 0 1px 0 var(--color-areia-300), 0 12px 32px -24px rgba(19, 28, 22, 0.5);
-  --shadow-erguida: 0 2px 0 var(--color-areia-300), 0 24px 48px -28px rgba(19, 28, 22, 0.55);
-
-  --animate-faixa: faixa 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-sobe: sobe 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-brasa: brasa 2.4s ease-in-out infinite;
+  --animate-bate: bate 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-escreve: escreve 0.34s steps(24, end) both;
+  --animate-risca: risca 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pisca: pisca 1.05s steps(2, start) infinite;
 }
 
-@keyframes faixa {
-  from {
+/* O carimbo batendo: entra girado e grande, assenta torto e fica. */
+@keyframes bate {
+  0% {
     opacity: 0;
-    transform: translateY(10px);
-    clip-path: inset(0 0 100% 0);
+    transform: rotate(-15deg) scale(2.2);
+  }
+  60% {
+    opacity: 0.95;
+    transform: rotate(-5deg) scale(0.95);
+  }
+  100% {
+    opacity: 0.9;
+    transform: rotate(-5deg) scale(1);
+  }
+}
+
+/* Linha saindo da máquina de escrever: revela por largura, em passos. */
+@keyframes escreve {
+  from {
+    clip-path: inset(0 100% 0 0);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
     clip-path: inset(0 0 0 0);
   }
 }
 
-@keyframes sobe {
+/* Traço de caneta correndo na horizontal. */
+@keyframes risca {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    transform: scaleX(0);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    transform: scaleX(1);
   }
 }
 
-@keyframes brasa {
+@keyframes pisca {
   0%,
   100% {
-    opacity: 0.55;
+    opacity: 1;
   }
   50% {
-    opacity: 1;
+    opacity: 0;
   }
 }
 
@@ -101,39 +126,46 @@
   }
 
   body {
-    background-color: var(--color-areia-100);
-    color: var(--color-mata-800);
-    font-family: var(--font-sans);
-    /* Textura de terra batida: dois gradientes muito sutis, custo zero. */
-    background-image:
-      radial-gradient(circle at 15% -10%, rgba(180, 85, 45, 0.06), transparent 55%),
-      radial-gradient(circle at 85% 110%, rgba(78, 122, 74, 0.07), transparent 50%);
+    background-color: var(--color-papel-100);
+    color: var(--color-tinta-900);
+    font-family: var(--font-caderno);
+    /*
+      A pauta do caderno: uma linha horizontal a cada 28px, fraca o bastante
+      para não competir com o texto e forte o bastante para o papel existir.
+      Custo zero, nenhuma imagem.
+    */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--spacing-pauta) - 1px),
+      rgba(20, 33, 44, 0.085) calc(var(--spacing-pauta) - 1px),
+      rgba(20, 33, 44, 0.085) var(--spacing-pauta)
+    );
     background-attachment: fixed;
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.015em;
+    font-family: var(--font-maquina);
+    font-weight: 700;
+    letter-spacing: -0.01em;
     text-wrap: balance;
   }
 
-  /* Números alinham em coluna: indicador que dança a cada atualização cansa. */
+  /* Dado numérico nunca dança de largura entre uma atualização e a próxima. */
   .tabular {
+    font-family: var(--font-maquina);
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
   }
 
-  /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
   :focus-visible {
-    outline: 2px solid var(--color-terra-500);
+    outline: 2px solid var(--color-carimbo-500);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 0;
   }
 
-  /* Quem pediu menos movimento recebe menos movimento. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -146,30 +178,143 @@
 }
 
 @layer components {
-  /* A faixa de terra: régua horizontal que separa seções sem virar borda de card. */
-  .faixa-terra {
-    height: 1px;
-    background: linear-gradient(
-      to right,
-      var(--color-areia-300) 0%,
-      var(--color-areia-400) 45%,
-      transparent 100%
+  /*
+    FICHA: a folha do caderno. Sem raio, sem sombra difusa, sem fundo cinza.
+    O relevo vem de um deslocamento duro de 2px, como papel sobre papel, e a
+    linha de margem vermelha à esquerda é a do caderno escolar de verdade.
+  */
+  .ficha {
+    position: relative;
+    background-color: var(--color-papel-000);
+    border: 1px solid var(--color-papel-300);
+    box-shadow: 2px 2px 0 var(--color-papel-200);
+  }
+
+  .ficha-margem {
+    padding-left: 1.35rem;
+  }
+
+  .ficha-margem::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0.7rem;
+    width: 1px;
+    background-color: color-mix(in srgb, var(--color-carimbo-500) 34%, transparent);
+  }
+
+  /* Furos de fichário: três círculos na borda, puro CSS. */
+  .ficha-furos::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    height: 64%;
+    left: 0.55rem;
+    width: 13px;
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      var(--color-papel-200) 0 6px,
+      var(--color-papel-300) 6px 6.9px,
+      transparent 6.9px
+    );
+    /* Três furos: um em cada terço da altura útil da folha. */
+    background-size: 13px 33.34%;
+    background-repeat: repeat-y;
+    pointer-events: none;
+  }
+
+  /*
+    RÉGUA: o separador do projeto. Pontilhada, como a linha de preenchimento
+    de um formulário em papel. Substitui qualquer borda de card.
+  */
+  .regua {
+    height: 0;
+    border-top: 1px dashed var(--color-papel-300);
+  }
+
+  /* Linha de chamada com pontinhos entre rótulo e valor, como num livro-caixa. */
+  .pontilhado {
+    flex: 1 1 auto;
+    align-self: flex-end;
+    margin-bottom: 0.32em;
+    border-bottom: 1px dotted var(--color-papel-400);
+    min-width: 1rem;
+  }
+
+  /* Rótulo datilografado: pequeno, espaçado, sempre em caixa alta. */
+  .rotulo {
+    font-family: var(--font-maquina);
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-tinta-500);
+    font-weight: 700;
+  }
+
+  /*
+    CARIMBO: a assinatura visual do jogo. Borda dupla, torto, tinta que
+    sobrepõe o papel em vez de cobrir (multiply), como carimbo de verdade.
+  */
+  .carimbo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.85rem;
+    border: 2.5px solid var(--color-carimbo-500);
+    box-shadow: inset 0 0 0 1px var(--color-carimbo-500);
+    color: var(--color-carimbo-500);
+    font-family: var(--font-maquina);
+    font-weight: 700;
+    font-size: 0.8125rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transform: rotate(-5deg);
+    mix-blend-mode: multiply;
+    opacity: 0.9;
+  }
+
+  /*
+    TRAMAS dos indicadores: cada um dos quatro tem uma textura própria, então
+    dois blocos preenchidos nunca são distinguidos só pela cor.
+  */
+  .trama-financas {
+    background-color: var(--color-financas);
+  }
+
+  .trama-producao {
+    background-color: var(--color-producao);
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(253, 251, 245, 0.55) 0 1px,
+      transparent 1px 3px
     );
   }
 
-  .carta {
-    background-color: var(--color-areia-50);
-    border: 1px solid var(--color-areia-200);
-    border-radius: var(--radius-carta);
-    box-shadow: var(--shadow-carta);
+  .trama-tecnologia {
+    background-color: var(--color-tecnologia);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(253, 251, 245, 0.5) 0 1px,
+      transparent 1px 3px
+    );
   }
 
-  /* Rótulo de seção: caixa alta, pequeno, espaçado. Estrutura sem peso visual. */
-  .rotulo {
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-mata-600);
-    font-weight: 500;
+  .trama-sustentabilidade {
+    background-color: var(--color-sustentabilidade);
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      rgba(253, 251, 245, 0.7) 0 0.8px,
+      transparent 0.8px
+    );
+    background-size: 3px 3px;
+  }
+
+  /* Cursor da máquina de escrever, usado só na abertura. */
+  .cursor-maquina::after {
+    content: '_';
+    margin-left: 0.1em;
+    animation: var(--animate-pisca);
   }
 }

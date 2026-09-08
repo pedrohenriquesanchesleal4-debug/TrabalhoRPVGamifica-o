@@ -1,27 +1,32 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, IBM_Plex_Sans } from 'next/font/google';
+import { Archivo, Courier_Prime } from 'next/font/google';
 import './globals.css';
 
 /*
-  Tipografia com personalidade, e nenhuma delas é a fonte padrão de todo
-  projeto gerado por IA. Fraunces tem eixo ótico variável e dá o ar editorial
-  aos títulos; IBM Plex Sans tem números tabulares de verdade, que é o que um
-  painel de indicadores precisa. Ambas são autoexpedidas no build pelo
-  next/font: nenhuma requisição a servidor de fonte em tempo de execução.
+  Duas fontes, cada uma com um trabalho.
+
+  Courier Prime é uma Courier redesenhada para tela: é a máquina de escrever do
+  caderno de campo e carrega tudo que é registro, rótulo, número, código e
+  opção de decisão. Archivo é uma grotesca de caráter, com boa leitura em
+  corpo pequeno, e carrega só a narrativa das cartas, que é o único texto longo
+  que o aluno lê no celular.
+
+  Nenhuma das duas é a fonte padrão de projeto gerado por IA, e as duas são
+  autoexpedidas no build pelo next/font: nenhuma requisição a servidor de fonte
+  em tempo de execução, nenhum salto de layout.
 */
 
-const fraunces = Fraunces({
+const courier = Courier_Prime({
   subsets: ['latin'],
+  weight: ['400', '700'],
   display: 'swap',
-  axes: ['SOFT', 'WONK'],
-  variable: '--font-fraunces',
+  variable: '--font-courier',
 });
 
-const plex = IBM_Plex_Sans({
+const archivo = Archivo({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
-  variable: '--font-plex',
+  variable: '--font-archivo',
 });
 
 export const metadata: Metadata = {
@@ -32,7 +37,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f4efe6',
+  themeColor: '#f5f0e2',
   width: 'device-width',
   initialScale: 1,
   // O aluno joga no celular com uma mão: zoom liberado é acessibilidade.
@@ -41,7 +46,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${fraunces.variable} ${plex.variable}`}>
+    <html lang="pt-BR" className={`${courier.variable} ${archivo.variable}`}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

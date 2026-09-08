@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, Timer, Trophy, Users } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel, useRoundTimer, formatClock } from '@/hooks/use-game-channel';
 import { Pill } from '@/components/ui/primitives';
@@ -11,12 +10,15 @@ import { ROUND_META, TOTAL_ROUNDS, type GameStatus } from '@/types/game';
 import type { HostView, HostTeamView } from '@/lib/game-service';
 
 /**
- * Projeção na parede.
+ * A folha aberta na parede.
  *
  * Sem token: qualquer um com o link vê a partida, porque é para isso que
- * serve, um telão. Enquanto a rodada está aberta, o cartão de cada equipe
+ * serve, um telão. Enquanto a rodada está aberta, a folha de cada equipe
  * mostra só "decidiu" ou "pensando": revelar a escolha em tempo real mataria
  * a discussão que é o ponto do jogo.
+ *
+ * Tudo aqui é dimensionado para leitura a seis metros: código e cronômetro em
+ * corpo enorme, nada dependendo de hover, nada dependendo só de cor.
  */
 
 const STATUS_LABEL: Record<GameStatus, string> = {
@@ -107,17 +109,19 @@ export default function HostProjectionPage() {
 
   if (error && !view) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-areia-100 px-6 text-center">
-        <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-mata-700">{error}</p>
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="rotulo text-carimbo-600">Falhou</span>
+        <p className="font-caderno text-lg text-tinta-700">{error}</p>
       </main>
     );
   }
 
   if (!view) {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-areia-100">
-        <p className="text-xl text-mata-600">Carregando projeção...</p>
+      <main className="flex min-h-dvh items-center justify-center">
+        <p className="font-maquina text-xl uppercase tracking-[0.14em] text-tinta-500 cursor-maquina">
+          Carregando projeção
+        </p>
       </main>
     );
   }
@@ -131,31 +135,49 @@ export default function HostProjectionPage() {
   const phase = game.phase ? ROUND_META[game.phase] : null;
   const revealDecision = game.roundStatus !== 'active';
   const ranking = partialRanking(view.teams, game.config.weights, game.config.initialBudget);
+  const urgente = remaining !== null && remaining <= 30;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-8 px-10 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-6 px-8 py-6">
+      <header className="ficha flex flex-wrap items-end justify-between gap-6 p-6">
         <div className="flex flex-col gap-1">
-          <span className="rotulo">SAFRA DF · Decisões que Alimentam</span>
+          <span className="rotulo text-carimbo-600">Safra DF · Decisões que Alimentam</span>
           {phase ? (
-            <h1 className="text-5xl text-mata-900">
-              Rodada {phase.index} de {TOTAL_ROUNDS} · {phase.title}
-            </h1>
+            <>
+              <h1 className="text-4xl uppercase leading-none text-tinta-900 xl:text-5xl">
+                Rodada {phase.index} de {TOTAL_ROUNDS} · {phase.title}
+              </h1>
+              <p className="font-caderno text-lg text-tinta-500">{phase.subtitle}</p>
+            </>
           ) : (
-            <h1 className="text-5xl text-mata-900">{STATUS_LABEL[game.status]}</h1>
+            <h1 className="text-4xl uppercase leading-none text-tinta-900 xl:text-5xl">
+              {STATUS_LABEL[game.status]}
+            </h1>
           )}
-          {phase ? <p className="text-lg text-mata-600">{phase.subtitle}</p> : null}
         </div>
 
-        <div className="flex items-center gap-6">
-          <Pill tone={game.status === 'paused' ? 'alerta' : 'neutro'} className="text-sm">
-            {STATUS_LABEL[game.status]}
-          </Pill>
+        <div className="flex items-end gap-8">
+          <div className="flex flex-col items-end">
+            <span className="rotulo">Equipes decididas</span>
+            <span className="tabular text-4xl font-bold leading-none text-tinta-900">
+              {view.decidedTeams}/{view.teams.length}
+            </span>
+          </div>
 
           {game.roundStatus === 'active' ? (
-            <div className="flex items-center gap-3 rounded-carta border border-terra-400 bg-terra-500/10 px-6 py-3">
-              <Timer className="text-terra-600" size={28} aria-hidden />
-              <span className="tabular text-5xl font-semibold text-terra-600" aria-live="polite">
+            <div
+              className={[
+                'flex flex-col items-end border-2 px-5 py-2',
+                urgente ? 'border-carimbo-500 text-carimbo-600' : 'border-tinta-900 text-tinta-900',
+              ].join(' ')}
+            >
+              <span className={urgente ? 'rotulo text-carimbo-600' : 'rotulo'}>
+                {urgente ? 'Fechando' : 'Tempo'}
+              </span>
+              <span
+                className={`tabular text-6xl font-bold leading-none ${urgente ? 'animate-pisca' : ''}`}
+                aria-live="polite"
+              >
                 {formatClock(remaining)}
               </span>
             </div>
@@ -164,17 +186,12 @@ export default function HostProjectionPage() {
               Rodada resolvida
             </Pill>
           )}
-
-          <Pill tone="neutro" className="text-sm">
-            <Users size={14} aria-hidden />
-            {view.decidedTeams} de {view.teams.length} equipes decidiram
-          </Pill>
         </div>
       </header>
 
       <section
         aria-live="polite"
-        className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+        className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
       >
         {view.teams.map((team) => (
           <TeamBoard
@@ -186,30 +203,32 @@ export default function HostProjectionPage() {
         ))}
       </section>
 
-      <section className="carta flex flex-col gap-3 p-6">
-        <span className="rotulo flex items-center gap-1.5">
-          <Trophy size={14} aria-hidden />
-          Ranking parcial por índice composto
-        </span>
-        <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="ficha ficha-margem py-5 pr-5">
+        <span className="rotulo">Ranking parcial por índice composto</span>
+        <ol className="mt-3 grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
           {ranking.map(({ team, composite }, index) => (
             <li
               key={team.id}
-              className="flex items-center justify-between gap-3 border-b border-areia-200 pb-2 text-lg"
+              className="flex items-baseline gap-3 border-b border-dotted border-papel-300 py-1.5"
             >
-              <span className="text-mata-800">
-                <span className="tabular mr-2 text-mata-500">{index + 1}.</span>
+              <span className="tabular shrink-0 text-tinta-400">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className="truncate font-maquina text-lg uppercase text-tinta-900">
                 {team.name}
               </span>
-              <span className="tabular font-semibold text-mata-900">{Math.round(composite)}</span>
+              <span className="pontilhado" aria-hidden="true" />
+              <span className="tabular shrink-0 text-xl font-bold text-tinta-900">
+                {Math.round(composite)}
+              </span>
             </li>
           ))}
         </ol>
       </section>
 
-      <footer className="mt-auto flex items-center justify-center gap-3 py-4 text-mata-600">
-        <span className="text-sm">Chegou atrasado? O código da partida é</span>
-        <span className="tabular text-2xl font-semibold tracking-[0.1em] text-mata-900">
+      <footer className="mt-auto flex items-baseline justify-center gap-4 py-2">
+        <span className="rotulo">Chegou atrasado? O código é</span>
+        <span className="tabular text-3xl font-bold tracking-[0.16em] text-tinta-900">
           {game.code}
         </span>
       </footer>
@@ -217,35 +236,40 @@ export default function HostProjectionPage() {
   );
 }
 
+/**
+ * O lobby projetado.
+ *
+ * Uma coisa só importa nesta tela: o código, lido do fundo da sala por alguém
+ * que está com o celular na mão. Ele ocupa a maior parte da folha, e o resto é
+ * a lista de quem já entrou.
+ */
 function LobbyScreen({ view }: { view: HostView }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-10 bg-areia-100 px-6 py-12 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <span className="rotulo">SAFRA DF · Decisões que Alimentam</span>
-        <p className="text-2xl text-mata-700">Acesse, digite o código e seu nome</p>
-        <span className="tabular text-[9rem] font-semibold leading-none tracking-[0.08em] text-mata-900">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-8 px-8 py-8">
+      <div className="ficha ficha-furos flex flex-col items-center gap-2 py-10 pl-10 pr-8 text-center">
+        <span className="rotulo text-carimbo-600">Safra DF · Decisões que Alimentam</span>
+        <p className="font-caderno text-2xl text-tinta-700">
+          Acesse pelo celular, digite o código e o seu nome
+        </p>
+        <span className="tabular text-[8rem] font-bold leading-none tracking-[0.1em] text-tinta-900 xl:text-[11rem]">
           {view.game.code}
+        </span>
+        <div className="regua mt-4 w-full max-w-2xl" />
+        <span className="rotulo mt-2">
+          {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
         </span>
       </div>
 
-      <div className="faixa-terra w-full max-w-3xl" />
-
-      <div className="flex w-full max-w-6xl flex-col gap-4">
-        <span className="rotulo flex items-center justify-center gap-1.5">
-          <Users size={14} aria-hidden />
-          {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
-        </span>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {view.teams.map((team) => (
-            <TeamBoard
-              key={team.id}
-              team={team}
-              initialBudget={view.game.config.initialBudget}
-              revealDecision={false}
-              dense
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {view.teams.map((team) => (
+          <TeamBoard
+            key={team.id}
+            team={team}
+            initialBudget={view.game.config.initialBudget}
+            revealDecision={false}
+            dense
+          />
+        ))}
       </div>
     </main>
   );

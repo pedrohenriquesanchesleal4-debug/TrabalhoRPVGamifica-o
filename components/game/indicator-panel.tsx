@@ -4,11 +4,12 @@ import { INDICATOR_LABEL } from '@/types/game';
 import type { IndicatorKey, TeamIndicators } from '@/types/game';
 
 /**
- * Painel dos 4 indicadores da equipe.
+ * Os quatro indicadores como as quatro colunas do livro-caixa da propriedade.
  *
- * `compact` empilha em duas colunas para caber no topo do celular sem
- * disputar espaço com a carta de evento; a variante cheia usa uma coluna só,
- * mais respirada, para telas de lobby e de encerramento.
+ * `compact` empilha em duas colunas para caber no topo do celular sem disputar
+ * espaço com a ficha da ocorrência; `full` usa uma coluna só, com bloco maior,
+ * para o lobby e o encerramento; `projecao` cresce o número para ser lido a
+ * seis metros do telão.
  */
 
 type EffectMap = Partial<Record<IndicatorKey, number>>;
@@ -37,24 +38,28 @@ export function IndicatorPanel({
   indicators: TeamIndicators;
   /** Efeitos da última resolução, para mostrar a variação ao lado do valor. */
   lastEffects?: { indicator: string; delta: number }[] | null;
-  variant?: 'compact' | 'full';
+  variant?: 'compact' | 'full' | 'projecao';
 }) {
   const effects = buildEffectMap(lastEffects);
+  const size = variant === 'projecao' ? 'grande' : 'normal';
 
   return (
     <div
       className={
         variant === 'compact'
-          ? 'grid grid-cols-2 gap-x-4 gap-y-3'
-          : 'flex flex-col gap-4'
+          ? 'grid grid-cols-2 gap-x-5 gap-y-3'
+          : variant === 'projecao'
+            ? 'grid grid-cols-2 gap-x-8 gap-y-5'
+            : 'flex flex-col gap-4'
       }
     >
       <Meter
         kind="financas"
-        label={INDICATOR_LABEL.cash}
+        label="Caixa"
         value={financeIndex(indicators.cash)}
         display={formatMoney(indicators.cash)}
         delta={effects.cash}
+        size={size}
       />
       <Meter
         kind="producao"
@@ -62,6 +67,7 @@ export function IndicatorPanel({
         value={indicators.production}
         display={String(Math.round(indicators.production))}
         delta={effects.production}
+        size={size}
       />
       <Meter
         kind="tecnologia"
@@ -69,6 +75,7 @@ export function IndicatorPanel({
         value={indicators.technology}
         display={String(Math.round(indicators.technology))}
         delta={effects.technology}
+        size={size}
       />
       <Meter
         kind="sustentabilidade"
@@ -76,6 +83,7 @@ export function IndicatorPanel({
         value={indicators.sustainability}
         display={String(Math.round(indicators.sustainability))}
         delta={effects.sustainability}
+        size={size}
       />
     </div>
   );
