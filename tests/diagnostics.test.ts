@@ -74,7 +74,7 @@ describe('diagnosticSentence', () => {
     expect(sentence).toBe('4 de 6 equipes: buscou crédito');
   });
 
-  it('usa o singular "equipe" quando só uma equipe tomou a decisão', () => {
+  it('concorda com o total, e não com a contagem: "1 de 6 equipes"', () => {
     const sentence = diagnosticSentence({
       tag: 'credit',
       label: 'Buscou crédito',
@@ -82,7 +82,19 @@ describe('diagnosticSentence', () => {
       totalTeams: 6,
       decisions: 1,
     });
-    expect(sentence).toBe('1 de 6 equipe: buscou crédito');
+    // "1 de 6 equipe" está errado: o substantivo acompanha o 6, não o 1.
+    expect(sentence).toBe('1 de 6 equipes: buscou crédito');
+  });
+
+  it('usa o singular quando a turma tem uma equipe só', () => {
+    const sentence = diagnosticSentence({
+      tag: 'credit',
+      label: 'Buscou crédito',
+      teams: 1,
+      totalTeams: 1,
+      decisions: 1,
+    });
+    expect(sentence).toBe('1 de 1 equipe: buscou crédito');
   });
 
   it('funciona com zero equipes sem quebrar a frase', () => {
@@ -140,5 +152,68 @@ describe('buildTeachingHooks', () => {
 
     expect(hooks.some((hook) => hook.includes('ficou parado esperando'))).toBe(false);
     expect(hooks.some((hook) => hook.includes('tecnologia, mas só'))).toBe(false);
+  });
+});
+
+describe('buildTeachingHooks · concordância e ganchos sem dado', () => {
+  it('não gera o gancho de produção contra sustentabilidade quando ninguém fez nenhuma das duas', () => {
+    const hooks = buildTeachingHooks(
+      [
+        {
+          teamId: 't1',
+          roundIndex: 1,
+          eventKey: 'e1',
+          optionKey: 'a',
+          optionLabel: 'Comprar à vista',
+          tags: ['tech_invest'],
+        },
+      ],
+      6,
+    );
+
+    // Um painel projetado dizendo "produção em 0 equipes e sustentabilidade em
+    // 0" não é pergunta: é ruído. Sem dado, o gancho não aparece.
+    expect(hooks.some((hook) => hook.includes('Produção veio na frente'))).toBe(false);
+  });
+
+  it('escreve "1 equipe investiu" e "nenhuma buscou capacitação" no singular correto', () => {
+    const hooks = buildTeachingHooks(
+      [
+        {
+          teamId: 't1',
+          roundIndex: 1,
+          eventKey: 'e1',
+          optionKey: 'a',
+          optionLabel: 'Comprar à vista',
+          tags: ['tech_invest'],
+        },
+      ],
+      6,
+    );
+
+    const hook = hooks.find((entry) => entry.includes('tecnologia'));
+    expect(hook).toContain('1 equipe investiu em tecnologia');
+    expect(hook).toContain('nenhuma buscou capacitação');
+    expect(hook).not.toContain('1 equipes');
+    expect(hook).not.toContain('só 0');
+  });
+
+  it('usa o plural quando mais de uma equipe ficou fora do programa público', () => {
+    const hooks = buildTeachingHooks(
+      [
+        {
+          teamId: 't1',
+          roundIndex: 3,
+          eventKey: 'e3',
+          optionKey: 'a',
+          optionLabel: 'Entrar na chamada pública',
+          tags: ['public_policy'],
+        },
+      ],
+      6,
+    );
+
+    const hook = hooks.find((entry) => entry.includes('programa público'));
+    expect(hook).toContain('5 equipes não buscaram');
   });
 });

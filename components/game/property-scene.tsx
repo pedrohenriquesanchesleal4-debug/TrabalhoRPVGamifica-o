@@ -19,6 +19,17 @@ import { PROPERTY_BY_KEY } from '@/data/properties';
 const VIEW_W = 400;
 const VIEW_H = 220;
 
+/**
+ * Faixa realmente enquadrada.
+ *
+ * O desenho usa a altura toda de 220 para posicionar (horizonte em 132, casas e
+ * árvores subindo a partir de 148), mas todo o conteúdo vive entre 120 e 215:
+ * enquadrar de 0 a 220 deixaria mais da metade do quadro em céu vazio. O recorte
+ * começa um pouco acima do telhado mais alto e vai até o rodapé da terra.
+ */
+const VIEW_Y = 106;
+const VIEW_VISIBLE_H = VIEW_H - VIEW_Y;
+
 /** Linha do horizonte: acima é céu de areia, abaixo é terra batida. */
 const HORIZON_Y = 132;
 
@@ -317,9 +328,15 @@ export function PropertyScene({
       role="img"
       aria-label={ariaLabel}
       focusable="false"
-      viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+      viewBox={`0 ${VIEW_Y} ${VIEW_W} ${VIEW_VISIBLE_H}`}
       preserveAspectRatio="xMidYMid slice"
-      className={`block w-full ${compact ? 'aspect-[4/1.3]' : 'aspect-[4/2.4]'} ${className ?? ''}`}
+      /*
+       * O bloco cheio usa a proporção exata do recorte, então nada é cortado.
+       * A faixa compacta é mais larga de propósito: o `slice` come um pouco de
+       * céu e de rodapé, e a casa, a plantação e o reservatório, que ficam no
+       * centro do quadro, continuam inteiros.
+       */
+      className={`block w-full ${compact ? 'aspect-[400/82]' : 'aspect-[400/114]'} ${className ?? ''}`}
     >
       {/* Duas animações no total: respiração das copas e ondulação da água. Desligadas com movimento reduzido. */}
       <style>{`

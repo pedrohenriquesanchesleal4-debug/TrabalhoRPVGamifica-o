@@ -484,7 +484,10 @@ function ControlPanel({
           <span className="rotulo">SAFRA DF · Painel do professor</span>
           <div className="flex items-baseline gap-4">
             <span className="rotulo">Código</span>
-            <span className="tabular text-6xl font-semibold tracking-[0.08em] text-mata-900">
+            <span
+              data-testid="game-code"
+              className="tabular text-6xl font-semibold tracking-[0.08em] text-mata-900"
+            >
               {code}
             </span>
           </div>

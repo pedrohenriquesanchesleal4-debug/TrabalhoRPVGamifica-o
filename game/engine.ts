@@ -20,7 +20,7 @@ import {
   type TeamState,
   type TeamTraits,
 } from '@/types/game';
-import { seededRandom, pickDeterministic } from './rng';
+import { hashSeed, seededRandom, pickDeterministic } from './rng';
 
 /**
  * A engine do SAFRA DF: regras puras, sem I/O.
@@ -102,18 +102,30 @@ export function initialTeamState(
 /**
  * Carta de evento da rodada para uma equipe.
  *
- * Determinístico por (partida, rodada, equipe): duas equipes na mesma rodada
- * normalmente enfrentam situações diferentes, o que enriquece a comparação na
- * hora do debate.
+ * Determinístico por (partida, rodada, equipe) e, quando a posição da equipe é
+ * informada, DISTRIBUÍDO: as cartas da fase são repartidas em rodízio a partir
+ * de um deslocamento sorteado para aquela rodada.
+ *
+ * A diferença importa para a aula. Sorteio puro por hash faz três equipes
+ * caírem na mesma situação e empobrece a comparação no debate; o rodízio
+ * garante que, com 3 cartas e 6 equipes, cada situação apareça em exatamente
+ * duas propriedades, e ainda muda de rodada para rodada e de turma para turma.
  */
 export function drawEventCard(
   phase: RoundPhase,
   gameId: string,
   roundIndex: number,
   teamId: string,
+  teamOrderIndex?: number,
 ): GameEventCard {
   const pool = EVENTS_BY_PHASE[phase];
-  return pickDeterministic(pool, gameId, roundIndex, teamId);
+
+  if (teamOrderIndex === undefined) {
+    return pickDeterministic(pool, gameId, roundIndex, teamId);
+  }
+
+  const offset = hashSeed(gameId, roundIndex) % pool.length;
+  return pool[(teamOrderIndex + offset) % pool.length];
 }
 
 // ---------------------------------------------------------------------------

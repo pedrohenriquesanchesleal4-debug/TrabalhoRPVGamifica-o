@@ -22,14 +22,16 @@ export function DiagnosticBars({ entries }: { entries: DiagnosticEntry[] }) {
       {entries.map((entry) => {
         const ratio = entry.totalTeams > 0 ? entry.teams / entry.totalTeams : 0;
         const percent = Math.round(ratio * 100);
-        const verb = entry.teams === 1 ? 'equipe' : 'equipes';
+        // Em "1 de 6 equipes" o substantivo concorda com o TOTAL, não com a
+        // contagem: "1 de 6 equipe" está errado e fica projetado na parede.
+        const substantivo = entry.totalTeams === 1 ? 'equipe' : 'equipes';
 
         return (
           <li key={entry.tag} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-lg text-mata-900">{entry.label}</span>
               <span className="tabular text-lg font-semibold text-mata-900">
-                {entry.teams} de {entry.totalTeams} {verb}
+                {entry.teams} de {entry.totalTeams} {substantivo}
               </span>
             </div>
 
@@ -39,7 +41,7 @@ export function DiagnosticBars({ entries }: { entries: DiagnosticEntry[] }) {
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label={`${entry.label}: ${entry.teams} de ${entry.totalTeams} ${verb}`}
+              aria-label={`${entry.label}: ${entry.teams} de ${entry.totalTeams} ${substantivo}`}
             >
               <div
                 className="h-full rounded-pill bg-terra-500 transition-[width] duration-700"

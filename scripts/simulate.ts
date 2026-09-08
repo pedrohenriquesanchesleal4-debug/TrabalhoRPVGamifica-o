@@ -184,8 +184,8 @@ for (let roundIndex = 1; roundIndex <= TOTAL_ROUNDS; roundIndex += 1) {
   print(`Rodada ${roundIndex}/${TOTAL_ROUNDS} · ${meta.title} · ${meta.subtitle}`);
   print('-'.repeat(60));
 
-  for (const team of teams) {
-    const event = drawEventCard(phase, gameId, roundIndex, team.teamId);
+  for (const [index, team] of teams.entries()) {
+    const event = drawEventCard(phase, gameId, roundIndex, team.teamId, index);
     const availability = optionAvailability(event, team.state);
     checkAvailability(`Rodada ${roundIndex} · ${team.propertyName} · carta "${event.key}"`, availability);
 

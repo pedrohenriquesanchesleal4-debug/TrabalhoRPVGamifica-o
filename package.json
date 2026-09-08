@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "simulate": "tsx scripts/simulate.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "smoke": "node --env-file=.env.local scripts/smoke-live.mjs",
+    "browser-check": "node scripts/browser-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -28,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",

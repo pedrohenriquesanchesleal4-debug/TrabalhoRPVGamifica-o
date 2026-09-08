@@ -575,7 +575,7 @@ export async function startRound(gameId: string, hostToken: string): Promise<{
   const teams = await teamsOf(gameId);
 
   for (const team of teams) {
-    const card = drawEventCard(phase, gameId, index, team.id);
+    const card = drawEventCard(phase, gameId, index, team.id, team.order_index);
     const availability = optionAvailability(card, teamStateOf(team));
 
     const options: StoredOption[] = availability.map((entry) => ({
