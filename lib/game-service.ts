@@ -365,7 +365,14 @@ export async function createGame(
       db().from('game_secrets').insert({ game_id: game!.id, host_token_hash: hashToken(hostToken) }),
     );
 
+    // Se as tentativas de `withNetworkRetry` se esgotarem porque a rede
+    // continua caindo, o erro final ainda é de rede: reclassifica em vez de
+    // usar a mensagem genérica de negócio ("falha ao registrar/criar"), que
+    // não diz ao professor que o caminho de recuperação é tentar de novo.
     if (secretResult.error) {
+      if (isNetworkError(new Error(secretResult.error.message))) {
+        throw classifyGameCreationError(new Error(secretResult.error.message), 'registrar o token do professor');
+      }
       throw new ApiError(
         'server_error',
         'Falha ao registrar o acesso do professor.',
@@ -388,6 +395,10 @@ export async function createGame(
     const teamsResult = await withNetworkRetry('criar as equipes', () =>
       db().from('teams').insert(teamRows).select('*'),
     );
+
+    if (teamsResult.error && isNetworkError(new Error(teamsResult.error.message))) {
+      throw classifyGameCreationError(new Error(teamsResult.error.message), 'criar as equipes');
+    }
     const teams = unwrap(teamsResult, 'criar as equipes') as TeamRow[];
 
     return { game, hostToken, teams };
