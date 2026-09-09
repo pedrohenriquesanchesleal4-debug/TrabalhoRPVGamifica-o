@@ -33,7 +33,6 @@ const VIEW_VISIBLE_H = VIEW_H - VIEW_Y;
  * mostra só o miolo de 82 dos 114 visíveis, cortando ~16px de cada borda).
  * Selo de identidade fica sempre dentro de 122-204.
  */
-const SAFE_TOP = 122;
 const SAFE_BOTTOM = 204;
 
 /**
