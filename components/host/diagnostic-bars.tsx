@@ -11,14 +11,14 @@ import type { DiagnosticEntry } from '@/types/game';
 export function DiagnosticBars({ entries }: { entries: DiagnosticEntry[] }) {
   if (entries.length === 0) {
     return (
-      <p className="text-sm text-mata-600">
+      <p className="text-sm text-tinta-500">
         Ainda não há decisões suficientes para compor o diagnóstico da turma.
       </p>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-5">
+    <ul className="flex flex-col">
       {entries.map((entry) => {
         const ratio = entry.totalTeams > 0 ? entry.teams / entry.totalTeams : 0;
         const percent = Math.round(ratio * 100);
@@ -27,16 +27,16 @@ export function DiagnosticBars({ entries }: { entries: DiagnosticEntry[] }) {
         const substantivo = entry.totalTeams === 1 ? 'equipe' : 'equipes';
 
         return (
-          <li key={entry.tag} className="flex flex-col gap-2">
+          <li key={entry.tag} className="filete-fino flex flex-col gap-2 py-4 first:border-t-0 first:pt-0">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-lg text-mata-900">{entry.label}</span>
-              <span className="tabular text-lg font-semibold text-mata-900">
+              <span className="manchete-sm text-tinta-900">{entry.label}</span>
+              <span className="dado-lg text-tinta-900">
                 {entry.teams} de {entry.totalTeams} {substantivo}
               </span>
             </div>
 
             <div
-              className="h-4 w-full overflow-hidden rounded-pill bg-areia-200"
+              className="h-3 w-full overflow-hidden bg-papel-200"
               role="meter"
               aria-valuenow={percent}
               aria-valuemin={0}
@@ -44,12 +44,12 @@ export function DiagnosticBars({ entries }: { entries: DiagnosticEntry[] }) {
               aria-label={`${entry.label}: ${entry.teams} de ${entry.totalTeams} ${substantivo}`}
             >
               <div
-                className="h-full rounded-pill bg-terra-500 transition-[width] duration-700"
+                className="h-full bg-manchete transition-[width] duration-700"
                 style={{ width: `${percent}%` }}
               />
             </div>
 
-            <span className="tabular text-xs text-mata-600">
+            <span className="dado text-xs text-tinta-500">
               {entry.decisions} {entry.decisions === 1 ? 'decisão registrada' : 'decisões registradas'} na partida inteira.
             </span>
           </li>

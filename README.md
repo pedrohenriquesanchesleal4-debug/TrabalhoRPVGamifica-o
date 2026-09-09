@@ -318,18 +318,53 @@ deixa explícito para a turma que "vencer" depende do que se decide valorizar.
 
 ## Testes e simulação
 
+Quatro níveis, do mais rápido ao mais parecido com a aula de verdade.
+
 ```bash
 npm run test        # engine, diagnóstico, sorteio determinístico e conteúdo
 npm run typecheck   # TypeScript strict
 npm run lint
-npm run simulate    # 6 equipes com estratégias diferentes, 5 rodadas, sem banco
-npm run verify      # tudo acima, em sequência
+npm run verify      # typecheck + lint + test + build, em sequência
 ```
 
-A simulação existe porque a engine é pura: dá para jogar a partida inteira em
-milissegundos, sem Supabase, e conferir se o balanceamento produz perfis
-diferentes em vez de um caminho ótimo óbvio. Ela aceita `--seed=<valor>` e
-`--json`.
+**Sem banco, em milissegundos.** A engine é pura, então dá para jogar a partida
+inteira offline e conferir se o balanceamento produz perfis diferentes em vez de
+um caminho ótimo óbvio:
+
+```bash
+npm run simulate                     # 6 equipes, 5 estratégias, 5 rodadas
+npm run simulate -- --seed=aula-2b   # reproduz a mesma partida
+npm run simulate -- --json
+```
+
+**Com banco, pela API.** Joga uma partida inteira contra o seu Supabase: cria,
+entra com a turma, abre e resolve as cinco rodadas, encerra e confere o
+resultado. Verifica também o que não se vê na tela: equipes equilibradas,
+decisão imutável, token de professor inválido recusado, eventos chegando por
+realtime e projeção pública sem nenhum segredo dentro.
+
+```bash
+npm run dev                          # em outro terminal
+npm run smoke                        # 12 alunos, localhost
+npm run smoke -- --players=30        # o cenário real da aula
+npm run smoke -- --base=https://seu-projeto.vercel.app --players=30
+```
+
+**No navegador de verdade.** Playwright abre o painel do professor, a projeção e
+12 celulares de aluno ao mesmo tempo e joga uma rodada clicando na interface.
+É o teste que prova que o realtime chega ao navegador (as opções aparecem
+sozinhas, sem ninguém recarregar), que a confirmação em dois toques trava a
+decisão e que nenhuma tela lança erro de JavaScript. Grava capturas em
+`screenshots/`.
+
+```bash
+npm run browser-check                # headless
+npm run browser-check -- --headed    # para assistir acontecendo
+```
+
+**Antes da aula, na prática:** rode `npm run smoke -- --base=<sua-url>
+--players=30` apontando para o site publicado. Se passar, o ambiente está
+pronto, e o projeto do Supabase sai da hibernação no mesmo movimento.
 
 ---
 

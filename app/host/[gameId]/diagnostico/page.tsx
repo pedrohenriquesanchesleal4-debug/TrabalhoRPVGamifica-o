@@ -70,7 +70,7 @@ export default function DiagnosticoPage() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-mata-700">{error}</p>
+        <p className="text-lg text-tinta-700">{error}</p>
       </main>
     );
   }
@@ -78,7 +78,7 @@ export default function DiagnosticoPage() {
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="text-xl text-mata-600">Carregando diagnóstico...</p>
+        <p className="dado-lg text-tinta-700">Carregando diagnóstico...</p>
       </main>
     );
   }
@@ -97,15 +97,15 @@ export default function DiagnosticoPage() {
       />
 
       {!hasDecisions ? (
-        <div className="carta flex items-center gap-3 p-6">
-          <AlertTriangle className="shrink-0 text-mata-500" size={22} aria-hidden />
-          <p className="text-mata-700">
+        <div className="bloco flex items-center gap-3 p-6">
+          <AlertTriangle className="shrink-0 text-tinta-500" size={22} aria-hidden />
+          <p className="text-tinta-700">
             Ainda não há decisões suficientes registradas. O diagnóstico ganha corpo à medida que
             as equipes jogam as rodadas.
           </p>
         </div>
       ) : (
-        <section className="carta p-6">
+        <section className="bloco p-6">
           <DiagnosticBars entries={view.diagnostics} />
         </section>
       )}
@@ -113,13 +113,10 @@ export default function DiagnosticoPage() {
       {view.teachingHooks.length > 0 ? (
         <section className="flex flex-col gap-4">
           <SectionHeading overline="Ganchos para o debate" title="Perguntas prontas para a turma" />
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-4">
             {view.teachingHooks.map((hook, index) => (
-              <li
-                key={index}
-                className="carta flex items-start gap-3 border-l-4 border-l-terra-500 p-5 text-lg text-mata-800"
-              >
-                <Lightbulb className="mt-1 shrink-0 text-terra-500" size={20} aria-hidden />
+              <li key={index} className="flex items-start gap-3 text-lg text-tinta-700">
+                <Lightbulb className="mt-1 shrink-0 text-manchete" size={20} aria-hidden />
                 <span>{hook}</span>
               </li>
             ))}
@@ -132,20 +129,20 @@ export default function DiagnosticoPage() {
           overline="Por equipe"
           title="Histórico de decisões, rodada a rodada"
         />
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-2">
           {view.teams.map((team) => {
             const property = PROPERTY_BY_KEY[team.propertyKey];
             return (
-              <div key={team.id} className="carta flex flex-col gap-3 p-5">
+              <div key={team.id} className="filete-fino flex flex-col gap-3 py-5">
                 <header className="flex flex-col gap-0.5">
                   <span className="rotulo">{property?.region ?? 'Propriedade'}</span>
-                  <h3 className="text-xl text-mata-900">{team.name}</h3>
+                  <h3 className="manchete-sm text-tinta-900">{team.name}</h3>
                 </header>
 
                 {team.history.length === 0 ? (
-                  <p className="text-sm text-mata-500">Nenhuma decisão registrada ainda.</p>
+                  <p className="text-sm text-tinta-500">Nenhuma decisão registrada ainda.</p>
                 ) : (
-                  <ol className="flex flex-col gap-2">
+                  <ol className="flex flex-col">
                     {team.history.map((entry) => {
                       const phase = ROUND_META[
                         (Object.keys(ROUND_META) as (keyof typeof ROUND_META)[]).find(
@@ -155,12 +152,12 @@ export default function DiagnosticoPage() {
                       return (
                         <li
                           key={`${team.id}-${entry.roundIndex}`}
-                          className="flex items-baseline justify-between gap-3 border-t border-areia-200 pt-2 first:border-t-0 first:pt-0"
+                          className="flex items-baseline justify-between gap-3 py-1.5"
                         >
-                          <span className="text-sm text-mata-600">
+                          <span className="text-sm text-tinta-500">
                             Rodada {entry.roundIndex} · {phase.title}
                           </span>
-                          <span className="text-right text-sm font-medium text-mata-900">
+                          <span className="text-right text-sm font-medium text-tinta-900">
                             {entry.optionLabel}
                           </span>
                         </li>
@@ -175,9 +172,7 @@ export default function DiagnosticoPage() {
       </section>
 
       {showPolicyDisclaimer ? (
-        <p className="border-t border-areia-200 pt-4 text-xs text-mata-500">
-          {POLICY_DISCLAIMER}
-        </p>
+        <p className="filete-fino pt-4 text-xs text-tinta-500">{POLICY_DISCLAIMER}</p>
       ) : null}
     </main>
   );

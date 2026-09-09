@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Sprout, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Loader2, TriangleAlert } from 'lucide-react';
 import { joinGame, RequestError } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
-import { Button, Field } from '@/components/ui/primitives';
+import { Button, Chapeu, Field } from '@/components/ui/primitives';
 
 /**
  * Entrada do aluno.
@@ -67,14 +67,11 @@ export default function EntrarPage() {
 
   if (!showForm && existing) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-terra-600">
-            <Sprout size={20} aria-hidden="true" />
-            <span className="rotulo">SAFRA DF</span>
-          </div>
-          <h1 className="text-2xl text-mata-900">Continuar como {existing.playerName}</h1>
-          <p className="text-sm text-mata-600">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
+        <div className="filete-grosso flex flex-col gap-2 pt-3">
+          <Chapeu>Safra DF</Chapeu>
+          <h1 className="manchete-md text-tinta-900">Continuar como {existing.playerName}</h1>
+          <p className="text-sm text-tinta-500">
             Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
           </p>
         </div>
@@ -105,19 +102,16 @@ export default function EntrarPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-5 py-10">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-terra-600">
-          <Sprout size={20} aria-hidden="true" />
-          <span className="rotulo">SAFRA DF</span>
-        </div>
-        <h1 className="text-2xl text-mata-900">Entrar na partida</h1>
-        <p className="text-sm text-mata-600">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
+      <div className="filete-grosso flex flex-col gap-2 pt-3">
+        <Chapeu>Safra DF</Chapeu>
+        <h1 className="manchete-md text-tinta-900">Entrar na partida</h1>
+        <p className="text-sm text-tinta-500">
           Peça o código de 4 a 8 letras que o professor está projetando na tela.
         </p>
       </div>
 
-      <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
+      <form className="flex flex-col gap-6" onSubmit={handleSubmit} noValidate>
         <Field
           label="Código da partida"
           name="codigo"
@@ -130,7 +124,7 @@ export default function EntrarPage() {
           spellCheck={false}
           maxLength={8}
           placeholder="EX: SAFRA1"
-          className="tracking-[0.2em] text-center text-2xl font-semibold uppercase"
+          codigo
           hint="Só letras e números, sem espaço."
           disabled={submitting}
         />
@@ -147,7 +141,7 @@ export default function EntrarPage() {
         />
 
         {error ? (
-          <p role="alert" className="flex items-start gap-2 text-sm text-alerta">
+          <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-alerta">
             <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
             {error}
           </p>

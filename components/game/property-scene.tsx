@@ -2,48 +2,59 @@ import { useId } from 'react';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 
 /**
- * SAFRA DF · retrato SVG da propriedade rural.
+ * SAFRA DF · corte lateral do solo da propriedade.
  *
- * Composição em camadas fixas (céu, terra, estrada, reservatório, casa,
- * galpão, plantação, equipamentos, vegetação nativa) desenhadas por poucas
- * formas repetidas via `<symbol>` + `<use>`. Cada camada lê um dos três
- * indicadores da equipe; a identidade de cada propriedade vem de um elemento
- * fixo ligado ao seu foco produtivo (túnel de morango, trator, galinheiro,
- * curral, canteiro ou nascente), sempre presente, independente dos números.
+ * Linguagem de prancha técnica de agronomia, não fazendinha ilustrada: corte
+ * vertical do terreno visto de lado, com a parte aérea como matéria principal
+ * e o perfil de solo como base.
+ *
+ * De baixo para cima: lençol freático (lâmina fina), subsolo, solo
+ * superficial, linha do solo, e acima dela a lavoura (fileira de plantas cuja
+ * quantidade cresce com a PRODUÇÃO, cada uma com raiz simples). Casa e galpão
+ * assentam exatamente na linha do solo, com tique de fundação. Tecnologia
+ * soma-se numa régua vertical de patamares fixos, cada um com sua faixa
+ * própria (nunca cruza outro rótulo). A identidade de cada propriedade é um
+ * selo de linha fina fixo no canto superior direito.
  *
  * `viewBox` fixo com `preserveAspectRatio="xMidYMid slice"`: o mesmo desenho
  * serve para a miniatura da projeção, a faixa `compact` do celular e o bloco
- * cheio da tela do aluno, apenas cortando as bordas conforme o recipiente.
+ * cheio da tela do aluno, cortando só as bordas conforme o recipiente.
  */
 
 const VIEW_W = 400;
 const VIEW_H = 220;
 
-/**
- * Faixa realmente enquadrada.
- *
- * O desenho usa a altura toda de 220 para posicionar (horizonte em 132, casas e
- * árvores subindo a partir de 148), mas todo o conteúdo vive entre 120 e 215:
- * enquadrar de 0 a 220 deixaria mais da metade do quadro em céu vazio. O recorte
- * começa um pouco acima do telhado mais alto e vai até o rodapé da terra.
- */
+/** Faixa realmente enquadrada no bloco cheio: sem corte, mostra 106-220 inteiro. */
 const VIEW_Y = 106;
 const VIEW_VISIBLE_H = VIEW_H - VIEW_Y;
 
-/** Linha do horizonte: acima é céu de areia, abaixo é terra batida. */
-const HORIZON_Y = 132;
+/**
+ * Zona segura: sobrevive ao corte mais apertado da faixa `compact` (que
+ * mostra só o miolo de 82 dos 114 visíveis, cortando ~16px de cada borda).
+ * Selo de identidade fica sempre dentro de 122-204.
+ */
+const SAFE_TOP = 122;
+const SAFE_BOTTOM = 204;
 
-/** Azul-esverdeado dessaturado do reservatório: não é um token de indicador, é ilustração. */
-const COR_AGUA = '#4f7a7a';
-const COR_AGUA_BAIXA = '#7a8a72';
+/**
+ * Linha do solo: a matéria da cena é o que cresce acima dela. Aérea ocupa a
+ * maior parte da faixa visível (~58%), o perfil de solo é a base (~42%),
+ * dividido em solo superficial fixo e subsolo/lençol variáveis.
+ */
+const SOIL_Y = 172;
+const TOPSOIL_H = 14;
+const UNDER_SHARED_H = VIEW_H - SOIL_Y - TOPSOIL_H;
+
+const HOUSE_X = 55;
+const SHED_X = 345;
+const FIELD_X0 = 105;
+const FIELD_X1 = 300;
+const SPINE_X = 322;
+const BADGE_X = 378;
+const BADGE_Y = 140;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-/** Deslocamento pseudo-orgânico determinístico: nunca `Math.random`, a cena precisa renderizar igual sempre. */
-function jitter(seed: number, amplitude: number): number {
-  return (Math.sin(seed * 12.9898) * 43758.5453 % 1) * amplitude;
 }
 
 type PropertyKey =
@@ -54,213 +65,114 @@ type PropertyKey =
   | 'nova-safra'
   | 'planalto-familiar';
 
-type CropSymbol = 'crop-touceira' | 'crop-tunel' | 'crop-lamina';
-
-interface Ponto {
-  x: number;
-  y: number;
-}
-
-interface Layout {
-  /** Casa: base do telhado no chão, apex acima. */
-  house: Ponto;
-  houseScale: number;
-  /** Assentamento recente: estrutura ainda incompleta, sem janela, madeira à vista. */
-  houseFinished: boolean;
-  shed: Ponto;
-  shedScale: number;
-  /** Faixa de plantação: linha de base e limites horizontais. */
-  field: { x0: number; x1: number; y: number };
-  cropSymbol: CropSymbol;
-  cropColsMax: number;
-  cropRowsMax: number;
-  reservoir: Ponto;
-  reservoirScale: number;
-  /** Ponto de entrada da estrada na borda do cenário. */
-  roadFrom: Ponto;
-  /** Até 5 posições de árvore nativa, reveladas em ordem conforme a sustentabilidade sobe. */
-  treeSpots: Ponto[];
-  /** Até 6 posições de solo exposto/coberto. */
-  soilSpots: Ponto[];
-}
-
-const LAYOUTS: Record<PropertyKey, Layout> = {
-  'sitio-horizonte': {
-    house: { x: 72, y: 152 },
-    houseScale: 1,
-    houseFinished: true,
-    shed: { x: 332, y: 160 },
-    shedScale: 0.82,
-    field: { x0: 140, x1: 258, y: 196 },
-    cropSymbol: 'crop-touceira',
-    cropColsMax: 6,
-    cropRowsMax: 2,
-    reservoir: { x: 42, y: 188 },
-    reservoirScale: 0.75,
-    roadFrom: { x: 400, y: 210 },
-    treeSpots: [
-      { x: 24, y: 150 },
-      { x: 372, y: 148 },
-      { x: 300, y: 200 },
-    ],
-    soilSpots: [
-      { x: 132, y: 204 },
-      { x: 266, y: 202 },
-      { x: 198, y: 208 },
-      { x: 150, y: 210 },
-    ],
-  },
-  'cerrado-vivo': {
-    house: { x: 104, y: 154 },
-    houseScale: 1,
-    houseFinished: true,
-    shed: { x: 300, y: 162 },
-    shedScale: 0.88,
-    field: { x0: 150, x1: 246, y: 198 },
-    cropSymbol: 'crop-touceira',
-    cropColsMax: 5,
-    cropRowsMax: 2,
-    reservoir: { x: 344, y: 192 },
-    reservoirScale: 1,
-    roadFrom: { x: 0, y: 214 },
-    treeSpots: [
-      { x: 30, y: 146 },
-      { x: 60, y: 168 },
-      { x: 210, y: 150 },
-      { x: 372, y: 150 },
-      { x: 260, y: 176 },
-    ],
-    soilSpots: [
-      { x: 170, y: 206 },
-      { x: 214, y: 208 },
-    ],
-  },
-  'boa-esperanca': {
-    house: { x: 92, y: 150 },
-    houseScale: 1,
-    houseFinished: true,
-    shed: { x: 322, y: 158 },
-    shedScale: 0.82,
-    field: { x0: 142, x1: 268, y: 190 },
-    cropSymbol: 'crop-tunel',
-    cropColsMax: 8,
-    cropRowsMax: 1,
-    reservoir: { x: 40, y: 184 },
-    reservoirScale: 0.8,
-    roadFrom: { x: 400, y: 206 },
-    treeSpots: [
-      { x: 20, y: 148 },
-      { x: 378, y: 146 },
-      { x: 306, y: 196 },
-    ],
-    soilSpots: [
-      { x: 138, y: 202 },
-      { x: 272, y: 200 },
-      { x: 205, y: 204 },
-      { x: 220, y: 168 },
-    ],
-  },
-  'riacho-verde': {
-    house: { x: 52, y: 150 },
-    houseScale: 0.85,
-    houseFinished: true,
-    shed: { x: 336, y: 154 },
-    shedScale: 1.15,
-    field: { x0: 108, x1: 300, y: 200 },
-    cropSymbol: 'crop-lamina',
-    cropColsMax: 9,
-    cropRowsMax: 3,
-    reservoir: { x: 344, y: 200 },
-    reservoirScale: 0.9,
-    roadFrom: { x: 0, y: 216 },
-    treeSpots: [
-      { x: 16, y: 146 },
-      { x: 386, y: 144 },
-    ],
-    soilSpots: [
-      { x: 120, y: 210 },
-      { x: 160, y: 212 },
-      { x: 210, y: 210 },
-      { x: 260, y: 212 },
-      { x: 292, y: 210 },
-    ],
-  },
-  'nova-safra': {
-    house: { x: 80, y: 158 },
-    houseScale: 0.82,
-    houseFinished: false,
-    shed: { x: 298, y: 168 },
-    shedScale: 0.66,
-    field: { x0: 150, x1: 226, y: 194 },
-    cropSymbol: 'crop-touceira',
-    cropColsMax: 4,
-    cropRowsMax: 1,
-    reservoir: { x: 38, y: 194 },
-    reservoirScale: 0.62,
-    roadFrom: { x: 400, y: 212 },
-    treeSpots: [
-      { x: 24, y: 152 },
-      { x: 376, y: 150 },
-    ],
-    soilSpots: [
-      { x: 148, y: 202 },
-      { x: 168, y: 208 },
-      { x: 200, y: 204 },
-      { x: 224, y: 210 },
-      { x: 240, y: 200 },
-      { x: 130, y: 210 },
-    ],
-  },
-  'planalto-familiar': {
-    house: { x: 74, y: 150 },
-    houseScale: 1,
-    houseFinished: true,
-    shed: { x: 246, y: 158 },
-    shedScale: 0.9,
-    field: { x0: 296, x1: 358, y: 190 },
-    cropSymbol: 'crop-touceira',
-    cropColsMax: 3,
-    cropRowsMax: 1,
-    reservoir: { x: 370, y: 190 },
-    reservoirScale: 0.7,
-    roadFrom: { x: 0, y: 210 },
-    treeSpots: [
-      { x: 20, y: 148 },
-      { x: 380, y: 152 },
-      { x: 200, y: 146 },
-    ],
-    soilSpots: [
-      { x: 130, y: 208 },
-      { x: 160, y: 206 },
-      { x: 108, y: 212 },
-    ],
-  },
+/** Selo de identidade: glifo de linha fina + etiqueta curta, fixo por propriedade. */
+const IDENTITY: Record<PropertyKey, { label: string; houseFinished: boolean }> = {
+  'sitio-horizonte': { label: 'hortaliças', houseFinished: true },
+  'cerrado-vivo': { label: 'nascente', houseFinished: true },
+  'boa-esperanca': { label: 'morango', houseFinished: true },
+  'riacho-verde': { label: 'grãos', houseFinished: true },
+  'nova-safra': { label: 'avicultura', houseFinished: false },
+  'planalto-familiar': { label: 'laticínios', houseFinished: true },
 };
+
+/** Patamares de tecnologia, do mais básico ao mais avançado: régua de faixas fixas, nunca se sobrepõem. */
+const TECH_TIERS = [
+  { key: 'rega', min: 20, dy: -26 },
+  { key: 'solar', min: 40, dy: -38 },
+  { key: 'sensor', min: 65, dy: -50 },
+  { key: 'estufa', min: 90, dy: -62 },
+] as const;
 
 /** Descrição textual por faixa: alimenta o `aria-label`, único canal para leitor de tela. */
 function descreverProducao(v: number): string {
-  if (v < 34) return 'plantação inicial, com poucas fileiras';
-  if (v < 67) return 'plantação em desenvolvimento';
-  return 'plantação desenvolvida e densa';
+  if (v < 34) return 'poucos pés na lavoura, raiz rasa';
+  if (v < 67) return 'lavoura em desenvolvimento, raiz mais profunda';
+  return 'lavoura densa, raiz profunda e ramificada';
 }
 
 function descreverTecnologia(v: number): string {
   if (v < 20) return 'sem equipamento visível';
   if (v < 40) return 'com irrigação instalada';
   if (v < 65) return 'com irrigação e painel solar';
-  if (v < 90) return 'com irrigação, painel solar e antena de sinal';
-  return 'com estrutura completa: irrigação, painel solar, antena e estufa';
+  if (v < 90) return 'com irrigação, painel solar e sensor de campo';
+  return 'com estrutura completa: irrigação, painel solar, sensor e estufa';
 }
 
 function descreverSustentabilidade(v: number): string {
-  if (v < 35) return 'pouca vegetação nativa, solo exposto e reservatório baixo';
-  if (v < 67) return 'vegetação nativa moderada e reservatório em nível médio';
-  return 'vegetação nativa preservada, solo coberto e reservatório cheio';
+  if (v < 35) return 'lençol freático baixo e copa rala';
+  if (v < 67) return 'lençol freático em nível médio e copa moderada';
+  return 'lençol freático alto e copa densa';
 }
 
 function construirAriaLabel(propertyKey: string, production: number, technology: number, sustainability: number): string {
   const nome = PROPERTY_BY_KEY[propertyKey]?.name ?? 'Propriedade';
   return `${nome}: ${descreverProducao(production)}, ${descreverTecnologia(technology)}, ${descreverSustentabilidade(sustainability)}.`;
+}
+
+/** Selo de identidade: um traço distintivo por propriedade, simples o bastante para ler pequeno. */
+function BadgeGlyph({ propertyKey }: { propertyKey: PropertyKey }) {
+  const strokeProps = { fill: 'none', stroke: 'var(--color-tinta-900)', strokeWidth: 1.3, strokeLinecap: 'round' as const };
+
+  switch (propertyKey) {
+    case 'sitio-horizonte':
+      // Folhas de hortaliça: três lóbulos saindo de um talo curto.
+      return (
+        <g {...strokeProps}>
+          <path d="M11 20 L11 12" />
+          <path d="M11 14 C6 13 4 9 5 4 C9 5 11 8 11 14 Z" />
+          <path d="M11 14 C16 13 18 9 17 4 C13 5 11 8 11 14 Z" />
+        </g>
+      );
+    case 'cerrado-vivo':
+      // Nascente: gota com onda na base.
+      return (
+        <g {...strokeProps}>
+          <path d="M11 3 C15 9 16 12 16 14 C16 17.3 13.6 20 11 20 C8.4 20 6 17.3 6 14 C6 12 7 9 11 3 Z" />
+          <path d="M4 20.5 Q11 23 18 20.5" />
+        </g>
+      );
+    case 'boa-esperanca':
+      // Túnel baixo sobre a fileira de morango.
+      return (
+        <g {...strokeProps}>
+          <path d="M2 20 Q11 4 20 20" />
+          <line x1="2" y1="20" x2="20" y2="20" />
+          <circle cx="11" cy="16" r="2" fill="var(--color-tinta-900)" stroke="none" />
+        </g>
+      );
+    case 'riacho-verde':
+      // Espiga de grão.
+      return (
+        <g {...strokeProps}>
+          <line x1="11" y1="21" x2="11" y2="3" />
+          {[6, 9.5, 13, 16.5].map((y) => (
+            <g key={y}>
+              <line x1="11" y1={y} x2="6" y2={y - 2.4} />
+              <line x1="11" y1={y} x2="16" y2={y - 2.4} />
+            </g>
+          ))}
+        </g>
+      );
+    case 'nova-safra':
+      // Ovo em ninho: assentamento recente, avicultura como início de renda.
+      return (
+        <g {...strokeProps}>
+          <ellipse cx="11" cy="11" rx="6" ry="7.4" />
+          <path d="M2 19 Q11 15 20 19" />
+        </g>
+      );
+    case 'planalto-familiar':
+      // Cunha de queijo.
+      return (
+        <g {...strokeProps}>
+          <path d="M3 18 L11 5 L19 18 Z" />
+          <circle cx="12" cy="14.5" r="1" fill="var(--color-tinta-900)" stroke="none" />
+          <circle cx="9" cy="16.5" r="0.8" fill="var(--color-tinta-900)" stroke="none" />
+        </g>
+      );
+    default:
+      return null;
+  }
 }
 
 export function PropertyScene({
@@ -283,45 +195,43 @@ export function PropertyScene({
   const t = clamp(technology, 0, 100);
   const s = clamp(sustainability, 0, 100);
 
-  const layout = LAYOUTS[propertyKey as PropertyKey] ?? LAYOUTS['sitio-horizonte'];
+  const key = (propertyKey in IDENTITY ? propertyKey : 'sitio-horizonte') as PropertyKey;
+  const identity = IDENTITY[key];
   const ariaLabel = construirAriaLabel(propertyKey, p, t, s);
 
-  // Plantação: mais colunas, mais fileiras e escala maior conforme a produção sobe.
-  const cropCols = clamp(2 + Math.floor(p / 16), 2, compact ? Math.min(4, layout.cropColsMax) : layout.cropColsMax);
-  const cropRows = layout.cropRowsMax === 1
-    ? 1
-    : clamp(1 + Math.floor(p / 40), 1, compact ? 1 : layout.cropRowsMax);
-  const cropScale = 0.68 + (p / 100) * 0.62;
-  const cropOpacity = 0.55 + (p / 100) * 0.45;
-  const cropCor = p < 34 ? 'var(--color-mata-400)' : p < 67 ? 'var(--color-mata-500)' : 'var(--color-mata-600)';
+  // Lençol freático: lâmina fina que sobe com a sustentabilidade, empurrando o subsolo, nunca dominando a cena.
+  const waterH = 6 + (s / 100) * 22;
+  const subsoloH = UNDER_SHARED_H - waterH;
+  const waterY = VIEW_H - waterH;
+  const subsoloY = SOIL_Y + TOPSOIL_H;
 
-  // Vegetação nativa: quanto mais sustentável, mais árvores de cerrado reveladas.
-  const treeCount = clamp(Math.round((s / 100) * layout.treeSpots.length), 0, layout.treeSpots.length);
-  const treesVisiveis = layout.treeSpots.slice(0, treeCount);
+  // Copa: densidade e opacidade das folhas sobem com a sustentabilidade.
+  const copaOpacidade = 0.32 + (s / 100) * 0.68;
 
-  // Solo: exposto quando a sustentabilidade é baixa, coberto quando é alta, neutro na faixa do meio.
-  const soloExposto = s < 35;
-  const soloCoberto = s >= 65;
-  const soilCount = soloExposto
-    ? clamp(6 - Math.round(s / 8), 2, layout.soilSpots.length)
-    : soloCoberto
-      ? clamp(Math.round(((s - 65) / 35) * layout.soilSpots.length), 2, layout.soilSpots.length)
-      : 0;
-  const soloVisivel = layout.soilSpots.slice(0, soilCount);
+  // Lavoura: número de pés cresce com a produção, distribuídos em fileira. Uma planta não é lavoura.
+  const cropCount = compact
+    ? clamp(2 + Math.floor(p / 25), 2, 5)
+    : clamp(3 + Math.floor(p / 12), 3, 11);
+  const cropXs = Array.from({ length: cropCount }, (_, i) => FIELD_X0 + ((i + 0.5) * (FIELD_X1 - FIELD_X0)) / cropCount);
 
-  // Reservatório: nível de água sobe com a sustentabilidade; ondulação só aparece com água suficiente.
-  const basinW = 46 * layout.reservoirScale;
-  const basinH = 20 * layout.reservoirScale;
-  const waterLevel = 0.28 + (s / 100) * 0.62;
-  const waterH = basinH * waterLevel;
-  const mostraOnda = s >= 30;
+  // Planta padrão (aérea + raiz simples), compartilhada por toda a fileira via <use>: mesma altura e raiz para todos os pés.
+  const plantId = `${uid}-planta`;
+  const stemStrokeW = 1.1 + (p / 100) * 1.2;
+  const stemApexLocal = -(8 + (p / 100) * (compact ? 30 : 44));
+  const rootDepthLocal = 10 + (p / 100) * (compact ? 22 : 32);
+  const FOLHAS_LOCAL = [
+    { y: stemApexLocal * 0.35, lado: -1 as const },
+    { y: stemApexLocal * 0.6, lado: 1 as const },
+    { y: stemApexLocal * 0.85, lado: -1 as const },
+  ];
 
-  // Equipamentos de tecnologia: cada patamar acrescenta um item, nunca remove o anterior.
-  const temIrrigacao = t >= 20;
-  const temSolar = t >= 40;
-  const temSensor = t >= 65;
-  const temAntena = t >= 78;
-  const temEstufa = t >= 92;
+  // Escala dos elementos que sobram na faixa compacta: menos coisa, cada uma maior, para não parecer diagrama truncado.
+  const houseScale = compact ? 1.3 : 1;
+  const shedScale = compact ? 1.3 : 1;
+  const badgeScale = compact ? 1.15 : 1;
+
+  // Equipamentos: cada patamar soma um item, nunca remove o anterior.
+  const activeTechCount = TECH_TIERS.filter((tier) => t >= tier.min).length;
 
   return (
     <svg
@@ -330,267 +240,166 @@ export function PropertyScene({
       focusable="false"
       viewBox={`0 ${VIEW_Y} ${VIEW_W} ${VIEW_VISIBLE_H}`}
       preserveAspectRatio="xMidYMid slice"
-      /*
-       * O bloco cheio usa a proporção exata do recorte, então nada é cortado.
-       * A faixa compacta é mais larga de propósito: o `slice` come um pouco de
-       * céu e de rodapé, e a casa, a plantação e o reservatório, que ficam no
-       * centro do quadro, continuam inteiros.
-       */
       className={`block w-full ${compact ? 'aspect-[400/82]' : 'aspect-[400/114]'} ${className ?? ''}`}
     >
-      {/* Duas animações no total: respiração das copas e ondulação da água. Desligadas com movimento reduzido. */}
-      <style>{`
-        .sfr-copa { animation: sfr-respira 5s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
-        .sfr-onda { animation: sfr-ondula 3.2s ease-in-out infinite alternate; }
-        @keyframes sfr-respira { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
-        @keyframes sfr-ondula { from { opacity: 0.35; transform: translateX(-2px); } to { opacity: 0.75; transform: translateX(2px); } }
-        @media (prefers-reduced-motion: reduce) {
-          .sfr-copa, .sfr-onda { animation: none; }
-        }
-      `}</style>
-
       <defs>
-        {/* Árvore de cerrado: tronco curto e copa irregular, reaproveitada por toda a cena. */}
-        <symbol id={`${uid}-arvore`} viewBox="0 0 20 24">
-          <path d="M10 24 L10 13" stroke="var(--color-mata-700)" strokeWidth="2" strokeLinecap="round" />
-          <ellipse cx="10" cy="9" rx="9" ry="8" fill="var(--color-mata-500)" />
-        </symbol>
-
-        {/* Touceira: cultura em canteiro, morango denso ou horta agroecológica. */}
-        <symbol id={`${uid}-crop-touceira`} viewBox="0 0 12 12">
-          <ellipse cx="6" cy="7" rx="6" ry="5" />
-        </symbol>
-
-        {/* Túnel baixo: arco de plástico sobre a fileira de morango. */}
-        <symbol id={`${uid}-crop-tunel`} viewBox="0 0 16 10">
-          <path d="M0 10 Q8 -2 16 10" fill="none" strokeWidth="2.4" />
-        </symbol>
-
-        {/* Lâmina de grão: talo alto e fino, área maior de lavoura. */}
-        <symbol id={`${uid}-crop-lamina`} viewBox="0 0 8 20">
-          <path d="M4 20 L2 4 M4 20 L6 5 M4 20 L4 2" fill="none" strokeWidth="1.4" strokeLinecap="round" />
-        </symbol>
-
-        {/* Solo exposto: mancha clara de terra sem cobertura. */}
-        <symbol id={`${uid}-solo-exposto`} viewBox="0 0 12 6">
-          <ellipse cx="6" cy="3" rx="6" ry="3" fill="var(--color-areia-400)" />
-        </symbol>
-
-        {/* Solo coberto: traço de cobertura vegetal rasteira. */}
-        <symbol id={`${uid}-solo-coberto`} viewBox="0 0 14 4">
-          <rect x="0" y="0" width="14" height="4" rx="2" fill="var(--color-mata-400)" />
-        </symbol>
-
-        {/* Gota de irrigação, reaproveitada ao longo da linha de gotejo. */}
-        <symbol id={`${uid}-gota`} viewBox="0 0 6 6">
-          <circle cx="3" cy="3" r="2.2" fill="var(--color-tecnologia)" />
-        </symbol>
+        {/* Planta padrão em coordenadas locais (solo em y=0): reaproveitada por toda a fileira. */}
+        <g id={plantId}>
+          <path
+            d={`M0 0 C 0 ${stemApexLocal * 0.5}, -0.6 ${stemApexLocal * 0.8}, 0 ${stemApexLocal}`}
+            fill="none"
+            stroke="var(--color-producao)"
+            strokeWidth={stemStrokeW}
+            strokeLinecap="round"
+            style={{ transition: 'd 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+          />
+          {FOLHAS_LOCAL.map(({ y, lado }, i) => (
+            <path
+              key={i}
+              d={`M0 ${y} C ${lado * 4} ${y - 0.4}, ${lado * 7} ${y - 1.6}, ${lado * 8} ${y - 3.6}`}
+              fill="none"
+              stroke="var(--color-producao)"
+              strokeWidth={stemStrokeW * 0.75}
+              strokeLinecap="round"
+              opacity={copaOpacidade}
+            />
+          ))}
+          <path
+            d={`M0 0 Q ${rootDepthLocal * 0.2} ${rootDepthLocal * 0.5} 0 ${rootDepthLocal}`}
+            fill="none"
+            stroke="var(--color-producao)"
+            strokeWidth={Math.max(stemStrokeW - 0.3, 0.7)}
+            strokeLinecap="round"
+            opacity="0.85"
+            style={{ transition: 'd 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+          />
+        </g>
       </defs>
 
-      {/* Céu de areia e terra batida: duas superfícies planas, sem gradiente. */}
-      <rect x="0" y="0" width={VIEW_W} height={HORIZON_Y} fill="var(--color-areia-100)" />
-      <rect x="0" y={HORIZON_Y} width={VIEW_W} height={VIEW_H - HORIZON_Y} fill="var(--color-areia-200)" />
-      <line x1="0" y1={HORIZON_Y} x2={VIEW_W} y2={HORIZON_Y} stroke="var(--color-areia-300)" strokeWidth="1" />
-
-      {/* Estrada: trapézio simples da borda do cenário até a casa. */}
-      <polygon
-        points={`${layout.roadFrom.x - 14},${layout.roadFrom.y} ${layout.roadFrom.x + 14},${layout.roadFrom.y} ${layout.house.x + 4},${layout.house.y + 20} ${layout.house.x - 4},${layout.house.y + 20}`}
-        fill="var(--color-areia-300)"
-        stroke="var(--color-areia-400)"
-        strokeWidth="0.5"
+      {/* Perfil do solo: base da cena, não a matéria dela. Chapado, fio de separação, sem degradê. */}
+      <rect x="0" y={SOIL_Y} width={VIEW_W} height={TOPSOIL_H} fill="var(--color-papel-400)" />
+      <rect
+        x="0"
+        y={subsoloY}
+        width={VIEW_W}
+        height={Math.max(subsoloH, 0)}
+        fill="var(--color-tinta-500)"
+        style={{ transition: 'height 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
       />
+      <rect
+        x="0"
+        y={waterY}
+        width={VIEW_W}
+        height={waterH}
+        fill="var(--color-sustentabilidade)"
+        opacity="0.82"
+        style={{ transition: 'y 500ms cubic-bezier(0.16, 1, 0.3, 1), height 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      />
+      <line x1="0" y1={subsoloY} x2={VIEW_W} y2={subsoloY} stroke="var(--color-regua)" strokeWidth="1" />
+      <line
+        x1="0"
+        y1={waterY}
+        x2={VIEW_W}
+        y2={waterY}
+        stroke="var(--color-regua)"
+        strokeWidth="1"
+        style={{ transition: 'y1 500ms cubic-bezier(0.16, 1, 0.3, 1), y2 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      />
+      {/* Linha do solo: referência fixa entre a terra e o ar. */}
+      <line x1="0" y1={SOIL_Y} x2={VIEW_W} y2={SOIL_Y} stroke="var(--color-tinta-900)" strokeWidth="1.4" />
 
-      {/* Reservatório: bacia fixa, lâmina de água variável, ondulação opcional. */}
-      <g transform={`translate(${layout.reservoir.x - basinW / 2}, ${layout.reservoir.y - basinH})`}>
-        <rect x="0" y="0" width={basinW} height={basinH} rx="3" fill="none" stroke="var(--color-mata-600)" strokeWidth="1.6" />
-        <rect
-          x="1.5"
-          y={basinH - waterH - 1.5}
-          width={basinW - 3}
-          height={Math.max(waterH - 1.5, 1)}
-          rx="2"
-          fill={s < 35 ? COR_AGUA_BAIXA : COR_AGUA}
-        />
-        {mostraOnda && (
-          <path
-            className="sfr-onda"
-            d={`M4 ${basinH - waterH + 2} Q ${basinW / 2} ${basinH - waterH - 1} ${basinW - 4} ${basinH - waterH + 2}`}
-            fill="none"
-            stroke="var(--color-areia-100)"
-            strokeWidth="1"
-            strokeLinecap="round"
-          />
-        )}
+      {/* Lavoura: fileira de pés, cada um com parte aérea e raiz, quantidade cresce com a produção. */}
+      {cropXs.map((x, i) => (
+        <use key={i} href={`#${plantId}`} x={x} y={SOIL_Y} />
+      ))}
+
+      {/* Casa: elevação de linha fina, sem preenchimento, assentada na linha do solo com tique de fundação. */}
+      <g transform={`translate(${HOUSE_X}, ${SOIL_Y}) scale(${houseScale})`} fill="none" stroke="var(--color-tinta-900)" strokeWidth="1.2">
+        <path d="M-16,-12 L0,-26 L16,-12" strokeDasharray={identity.houseFinished ? undefined : '2.5 2.5'} />
+        <path d="M-14,-12 L-14,0 L14,0 L14,-12" strokeDasharray={identity.houseFinished ? undefined : '2.5 2.5'} />
+        {identity.houseFinished && <line x1="4" y1="0" x2="4" y2="-12" strokeWidth="1" />}
+        <line x1="-18" y1="1.2" x2="-14" y2="1.2" strokeWidth="1.4" opacity="0.55" />
+        <line x1="14" y1="1.2" x2="18" y2="1.2" strokeWidth="1.4" opacity="0.55" />
       </g>
 
-      {/* Casa: telhado, parede, porta. Sem janela e parede fina quando a estrutura ainda está incompleta. */}
-      <g transform={`translate(${layout.house.x}, ${layout.house.y}) scale(${layout.houseScale})`}>
-        <polygon points="-20,-6 0,-24 20,-6" fill="var(--color-mata-700)" />
-        <rect x={-16} y={-6} width={32} height={22} fill={layout.houseFinished ? 'var(--color-areia-50)' : 'var(--color-areia-300)'} stroke="var(--color-areia-400)" strokeWidth="1" />
-        <rect x={-4} y={4} width={8} height={12} fill="var(--color-mata-800)" />
-        {layout.houseFinished && <rect x={7} y={0} width={6} height={6} fill="var(--color-areia-300)" />}
+      {/* Galpão: elevação de duas águas, mesma linguagem de linha fina, também assentado e com fundação. */}
+      <g transform={`translate(${SHED_X}, ${SOIL_Y}) scale(${shedScale})`} fill="none" stroke="var(--color-tinta-900)" strokeWidth="1.2">
+        <path d="M-20,-8 L0,-20 L20,-8" />
+        <path d="M-18,-8 L-18,0 L18,0 L18,-8" />
+        <line x1="-18" y1="-4" x2="18" y2="-4" strokeWidth="0.8" opacity="0.6" />
+        <line x1="-22" y1="1.2" x2="-18" y2="1.2" strokeWidth="1.4" opacity="0.55" />
+        <line x1="18" y1="1.2" x2="22" y2="1.2" strokeWidth="1.4" opacity="0.55" />
       </g>
 
-      {/* Galpão: telhado em duas águas e parede, escala própria por propriedade. */}
-      <g transform={`translate(${layout.shed.x}, ${layout.shed.y}) scale(${layout.shedScale})`}>
-        <polygon points="-24,-4 0,-18 24,-4" fill="var(--color-mata-800)" />
-        <rect x={-20} y={-4} width={40} height={20} fill="var(--color-mata-600)" />
-        <rect x={-4} y={6} width={8} height={10} fill="var(--color-mata-800)" />
-      </g>
-
-      {/* Plantação: repetição paramétrica do símbolo da propriedade, densidade e altura seguem a produção. */}
-      <g fill={cropCor} stroke={cropCor} opacity={cropOpacity}>
-        {Array.from({ length: cropRows }).map((_, row) =>
-          Array.from({ length: cropCols }).map((_, col) => {
-            const seed = row * 31 + col;
-            const stepX = (layout.field.x1 - layout.field.x0) / cropCols;
-            const x = layout.field.x0 + stepX * (col + 0.5) + jitter(seed, 2.4);
-            const y = layout.field.y - row * 10 + jitter(seed + 5, 1.6);
-            const size = 10 * cropScale;
-            return (
-              <use
-                key={`${row}-${col}`}
-                href={`#${uid}-${layout.cropSymbol}`}
-                x={x - size / 2}
-                y={y - size}
-                width={size}
-                height={size}
-              />
-            );
-          }),
-        )}
-      </g>
-
-      {/* Identidade fixa por propriedade: silhueta ligada ao foco produtivo, sempre presente. */}
-      {propertyKey === 'sitio-horizonte' && (
-        <g stroke="var(--color-areia-400)" strokeWidth="1" fill="none">
-          <rect x={layout.field.x0 - 8} y={layout.field.y - 22} width={layout.field.x1 - layout.field.x0 + 16} height="26" rx="2" />
-        </g>
-      )}
-
-      {propertyKey === 'boa-esperanca' && (
-        <g stroke="var(--color-mata-700)" strokeWidth="2">
-          <line x1={layout.field.x0 - 6} y1={layout.field.y} x2={layout.field.x0 - 6} y2={layout.field.y - 10} />
-          <line x1={layout.field.x1 + 6} y1={layout.field.y} x2={layout.field.x1 + 6} y2={layout.field.y - 10} />
-        </g>
-      )}
-
-      {propertyKey === 'riacho-verde' && (
-        <g transform={`translate(${(layout.field.x0 + layout.field.x1) / 2 + 30}, ${layout.field.y + 8})`}>
-          <rect x={-16} y={-10} width="26" height="10" rx="1" fill="var(--color-terra-500)" />
-          <rect x={-10} y={-18} width="12" height="9" rx="1" fill="var(--color-mata-800)" />
-          <circle cx={-11} cy={0} r="3.4" fill="var(--color-mata-900)" />
-          <circle cx={6} cy={0} r="3.4" fill="var(--color-mata-900)" />
-          <line x1={10} y1={-10} x2={16} y2={-16} stroke="var(--color-mata-700)" strokeWidth="1.6" />
-        </g>
-      )}
-
-      {propertyKey === 'cerrado-vivo' && (
-        <g fill="none" stroke={COR_AGUA} strokeWidth="1.4">
-          <path d={`M${layout.reservoir.x + 4} ${layout.reservoir.y - basinH - 10} q4 6 0 10`} />
-          <line x1={layout.reservoir.x + 4} y1={layout.reservoir.y - basinH} x2={layout.reservoir.x + 4} y2={layout.reservoir.y - basinH - 10} />
-        </g>
-      )}
-
-      {propertyKey === 'nova-safra' && (
-        <g transform={`translate(${layout.field.x1 + 34}, ${layout.field.y - 4})`}>
-          <path d="M-14 0 L-14 -14 L14 -14 L14 0" fill="none" stroke="var(--color-areia-400)" strokeWidth="1.4" />
-          <polygon points="-8,-14 0,-22 8,-14" fill="var(--color-mata-700)" />
-          <rect x={-8} y={-14} width="16" height="12" fill="var(--color-areia-200)" stroke="var(--color-areia-400)" />
-          <ellipse cx="-4" cy="4" rx="3" ry="2.2" fill="var(--color-areia-400)" />
-          <ellipse cx="6" cy="5" rx="3" ry="2.2" fill="var(--color-areia-400)" />
-        </g>
-      )}
-
-      {propertyKey === 'planalto-familiar' && (
+      {/* Tecnologia, bloco cheio: régua vertical de patamares fixos. Cada rótulo tem faixa própria, nunca cruza outro. */}
+      {!compact && (
         <g>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <line
-              key={i}
-              x1={98 + i * 14}
-              y1={198}
-              x2={98 + i * 14}
-              y2={182}
-              stroke="var(--color-mata-700)"
-              strokeWidth="2"
-            />
-          ))}
-          <line x1="98" y1="188" x2="168" y2="188" stroke="var(--color-mata-700)" strokeWidth="2" />
-          <ellipse cx="126" cy="200" rx="12" ry="7" fill="var(--color-areia-300)" stroke="var(--color-mata-800)" strokeWidth="1" />
-          <ellipse cx="152" cy="202" rx="10" ry="6" fill="var(--color-areia-300)" stroke="var(--color-mata-800)" strokeWidth="1" />
-          <rect x={230} y={166} width="14" height="16" rx="1" fill="var(--color-areia-50)" stroke="var(--color-tecnologia)" strokeWidth="1.4" />
-          <line x1="230" y1="172" x2="244" y2="172" stroke="var(--color-tecnologia)" strokeWidth="1" />
-        </g>
-      )}
-
-      {/* Vegetação nativa: número de árvores cresce com a sustentabilidade, respirando devagar. */}
-      <g className="sfr-copa">
-        {treesVisiveis.map((spot, i) => (
-          <use key={i} href={`#${uid}-arvore`} x={spot.x - 9} y={spot.y - 20} width="18" height="20" />
-        ))}
-      </g>
-
-      {/* Cobertura de solo: exposto ou coberto conforme a sustentabilidade, nunca os dois ao mesmo tempo. */}
-      <g>
-        {soloVisivel.map((spot, i) => (
-          <use
-            key={i}
-            href={soloExposto ? `#${uid}-solo-exposto` : `#${uid}-solo-coberto`}
-            x={spot.x - 7}
-            y={spot.y - 3}
-            width="14"
-            height="6"
+          <line
+            x1={SPINE_X}
+            y1={SOIL_Y - 6}
+            x2={SPINE_X}
+            y2={SOIL_Y + TECH_TIERS[TECH_TIERS.length - 1].dy}
+            stroke="var(--color-tinta-900)"
+            strokeWidth="1"
+            opacity="0.3"
           />
-        ))}
-      </g>
+          {TECH_TIERS.map((tier) => {
+            const ativo = t >= tier.min;
+            const y = SOIL_Y + tier.dy;
+            return (
+              <g key={tier.key}>
+                <line
+                  x1={SPINE_X - 5}
+                  y1={y}
+                  x2={SPINE_X + 5}
+                  y2={y}
+                  stroke="var(--color-tecnologia)"
+                  strokeWidth="1.4"
+                  opacity={ativo ? 1 : 0.18}
+                  style={{ transition: 'opacity 350ms ease-out' }}
+                />
+                {ativo && (
+                  <text x={SPINE_X + 9} y={y + 2.6} fontFamily="var(--font-mono)" fontSize="7" fill="var(--color-tinta-700)">
+                    {tier.key}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      )}
 
-      {/* Equipamentos: cada patamar de tecnologia soma um item, nada é removido ao subir. */}
-      {temIrrigacao && (
-        <g stroke="var(--color-tecnologia)" strokeWidth="1" fill="none">
-          <line x1={layout.field.x0} y1={layout.field.y + 6} x2={layout.field.x1} y2={layout.field.y + 6} />
-          {[0.15, 0.4, 0.65, 0.9].map((f, i) => (
-            <use
-              key={i}
-              href={`#${uid}-gota`}
-              x={layout.field.x0 + (layout.field.x1 - layout.field.x0) * f - 3}
-              y={layout.field.y + 3}
-              width="6"
-              height="6"
+      {/* Tecnologia, faixa compacta: sem linha de chamada nem rótulo, só um pequeno bloco de marcas ao lado do galpão. */}
+      {compact && activeTechCount > 0 && (
+        <g>
+          {TECH_TIERS.filter((tier) => t >= tier.min).map((tier, i) => (
+            <rect
+              key={tier.key}
+              x={SHED_X + 26}
+              y={SOIL_Y - 14 - i * 9}
+              width="7"
+              height="7"
+              fill="var(--color-tecnologia)"
             />
           ))}
         </g>
       )}
 
-      {temSolar && (
-        <g transform={`translate(${layout.shed.x - 10}, ${layout.shed.y - 26})`}>
-          <rect x="0" y="0" width="20" height="10" rx="1" fill="var(--color-mata-900)" stroke="var(--color-tecnologia)" strokeWidth="1" />
-          <line x1="0" y1="5" x2="20" y2="5" stroke="var(--color-tecnologia)" strokeWidth="0.6" />
-          <line x1="10" y1="0" x2="10" y2="10" stroke="var(--color-tecnologia)" strokeWidth="0.6" />
-        </g>
-      )}
-
-      {temSensor && (
-        <g stroke="var(--color-tecnologia)" strokeWidth="1.4">
-          <line x1={layout.field.x1 + 12} y1={layout.field.y + 8} x2={layout.field.x1 + 12} y2={layout.field.y - 12} />
-          <circle cx={layout.field.x1 + 12} cy={layout.field.y - 14} r="3" fill="var(--color-tecnologia)" stroke="none" />
-        </g>
-      )}
-
-      {temAntena && (
-        <g stroke="var(--color-mata-800)" strokeWidth="1.2">
-          <line x1={layout.house.x + 16} y1={layout.house.y - 24} x2={layout.house.x + 16} y2={layout.house.y - 40} />
-          <line x1={layout.house.x + 16} y1={layout.house.y - 36} x2={layout.house.x + 22} y2={layout.house.y - 40} />
-          <line x1={layout.house.x + 16} y1={layout.house.y - 32} x2={layout.house.x + 21} y2={layout.house.y - 35} />
-        </g>
-      )}
-
-      {temEstufa && (
-        <g transform={`translate(${layout.shed.x + 34}, ${layout.shed.y - 2})`}>
-          <rect x="0" y="-14" width="30" height="14" fill="var(--color-areia-100)" stroke="var(--color-mata-600)" strokeWidth="1" opacity="0.85" />
-          <line x1="0" y1="-14" x2="30" y2="0" stroke="var(--color-mata-600)" strokeWidth="0.6" />
-          <line x1="10" y1="-14" x2="30" y2="-6" stroke="var(--color-mata-600)" strokeWidth="0.6" />
-          <line x1="0" y1="-6" x2="20" y2="0" stroke="var(--color-mata-600)" strokeWidth="0.6" />
-        </g>
+      {/* Selo de identidade: glifo fixo por propriedade, sempre no mesmo lugar, sempre inteiro e livre de colisão. */}
+      <g transform={`translate(${BADGE_X - 11 * badgeScale}, ${BADGE_Y - 11 * badgeScale}) scale(${badgeScale})`}>
+        <BadgeGlyph propertyKey={key} />
+      </g>
+      {!compact && (
+        <text
+          x={BADGE_X}
+          y={Math.min(BADGE_Y + 20, SAFE_BOTTOM - 4)}
+          textAnchor="middle"
+          fontFamily="var(--font-mono)"
+          fontSize="7"
+          fill="var(--color-tinta-700)"
+        >
+          {identity.label}
+        </text>
       )}
     </svg>
   );

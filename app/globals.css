@@ -1,83 +1,105 @@
 @import 'tailwindcss';
 
 /*
-  SAFRA DF · direção visual "Terra Cerrado".
+  SAFRA DF · direção visual "Boletim de Safra".
 
-  A identidade nasce do lugar: areia batida do cerrado, verde de mata de
-  galeria, terracota de terra revirada. Nada de dark-mode genérico, nada de
-  gradiente roxo, nada de card branco flutuando em cinza claro.
+  A identidade nasce do relatório técnico que a extensão rural entrega ao
+  produtor: papel manteiga, tinta de imprensa, filete editorial, manchete em
+  serifa pesada e dado numérico em monoespaçada. É reportagem impressa, não
+  dashboard.
 
-  Duas superfícies com exigências opostas:
-  - projetor do professor: contraste alto, número grande, legível a 6 metros;
-  - celular do aluno: alvo de toque generoso, uma coluna, texto curto.
+  Três decisões estruturais que valem para todo o projeto:
+
+  1. Não existe card. Existe bloco separado por filete. Caixa com borda nos
+     quatro lados, raio uniforme e sombra suave é o que fazia as seis equipes
+     parecerem seis linhas de planilha. Aqui a hierarquia vem de escala
+     tipográfica e de régua horizontal, como numa primeira página.
+
+  2. Escala tipográfica com salto real. Manchete chega a 140px na projeção e
+     rótulo fica em 11px. Nada de tudo entre 16 e 24px.
+
+  3. Cada indicador tem forma própria, desenhada em SVG, além de cor própria.
+     Ler o indicador nunca depende de distinguir dois verdes parecidos.
+
+  Fundo claro em ambas as superfícies: projetor de sala com luz acesa não
+  produz preto real, então o contraste não pode depender do nível de preto do
+  aparelho.
 
   Tudo é SVG e CSS. Nenhuma imagem, nenhum vídeo, nenhum WebGL.
 */
 
 @theme {
-  /* Terra */
-  --color-areia-50: #faf7f2;
-  --color-areia-100: #f4efe6;
-  --color-areia-200: #e8dfd0;
-  --color-areia-300: #d6c8b2;
-  --color-areia-400: #b9a58a;
+  /* Papel: a superfície. Do quase branco da coluna ao creme da página. */
+  --color-papel-50: #fdfbf5;
+  --color-papel-100: #f7f2e6;
+  --color-papel-200: #efe7d4;
+  --color-papel-300: #e3d8be;
+  --color-papel-400: #cbbb96;
 
-  /* Mata */
-  --color-mata-900: #131c16;
-  --color-mata-800: #1f2a22;
-  --color-mata-700: #2c4636;
-  --color-mata-600: #3d5d45;
-  --color-mata-500: #4e7a4a;
-  --color-mata-400: #6f9a63;
+  /* Tinta: o texto. Preto de imprensa puxado para o marrom, nunca #000. */
+  --color-tinta-900: #201a12;
+  --color-tinta-700: #3d3325;
+  --color-tinta-500: #5c4f38;
 
-  /* Terracota: o acento. Usado com parcimônia, para o que exige decisão. */
-  --color-terra-600: #8f3f1f;
-  --color-terra-500: #b4552d;
-  --color-terra-400: #cd7247;
+  /* Régua: filete, moldura de tabela, fio de coluna. Nunca texto de corpo. */
+  --color-regua: #8a7a5c;
 
-  /* Indicadores: cada um tem cor própria e forma própria, nunca só cor. */
-  --color-financas: #8f6b1f;
-  --color-producao: #4e7a4a;
-  --color-tecnologia: #2f5e73;
-  --color-sustentabilidade: #3f7a5f;
+  /* Manchete: o único acento. Vermelho de carimbo, usado com parcimônia. */
+  --color-manchete: #a3341c;
+  --color-manchete-escura: #7d2412;
 
-  --color-alerta: #a3401b;
-  --color-sucesso: #3f7a4a;
+  /*
+    Indicadores. Quatro matizes deliberadamente afastados no círculo cromático
+    (ouro, oliva, índigo, verde-azulado) porque dois verdes vizinhos se
+    confundem em daltonismo e a seis metros de distância. A forma em SVG é a
+    diferenciação primária; a cor é reforço.
+  */
+  --color-financas: #8a5a1f;
+  --color-producao: #4c6b2c;
+  --color-tecnologia: #2f4470;
+  --color-sustentabilidade: #14685c;
 
-  --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
-  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --color-alerta: #a3341c;
+  --color-sucesso: #3d6b3f;
 
-  /* Faixas de terra: a separação horizontal que estrutura as telas. */
-  --spacing-faixa: 1px;
+  /* Fraunces em peso alto: a manchete. Nunca em corpo de texto. */
+  --font-manchete: var(--font-fraunces), 'Iowan Old Style', Georgia, serif;
+  /* Public Sans: grotesca de relatório institucional. Não é Inter. */
+  --font-sans: var(--font-public), ui-sans-serif, system-ui, sans-serif;
+  /* Space Mono: todo número, toda tabela, todo código de partida. */
+  --font-mono: var(--font-space), ui-monospace, 'Courier New', monospace;
 
-  --radius-carta: 4px;
+  /* Papel não tem canto arredondado. 2px é o limite. */
+  --radius-bloco: 2px;
   --radius-pill: 999px;
 
-  --shadow-carta: 0 1px 0 var(--color-areia-300), 0 12px 32px -24px rgba(19, 28, 22, 0.5);
-  --shadow-erguida: 0 2px 0 var(--color-areia-300), 0 24px 48px -28px rgba(19, 28, 22, 0.55);
-
-  --animate-faixa: faixa 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-manchete: manchete 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-sobe: sobe 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-caule: caule 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-selo: selo 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-brasa: brasa 2.4s ease-in-out infinite;
 }
 
-@keyframes faixa {
+/*
+  Movimento assinatura 1 · o entretítulo se ajusta.
+  A manchete entra com o espacejamento aberto e fecha para o normal, como uma
+  chapa de impressão travando no lugar.
+*/
+@keyframes manchete {
   from {
     opacity: 0;
-    transform: translateY(10px);
-    clip-path: inset(0 0 100% 0);
+    letter-spacing: 0.22em;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
-    clip-path: inset(0 0 0 0);
+    letter-spacing: -0.03em;
   }
 }
 
 @keyframes sobe {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -85,10 +107,41 @@
   }
 }
 
+/*
+  Movimento assinatura 2 · o caule cresce.
+  Um passo só, da base para cima, quando a produção sobe de faixa. Sem laço.
+*/
+@keyframes caule {
+  from {
+    transform: scaleY(0.35);
+    opacity: 0.4;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/*
+  Movimento assinatura 3 · o carimbo bate.
+  O selo de finanças fecha girando, como carimbo de cartório encostando no
+  papel.
+*/
+@keyframes selo {
+  from {
+    transform: rotate(-14deg) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
 @keyframes brasa {
   0%,
   100% {
-    opacity: 0.55;
+    opacity: 0.5;
   }
   50% {
     opacity: 1;
@@ -101,26 +154,30 @@
   }
 
   body {
-    background-color: var(--color-areia-100);
-    color: var(--color-mata-800);
+    background-color: var(--color-papel-100);
+    color: var(--color-tinta-900);
     font-family: var(--font-sans);
-    /* Textura de terra batida: dois gradientes muito sutis, custo zero. */
-    background-image:
-      radial-gradient(circle at 15% -10%, rgba(180, 85, 45, 0.06), transparent 55%),
-      radial-gradient(circle at 85% 110%, rgba(78, 122, 74, 0.07), transparent 50%);
-    background-attachment: fixed;
+    /*
+      Grão de papel: fio horizontal de baixíssimo contraste a cada 3px. Custo
+      zero, nenhuma requisição, e tira a chapa do fundo liso.
+    */
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(32, 26, 18, 0.016) 0px,
+      rgba(32, 26, 18, 0.016) 1px,
+      transparent 1px,
+      transparent 3px
+    );
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.015em;
+    font-family: var(--font-manchete);
     text-wrap: balance;
   }
 
-  /* Números alinham em coluna: indicador que dança a cada atualização cansa. */
+  /* Número que dança a cada atualização de realtime cansa quem lê de longe. */
   .tabular {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
@@ -128,9 +185,9 @@
 
   /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
   :focus-visible {
-    outline: 2px solid var(--color-terra-500);
+    outline: 2px solid var(--color-manchete);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 1px;
   }
 
   /* Quem pediu menos movimento recebe menos movimento. */
@@ -146,30 +203,167 @@
 }
 
 @layer components {
-  /* A faixa de terra: régua horizontal que separa seções sem virar borda de card. */
-  .faixa-terra {
-    height: 1px;
-    background: linear-gradient(
-      to right,
-      var(--color-areia-300) 0%,
-      var(--color-areia-400) 45%,
-      transparent 100%
-    );
+  /*
+    Escala de manchete. Quatro degraus com salto grande de propósito: o nome da
+    equipe em foco na projeção não pode ter o mesmo tamanho do rótulo da seção
+    ao lado. Cada degrau é clamp, então o projetor recebe o topo da faixa e o
+    celular recebe a base.
+  */
+  .manchete-xl {
+    font-family: var(--font-manchete);
+    font-weight: 900;
+    font-size: clamp(3.25rem, 7.2vw, 8.75rem);
+    line-height: 0.84;
+    letter-spacing: -0.035em;
+    font-variation-settings: 'SOFT' 0, 'WONK' 1;
   }
 
-  .carta {
-    background-color: var(--color-areia-50);
-    border: 1px solid var(--color-areia-200);
-    border-radius: var(--radius-carta);
-    box-shadow: var(--shadow-carta);
+  .manchete-lg {
+    font-family: var(--font-manchete);
+    font-weight: 800;
+    font-size: clamp(2.25rem, 4.4vw, 5rem);
+    line-height: 0.9;
+    letter-spacing: -0.028em;
+    font-variation-settings: 'SOFT' 0, 'WONK' 1;
   }
 
-  /* Rótulo de seção: caixa alta, pequeno, espaçado. Estrutura sem peso visual. */
-  .rotulo {
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-mata-600);
+  .manchete-md {
+    font-family: var(--font-manchete);
+    font-weight: 700;
+    font-size: clamp(1.625rem, 2.6vw, 2.75rem);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+  }
+
+  .manchete-sm {
+    font-family: var(--font-manchete);
+    font-weight: 700;
+    font-size: 1.3125rem;
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+  }
+
+  /*
+    Olho da matéria: o parágrafo de abertura, em serifa itálica. É o que dá
+    voz editorial ao texto do evento sem virar corpo de texto serifado (que
+    cansa no celular).
+  */
+  .olho {
+    font-family: var(--font-manchete);
     font-weight: 500;
+    font-style: italic;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    color: var(--color-tinta-700);
+  }
+
+  /* Chapéu: linha curta acima da manchete, em monoespaçada vermelha. */
+  .chapeu {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-manchete);
+  }
+
+  /* Rótulo de campo e de coluna. Estrutura sem peso visual. */
+  .rotulo {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-tinta-500);
+  }
+
+  /*
+    Dado. Toda cifra, todo indicador, todo código de partida, todo cronômetro.
+    Monoespaçada tabular para que a coluna não mexa quando o número muda.
+  */
+  .dado {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    letter-spacing: -0.01em;
+  }
+
+  /* Dado de projeção: legível do fundo da sala. */
+  .dado-xl {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    font-weight: 700;
+    font-size: clamp(2rem, 3.4vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .dado-lg {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    font-weight: 700;
+    font-size: clamp(1.375rem, 1.9vw, 2rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  /*
+    Filetes. A separação estrutural do projeto inteiro, no lugar de borda de
+    card. Grosso abre seção, fino separa registro, duplo fecha bloco.
+  */
+  .filete-grosso {
+    border-top: 3px solid var(--color-tinta-900);
+  }
+
+  .filete-medio {
+    border-top: 1.5px solid var(--color-tinta-700);
+  }
+
+  .filete-fino {
+    border-top: 1px solid color-mix(in srgb, var(--color-regua) 45%, transparent);
+  }
+
+  .filete-duplo {
+    border-top: 1px solid var(--color-tinta-900);
+    box-shadow: inset 0 3px 0 0 var(--color-papel-100), inset 0 4px 0 0 var(--color-tinta-900);
+  }
+
+  /* Fio de coluna: separa colunas de classificado sem virar grade de tabela. */
+  .fio-coluna {
+    border-left: 1px solid color-mix(in srgb, var(--color-regua) 35%, transparent);
+  }
+
+  /*
+    Bloco. A única superfície elevada do projeto, e ela não tem sombra nem
+    borda nos quatro lados: tem filete no topo. É o que impede o retorno do
+    grid de cards iguais.
+  */
+  .bloco {
+    background-color: var(--color-papel-50);
+    border-top: 3px solid var(--color-tinta-900);
+  }
+
+  .bloco-realce {
+    background-color: var(--color-papel-200);
+    border-top: 3px solid var(--color-manchete);
+  }
+
+  /*
+    Carimbo. Selo de canto para estado que merece destaque físico: decisão
+    registrada, equipe em foco, oportunidade tomada.
+  */
+  .carimbo {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-manchete);
+    border: 1.5px solid color-mix(in srgb, var(--color-manchete) 55%, transparent);
+    border-radius: 1px;
+    padding: 0.25rem 0.5rem;
+    transform: rotate(-1.5deg);
   }
 }

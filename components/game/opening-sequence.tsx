@@ -2,14 +2,16 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { formatMoney } from '@/components/ui/primitives';
+import type { PropertyProfile } from '@/types/game';
 
 /**
  * A abertura da partida.
  *
- * Quatro frases em sequência, uma vez só, na primeira rodada. Existe para dar
- * peso ao começo ("uma nova safra começa", "vocês têm R$ 80.000"), não para
- * exibir animação: passa em menos de quatro segundos e tem "Pular" sempre
- * visível, porque a atividade inteira cabe em vinte minutos de aula.
+ * Quatro linhas em sequência, uma vez só, na primeira rodada: hora e local,
+ * a manchete de abertura (`animate-manchete`, espacejamento fechando como uma
+ * chapa de impressão travando), o orçamento e um dado concreto da própria
+ * propriedade da equipe. Rápida: o aluno precisa estar jogando em menos de um
+ * minuto, e por isso "Pular" fica sempre visível.
  *
  * Só CSS, nenhuma biblioteca de animação.
  */
@@ -38,9 +40,12 @@ function readReducedMotion(): boolean {
 
 export function OpeningSequence({
   budget,
+  property,
   onDone,
 }: {
   budget: number;
+  /** A propriedade da equipe, lida de `data/properties.ts`, para a última linha. */
+  property: PropertyProfile | null;
   onDone: () => void;
 }) {
   const reducedMotion = useSyncExternalStore(
@@ -62,22 +67,33 @@ export function OpeningSequence({
     return () => window.clearTimeout(timer);
   }, [reducedMotion, onDone]);
 
-  const lines = [
-    { text: 'BRASÍLIA · 06:20', className: 'rotulo text-areia-300' },
-    { text: 'Uma nova safra começa.', className: 'text-3xl text-areia-100 sm:text-4xl' },
+  const propertyLine = property
+    ? `${property.name}: ${property.tagline}`
+    : 'Cada decisão muda o futuro da propriedade.';
+
+  const lines: { text: string; className: string; animate?: boolean }[] = [
     {
-      text: `Vocês têm ${formatMoney(budget)}.`,
-      className: 'tabular text-2xl text-terra-400 sm:text-3xl',
+      text: 'BRASÍLIA · 06:20',
+      className: 'font-mono text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-papel-300',
     },
     {
-      text: 'Cada decisão muda o futuro da propriedade.',
-      className: 'text-lg text-areia-200',
+      text: 'Uma nova safra começa.',
+      className: 'manchete-xl text-papel-50',
+      animate: true,
+    },
+    {
+      text: `Vocês têm ${formatMoney(budget)}.`,
+      className: 'dado-lg text-papel-100',
+    },
+    {
+      text: propertyLine,
+      className: 'max-w-sm text-base text-papel-200',
     },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-mata-900 px-7 py-10 sm:px-16"
+      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-tinta-900 px-7 py-10 sm:px-16"
       role="dialog"
       aria-modal="true"
       aria-label="Abertura da partida"
@@ -89,19 +105,22 @@ export function OpeningSequence({
           style={
             reducedMotion
               ? undefined
-              : { animation: 'var(--animate-sobe)', animationDelay: `${BEATS[index]}ms` }
+              : {
+                  animation: line.animate ? 'var(--animate-manchete)' : 'var(--animate-sobe)',
+                  animationDelay: `${BEATS[index]}ms`,
+                }
           }
         >
           {line.text}
         </p>
       ))}
 
-      <div className="faixa-terra mt-2 w-40 opacity-40" />
+      <div aria-hidden="true" className="mt-2 h-px w-40 bg-papel-400/40" />
 
       <button
         type="button"
         onClick={onDone}
-        className="mt-2 inline-flex min-h-11 items-center rounded-carta border border-areia-400/40 px-4 text-sm font-medium text-areia-200 hover:border-areia-200 hover:text-areia-50"
+        className="mt-2 inline-flex min-h-11 items-center rounded-bloco border border-papel-400/40 px-4 text-sm font-semibold text-papel-200 transition-colors duration-150 hover:border-papel-200 hover:text-papel-50"
       >
         {reducedMotion ? 'Seguir para a partida' : 'Pular'}
       </button>

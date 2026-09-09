@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CheckCircle2,
   Hourglass,
   Loader2,
   PauseCircle,
@@ -24,7 +23,7 @@ import {
   TOTAL_ROUNDS,
   phaseForRound,
 } from '@/types/game';
-import { Button, Pill, SectionHeading } from '@/components/ui/primitives';
+import { Button, Carimbo, Chapeu, Filete } from '@/components/ui/primitives';
 import { IndicatorPanel } from '@/components/game/indicator-panel';
 import { TeamRoster } from '@/components/game/team-roster';
 import { EventCard } from '@/components/game/event-card';
@@ -34,6 +33,16 @@ import { PropertyScene } from '@/components/game/property-scene';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 
 const HEARTBEAT_MS = 45_000;
+
+function classes(...values: (string | false | null | undefined)[]): string {
+  return values.filter(Boolean).join(' ');
+}
+
+/** Fase e título da rodada corrente, com o mesmo critério em toda a tela. */
+function currentRoundMeta(view: PlayerView) {
+  const phase = view.event?.phase ?? phaseForRound(view.game.currentRound);
+  return ROUND_META[phase];
+}
 
 export default function JogarPage() {
   const router = useRouter();
@@ -150,6 +159,7 @@ export default function JogarPage() {
       {showOpening && view ? (
         <OpeningSequence
           budget={view.team.state.cash}
+          property={PROPERTY_BY_KEY[view.team.propertyKey] ?? null}
           onDone={() => setShowOpening(false)}
         />
       ) : null}
@@ -167,7 +177,7 @@ export default function JogarPage() {
 
 function LoadingScreen() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-mata-600">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-tinta-500">
       <Loader2 size={28} className="animate-spin" aria-hidden="true" />
       <p className="text-sm">Carregando a partida...</p>
     </div>
@@ -178,7 +188,7 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <TriangleAlert size={28} className="text-alerta" aria-hidden="true" />
-      <p className="max-w-xs text-sm text-mata-700">{message}</p>
+      <p className="max-w-xs text-sm text-tinta-700">{message}</p>
       <Button type="button" variant="secundario" onClick={onRetry}>
         <RefreshCcw size={16} aria-hidden="true" />
         Tentar de novo
@@ -195,20 +205,13 @@ function GameBody({
   onConfirm: (optionKey: string) => Promise<void>;
 }) {
   const property = PROPERTY_BY_KEY[view.team.propertyKey];
-  const phase = view.event?.phase ?? phaseForRound(view.game.currentRound);
-  const roundMeta = ROUND_META[phase];
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Sprout size={18} className="text-terra-600" aria-hidden="true" />
-            <span className="text-sm font-medium text-mata-800">{view.team.name}</span>
-          </div>
-          <Pill tone={view.game.status === 'paused' ? 'alerta' : 'neutro'}>
-            Rodada {view.game.currentRound} de {TOTAL_ROUNDS} · {roundMeta.title}
-          </Pill>
+      <header className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-tinta-700">
+          <Sprout size={20} className="shrink-0 text-producao" aria-hidden="true" />
+          <span className="manchete-sm text-tinta-900">{view.team.name}</span>
         </div>
 
         <IndicatorPanel
@@ -218,7 +221,7 @@ function GameBody({
         />
       </header>
 
-      <div className="faixa-terra" />
+      <Filete espessura="fino" />
 
       {property ? (
         <PropertyScene
@@ -226,6 +229,7 @@ function GameBody({
           production={view.team.state.production}
           technology={view.team.state.technology}
           sustainability={view.team.state.sustainability}
+          compact
         />
       ) : null}
 
@@ -262,10 +266,18 @@ function StatusBody({
   }
 
   if (view.event && !view.decision) {
+    const roundMeta = currentRoundMeta(view);
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
-          <RoundTimer endsAt={view.game.roundEndsAt} active={view.game.roundStatus === 'active'} />
+        <div className="flex items-center justify-between gap-3">
+          <Chapeu>
+            Rodada {view.game.currentRound} de {TOTAL_ROUNDS} · {roundMeta.title}
+          </Chapeu>
+          <RoundTimer
+            endsAt={view.game.roundEndsAt}
+            active={view.game.roundStatus === 'active'}
+            size="destaque"
+          />
         </div>
         {/*
           A `key` pela carta da rodada é o que zera a seleção pendente quando o
@@ -296,42 +308,42 @@ function LobbyScreen({ view }: { view: PlayerView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="carta flex flex-col gap-2 p-5">
-        <span className="rotulo text-terra-600">Sua propriedade</span>
-        <h2 className="text-xl text-mata-900">{property?.name ?? view.team.name}</h2>
+      <div className="filete-grosso flex flex-col gap-2 pt-3">
+        <Chapeu>Sua propriedade</Chapeu>
+        <h2 className="manchete-lg text-tinta-900">{property?.name ?? view.team.name}</h2>
         {property ? (
           <>
-            <p className="text-sm text-mata-600">{property.region}</p>
-            <p className="text-sm text-mata-700">{property.tagline}</p>
-            <div className="mt-2 flex flex-col gap-1.5 text-sm text-mata-700">
-              <p>
-                <span className="font-medium text-mata-900">Força: </span>
-                {property.strength}
-              </p>
-              <p>
-                <span className="font-medium text-mata-900">Dificuldade: </span>
-                {property.weakness}
-              </p>
-            </div>
+            <p className="text-sm text-tinta-500">{property.region}</p>
+            <p className="olho">{property.tagline}</p>
+            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-tinta-700">
+              <div className="flex flex-wrap gap-1.5">
+                <dt className="font-semibold text-tinta-900">Força:</dt>
+                <dd>{property.strength}</dd>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <dt className="font-semibold text-tinta-900">Dificuldade:</dt>
+                <dd>{property.weakness}</dd>
+              </div>
+            </dl>
           </>
         ) : null}
       </div>
 
-      <div className="carta flex flex-col gap-2 p-5">
-        <span className="rotulo text-terra-600">Sua função</span>
-        <h3 className="text-lg text-mata-900">{ROLE_LABEL[view.player.role]}</h3>
-        <p className="text-sm text-mata-700">{ROLE_MISSION[view.player.role]}</p>
+      <div className="filete-fino flex flex-col gap-1.5 pt-3">
+        <span className="rotulo">Sua função</span>
+        <p className="text-base font-semibold text-tinta-900">{ROLE_LABEL[view.player.role]}</p>
+        <p className="text-sm text-tinta-500">{ROLE_MISSION[view.player.role]}</p>
       </div>
 
-      <div className="carta flex flex-col gap-3 p-5">
+      <div className="filete-fino flex flex-col gap-3 pt-3">
         <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
+          <Users size={14} className="text-tinta-500" aria-hidden="true" />
           <span className="rotulo">Equipe</span>
         </div>
         <TeamRoster members={view.teammates} />
       </div>
 
-      <div className="flex items-center justify-center gap-2 py-4 text-sm text-mata-600">
+      <div className="flex items-center justify-center gap-2 py-4 text-sm text-tinta-500">
         <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
         Aguardando o professor iniciar a partida
       </div>
@@ -341,17 +353,20 @@ function LobbyScreen({ view }: { view: PlayerView }) {
 
 function PausedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="carta flex items-center gap-3 border-terra-400 bg-terra-500/10 p-4">
-        <PauseCircle size={22} className="shrink-0 text-terra-600" aria-hidden="true" />
-        <p className="text-sm text-mata-800">
-          O professor pausou a partida. A rodada continua de onde parou assim que ele retomar.
-        </p>
+    <div className="flex flex-col gap-6">
+      <div className="bloco-realce flex items-start gap-3 p-4">
+        <PauseCircle size={22} className="mt-0.5 shrink-0 text-manchete" aria-hidden="true" />
+        <div className="flex flex-col gap-1">
+          <span className="rotulo text-manchete">Partida pausada</span>
+          <p className="text-sm font-medium text-tinta-900">
+            O professor pausou a partida. A rodada continua de onde parou assim que ele retomar.
+          </p>
+        </div>
       </div>
 
-      <div className="carta flex flex-col gap-3 p-5">
+      <div className="filete-fino flex flex-col gap-3 pt-3">
         <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
+          <Users size={14} className="text-tinta-500" aria-hidden="true" />
           <span className="rotulo">Equipe</span>
         </div>
         <TeamRoster members={view.teammates} />
@@ -362,26 +377,23 @@ function PausedScreen({ view }: { view: PlayerView }) {
 
 function LockedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-end">
-        <RoundTimer endsAt={view.game.roundEndsAt} active />
+        <RoundTimer endsAt={view.game.roundEndsAt} active size="destaque" />
       </div>
 
-      <div className="carta flex flex-col gap-2 p-5">
-        <div className="flex items-center gap-2 text-mata-700">
-          <CheckCircle2 size={18} aria-hidden="true" />
-          <span className="rotulo">Decisão registrada</span>
-        </div>
-        <p className="text-lg text-mata-900">{view.decision?.optionLabel}</p>
-        <p className="text-sm text-mata-600">
-          A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam
-          o que os colegas ainda estão fazendo.
+      <div className="filete-grosso flex flex-col gap-3 pt-3">
+        <Carimbo>Decisão registrada</Carimbo>
+        <p className="manchete-md text-tinta-900">{view.decision?.optionLabel}</p>
+        <p className="text-sm text-tinta-500">
+          A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam o
+          que os colegas ainda estão fazendo.
         </p>
       </div>
 
-      <div className="carta flex flex-col gap-3 p-5">
+      <div className="filete-fino flex flex-col gap-3 pt-3">
         <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
+          <Users size={14} className="text-tinta-500" aria-hidden="true" />
           <span className="rotulo">Equipe</span>
         </div>
         <TeamRoster members={view.teammates} />
@@ -402,47 +414,55 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
   if (!resolution) return null;
 
   return (
-    <div className="flex flex-col gap-5" aria-live="polite">
-      <SectionHeading overline="O que aconteceu" title="Consequência da decisão" />
-
-      <div className="carta flex flex-col gap-3 p-5">
-        {resolution.optionLabel ? (
-          <p className="text-sm text-mata-600">
-            A equipe escolheu <span className="font-medium text-mata-900">{resolution.optionLabel}</span>.
-          </p>
-        ) : null}
-        <p className="text-base text-mata-900">{resolution.outcome}</p>
-
-        {resolution.notes.length > 0 ? (
-          <ul className="flex flex-col gap-1.5 border-t border-areia-200 pt-3 text-sm text-mata-700">
-            {resolution.notes.map((note, index) => (
-              <li key={`${index}-${note}`}>{note}</li>
-            ))}
-          </ul>
-        ) : null}
-
-        {resolution.effects.length > 0 ? (
-          <ul className="flex flex-col gap-1.5 border-t border-areia-200 pt-3 text-sm">
-            {resolution.effects.map((effect, index) => (
-              <li
-                key={`${index}-${effect.indicator}`}
-                className={
-                  effect.delta > 0
-                    ? 'tabular text-sucesso'
-                    : effect.delta < 0
-                      ? 'tabular text-alerta'
-                      : 'tabular text-mata-600'
-                }
-              >
-                {INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}: {effect.delta > 0 ? '+' : ''}
-                {effect.delta}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+    <div className="flex flex-col gap-6" aria-live="polite">
+      {/*
+        `resolution.outcome` (vindo da engine) já nomeia a opção escolhida:
+        "A equipe escolheu: {opção}.". Não repetimos a frase aqui, apenas
+        damos a ela o peso de manchete: era a duplicação encontrada em
+        auditoria.
+      */}
+      <div className="filete-grosso flex flex-col gap-2 pt-3">
+        <Chapeu>O que aconteceu</Chapeu>
+        <p className="manchete-md text-tinta-900">{resolution.outcome}</p>
       </div>
 
-      <div className="flex items-center justify-center gap-2 py-2 text-sm text-mata-600">
+      {resolution.notes.length > 0 ? (
+        <ul className="filete-fino flex flex-col gap-1.5 pt-3 text-sm text-tinta-700">
+          {resolution.notes.map((note, index) => (
+            <li key={`${index}-${note}`}>{note}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      {resolution.effects.length > 0 ? (
+        <ul className="filete-fino flex flex-col gap-1.5 pt-3">
+          {resolution.effects.map((effect, index) => (
+            <li
+              key={`${index}-${effect.indicator}`}
+              className="flex items-center justify-between gap-3 text-sm"
+            >
+              <span className="rotulo text-tinta-500">
+                {INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}
+              </span>
+              <span
+                className={classes(
+                  'dado font-bold',
+                  effect.delta > 0
+                    ? 'text-sucesso'
+                    : effect.delta < 0
+                      ? 'text-alerta'
+                      : 'text-tinta-500',
+                )}
+              >
+                {effect.delta > 0 ? '+' : ''}
+                {effect.delta}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="flex items-center justify-center gap-2 py-2 text-sm text-tinta-500">
         <Hourglass size={16} aria-hidden="true" />
         A próxima rodada começa em instantes
       </div>
@@ -452,15 +472,15 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
 
 function WaitingRoundScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-center gap-2 py-6 text-sm text-mata-600">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-center gap-2 py-8 text-sm text-tinta-500">
         <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
         Aguardando a próxima rodada
       </div>
 
-      <div className="carta flex flex-col gap-3 p-5">
+      <div className="filete-fino flex flex-col gap-3 pt-3">
         <div className="flex items-center gap-2">
-          <Users size={16} className="text-mata-600" aria-hidden="true" />
+          <Users size={14} className="text-tinta-500" aria-hidden="true" />
           <span className="rotulo">Equipe</span>
         </div>
         <TeamRoster members={view.teammates} />
@@ -471,19 +491,19 @@ function WaitingRoundScreen({ view }: { view: PlayerView }) {
 
 function FinishedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="carta flex flex-col gap-2 p-5">
-        <div className="flex items-center gap-2 text-mata-700">
-          <CheckCircle2 size={18} aria-hidden="true" />
-          <span className="rotulo">Partida encerrada</span>
-        </div>
-        <p className="text-base text-mata-900">
-          A safra da equipe {view.team.name} terminou por aqui. O professor vai conduzir o debate
-          com a turma inteira a partir dos resultados de cada equipe.
+    <div className="flex flex-col gap-6">
+      <div className="filete-grosso flex flex-col gap-2 pt-3">
+        <Chapeu>Partida encerrada</Chapeu>
+        <p className="manchete-md text-tinta-900">
+          A safra da equipe {view.team.name} terminou por aqui.
+        </p>
+        <p className="text-sm text-tinta-500">
+          O professor vai conduzir o debate com a turma inteira a partir dos resultados de cada
+          equipe.
         </p>
       </div>
 
-      <div className="carta flex flex-col gap-4 p-5">
+      <div className="filete-fino flex flex-col gap-4 pt-3">
         <span className="rotulo">Indicadores finais</span>
         <IndicatorPanel indicators={view.team.state} variant="full" />
       </div>
