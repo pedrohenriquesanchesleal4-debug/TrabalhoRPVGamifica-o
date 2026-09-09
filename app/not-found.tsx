@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Chapeu, Filete } from '@/components/ui/primitives';
+import { Rotulo } from '@/components/ui/primitives';
 
 /**
  * 404.
@@ -10,27 +10,25 @@ import { Chapeu, Filete } from '@/components/ui/primitives';
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-6 px-6 py-16">
-      <div className="filete-grosso flex flex-col gap-2 pt-3">
-        <Chapeu>Safra DF</Chapeu>
-        <h1 className="manchete-md text-tinta-900">Esta página não existe</h1>
-        <p className="text-sm text-tinta-500">
+      <div className="flex flex-col gap-2">
+        <Rotulo>Safra DF</Rotulo>
+        <h1 className="relevo-md text-terra-900">Esta página não existe</h1>
+        <p className="text-sm text-terra-700">
           O endereço pode ter sido digitado com um caractere trocado. Volte ao início e entre na
           partida com o código projetado na tela.
         </p>
       </div>
 
-      <Filete espessura="fino" />
-
       <div className="flex flex-wrap gap-3">
         <Link
           href="/entrar"
-          className="inline-flex min-h-11 items-center rounded-bloco border border-tinta-900 bg-tinta-900 px-4 text-sm font-semibold text-papel-50 transition-colors duration-150 hover:bg-manchete-escura hover:border-manchete-escura"
+          className="degrau banco pisavel terr-fundo-verde inline-flex min-h-11 items-center px-4 text-sm font-bold text-white"
         >
           Entrar na partida
         </Link>
         <Link
           href="/"
-          className="inline-flex min-h-11 items-center rounded-bloco border border-tinta-700 bg-papel-50 px-4 text-sm font-semibold text-tinta-900 transition-colors duration-150 hover:border-tinta-900 hover:bg-papel-200"
+          className="degrau banco pisavel terr-claro inline-flex min-h-11 items-center px-4 text-sm font-bold text-terra-900"
         >
           Voltar ao início
         </Link>

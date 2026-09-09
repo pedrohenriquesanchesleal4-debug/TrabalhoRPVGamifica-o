@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  CircleCheck,
   Hourglass,
   Loader2,
   PauseCircle,
@@ -23,7 +24,7 @@ import {
   TOTAL_ROUNDS,
   phaseForRound,
 } from '@/types/game';
-import { Button, Carimbo, Chapeu, Filete } from '@/components/ui/primitives';
+import { Button, Rotulo } from '@/components/ui/primitives';
 import { IndicatorPanel } from '@/components/game/indicator-panel';
 import { TeamRoster } from '@/components/game/team-roster';
 import { EventCard } from '@/components/game/event-card';
@@ -155,7 +156,7 @@ export default function JogarPage() {
   if (!session) return null;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-5 px-4 py-5 sm:px-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:px-6">
       {showOpening && view ? (
         <OpeningSequence
           budget={view.team.state.cash}
@@ -177,7 +178,7 @@ export default function JogarPage() {
 
 function LoadingScreen() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-tinta-500">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-terra-500">
       <Loader2 size={28} className="animate-spin" aria-hidden="true" />
       <p className="text-sm">Carregando a partida...</p>
     </div>
@@ -188,7 +189,7 @@ function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => voi
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
       <TriangleAlert size={28} className="text-alerta" aria-hidden="true" />
-      <p className="max-w-xs text-sm text-tinta-700">{message}</p>
+      <p className="max-w-xs text-sm text-terra-700">{message}</p>
       <Button type="button" variant="secundario" onClick={onRetry}>
         <RefreshCcw size={16} aria-hidden="true" />
         Tentar de novo
@@ -205,13 +206,19 @@ function GameBody({
   onConfirm: (optionKey: string) => Promise<void>;
 }) {
   const property = PROPERTY_BY_KEY[view.team.propertyKey];
+  const decisionOpen = Boolean(view.event) && !view.decision && view.game.status === 'running';
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <header className="flex flex-col gap-4">
-        <div className="flex items-center gap-2 text-tinta-700">
-          <Sprout size={20} className="shrink-0 text-producao" aria-hidden="true" />
-          <span className="manchete-sm text-tinta-900">{view.team.name}</span>
+      <header
+        className={classes(
+          'flex flex-col gap-4',
+          decisionOpen && 'md:grid md:grid-cols-[60%_40%] md:gap-6',
+        )}
+      >
+        <div className="flex items-center gap-2 text-terra-700">
+          <Sprout size={20} className="shrink-0 text-verde-700" aria-hidden="true" />
+          <span className="relevo-sm text-terra-900">{view.team.name}</span>
         </div>
 
         <IndicatorPanel
@@ -220,8 +227,6 @@ function GameBody({
           variant="compact"
         />
       </header>
-
-      <Filete espessura="fino" />
 
       {property ? (
         <PropertyScene
@@ -269,10 +274,7 @@ function StatusBody({
     const roundMeta = currentRoundMeta(view);
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <Chapeu>
-            Rodada {view.game.currentRound} de {TOTAL_ROUNDS} · {roundMeta.title}
-          </Chapeu>
+        <div className="flex justify-end">
           <RoundTimer
             endsAt={view.game.roundEndsAt}
             active={view.game.roundStatus === 'active'}
@@ -293,6 +295,7 @@ function StatusBody({
             options: view.event.options,
             roleHint: view.event.roleHint,
           }}
+          roundLabel={`Rodada ${view.game.currentRound} de ${TOTAL_ROUNDS} · ${roundMeta.title}`}
           roleLabel={ROLE_LABEL[view.player.role]}
           onConfirm={onConfirm}
         />
@@ -307,21 +310,21 @@ function LobbyScreen({ view }: { view: PlayerView }) {
   const property = PROPERTY_BY_KEY[view.team.propertyKey];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="filete-grosso flex flex-col gap-2 pt-3">
-        <Chapeu>Sua propriedade</Chapeu>
-        <h2 className="manchete-lg text-tinta-900">{property?.name ?? view.team.name}</h2>
+    <div className="flex flex-col gap-4">
+      <div className="degrau mirante terr-fundo-verde animate-emergir flex flex-col gap-2 p-5">
+        <Rotulo className="text-verde-300">Sua propriedade</Rotulo>
+        <h2 className="relevo-md text-white">{property?.name ?? view.team.name}</h2>
         {property ? (
           <>
-            <p className="text-sm text-tinta-500">{property.region}</p>
-            <p className="olho">{property.tagline}</p>
-            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-tinta-700">
+            <p className="text-sm text-verde-300">{property.region}</p>
+            <p className="text-base leading-[1.6] text-white">{property.tagline}</p>
+            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-nevoa-100">
               <div className="flex flex-wrap gap-1.5">
-                <dt className="font-semibold text-tinta-900">Força:</dt>
+                <dt className="font-semibold text-white">Força:</dt>
                 <dd>{property.strength}</dd>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <dt className="font-semibold text-tinta-900">Dificuldade:</dt>
+                <dt className="font-semibold text-white">Dificuldade:</dt>
                 <dd>{property.weakness}</dd>
               </div>
             </dl>
@@ -329,22 +332,22 @@ function LobbyScreen({ view }: { view: PlayerView }) {
         ) : null}
       </div>
 
-      <div className="filete-fino flex flex-col gap-1.5 pt-3">
-        <span className="rotulo">Sua função</span>
-        <p className="text-base font-semibold text-tinta-900">{ROLE_LABEL[view.player.role]}</p>
-        <p className="text-sm text-tinta-500">{ROLE_MISSION[view.player.role]}</p>
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-1.5 p-4">
+        <Rotulo>Sua função</Rotulo>
+        <p className="text-base font-semibold text-terra-900">{ROLE_LABEL[view.player.role]}</p>
+        <p className="text-sm text-terra-700">{ROLE_MISSION[view.player.role]}</p>
       </div>
 
-      <div className="filete-fino flex flex-col gap-3 pt-3">
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-3 p-4">
         <div className="flex items-center gap-2">
-          <Users size={14} className="text-tinta-500" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
+          <Users size={14} className="text-terra-500" aria-hidden="true" />
+          <Rotulo>Equipe</Rotulo>
         </div>
         <TeamRoster members={view.teammates} />
       </div>
 
-      <div className="flex items-center justify-center gap-2 py-4 text-sm text-tinta-500">
-        <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
+      <div className="flex items-center justify-center gap-2 py-4 text-sm text-terra-500">
+        <Hourglass size={16} aria-hidden="true" />
         Aguardando o professor iniciar a partida
       </div>
     </div>
@@ -353,21 +356,21 @@ function LobbyScreen({ view }: { view: PlayerView }) {
 
 function PausedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bloco-realce flex items-start gap-3 p-4">
-        <PauseCircle size={22} className="mt-0.5 shrink-0 text-manchete" aria-hidden="true" />
+    <div className="flex flex-col gap-4">
+      <div className="degrau mirante terr-azul animate-emergir flex items-start gap-3 p-5">
+        <PauseCircle size={22} className="mt-0.5 shrink-0 text-azul-800" aria-hidden="true" />
         <div className="flex flex-col gap-1">
-          <span className="rotulo text-manchete">Partida pausada</span>
-          <p className="text-sm font-medium text-tinta-900">
+          <Rotulo className="text-azul-800">Partida pausada</Rotulo>
+          <p className="text-sm font-medium text-azul-800">
             O professor pausou a partida. A rodada continua de onde parou assim que ele retomar.
           </p>
         </div>
       </div>
 
-      <div className="filete-fino flex flex-col gap-3 pt-3">
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-3 p-4">
         <div className="flex items-center gap-2">
-          <Users size={14} className="text-tinta-500" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
+          <Users size={14} className="text-terra-500" aria-hidden="true" />
+          <Rotulo>Equipe</Rotulo>
         </div>
         <TeamRoster members={view.teammates} />
       </div>
@@ -377,24 +380,25 @@ function PausedScreen({ view }: { view: PlayerView }) {
 
 function LockedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <RoundTimer endsAt={view.game.roundEndsAt} active size="destaque" />
       </div>
 
-      <div className="filete-grosso flex flex-col gap-3 pt-3">
-        <Carimbo>Decisão registrada</Carimbo>
-        <p className="manchete-md text-tinta-900">{view.decision?.optionLabel}</p>
-        <p className="text-sm text-tinta-500">
+      <div className="degrau terraco terr-verde animate-emergir relative flex flex-col gap-2 p-4">
+        <CircleCheck size={22} className="absolute right-4 top-4 text-verde-800" aria-hidden="true" />
+        <Rotulo className="text-verde-800">Registrada</Rotulo>
+        <p className="relevo-sm pr-8 text-verde-800">{view.decision?.optionLabel}</p>
+        <p className="text-sm text-verde-800">
           A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam o
           que os colegas ainda estão fazendo.
         </p>
       </div>
 
-      <div className="filete-fino flex flex-col gap-3 pt-3">
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-3 p-4">
         <div className="flex items-center gap-2">
-          <Users size={14} className="text-tinta-500" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
+          <Users size={14} className="text-terra-500" aria-hidden="true" />
+          <Rotulo>Equipe</Rotulo>
         </div>
         <TeamRoster members={view.teammates} />
       </div>
@@ -414,36 +418,33 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
   if (!resolution) return null;
 
   return (
-    <div className="flex flex-col gap-6" aria-live="polite">
+    <div className="flex flex-col gap-4" aria-live="polite">
       {/*
         `resolution.outcome` (vindo da engine) já nomeia a opção escolhida:
         "A equipe escolheu: {opção}.". Não repetimos a frase aqui, apenas
-        damos a ela o peso de manchete: era a duplicação encontrada em
-        auditoria.
+        damos a ela o peso do único mirante desta tela.
       */}
-      <div className="filete-grosso flex flex-col gap-2 pt-3">
-        <Chapeu>O que aconteceu</Chapeu>
-        <p className="manchete-md text-tinta-900">{resolution.outcome}</p>
+      <div className="degrau mirante terr-fundo-azul animate-emergir flex flex-col gap-2 p-5">
+        <Rotulo className="text-azul-300">O que aconteceu</Rotulo>
+        <p className="relevo-md text-white">{resolution.outcome}</p>
       </div>
 
       {resolution.notes.length > 0 ? (
-        <ul className="filete-fino flex flex-col gap-1.5 pt-3 text-sm text-tinta-700">
+        <div className="degrau banco terr-claro animate-emergir flex flex-col gap-1.5 p-4 text-sm text-terra-700">
           {resolution.notes.map((note, index) => (
-            <li key={`${index}-${note}`}>{note}</li>
+            <p key={`${index}-${note}`}>{note}</p>
           ))}
-        </ul>
+        </div>
       ) : null}
 
       {resolution.effects.length > 0 ? (
-        <ul className="filete-fino flex flex-col gap-1.5 pt-3">
+        <div className="degrau banco terr-claro animate-emergir flex flex-col gap-1.5 p-4">
           {resolution.effects.map((effect, index) => (
-            <li
+            <div
               key={`${index}-${effect.indicator}`}
               className="flex items-center justify-between gap-3 text-sm"
             >
-              <span className="rotulo text-tinta-500">
-                {INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}
-              </span>
+              <Rotulo>{INDICATOR_KEY_LABEL[effect.indicator] ?? effect.indicator}</Rotulo>
               <span
                 className={classes(
                   'dado font-bold',
@@ -451,18 +452,18 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
                     ? 'text-sucesso'
                     : effect.delta < 0
                       ? 'text-alerta'
-                      : 'text-tinta-500',
+                      : 'text-terra-500',
                 )}
               >
                 {effect.delta > 0 ? '+' : ''}
                 {effect.delta}
               </span>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : null}
 
-      <div className="flex items-center justify-center gap-2 py-2 text-sm text-tinta-500">
+      <div className="flex items-center justify-center gap-2 py-2 text-sm text-terra-500">
         <Hourglass size={16} aria-hidden="true" />
         A próxima rodada começa em instantes
       </div>
@@ -472,16 +473,16 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
 
 function WaitingRoundScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-center gap-2 py-8 text-sm text-tinta-500">
-        <Hourglass size={16} className="animate-brasa" aria-hidden="true" />
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-center gap-2 py-8 text-sm text-terra-500">
+        <Hourglass size={16} aria-hidden="true" />
         Aguardando a próxima rodada
       </div>
 
-      <div className="filete-fino flex flex-col gap-3 pt-3">
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-3 p-4">
         <div className="flex items-center gap-2">
-          <Users size={14} className="text-tinta-500" aria-hidden="true" />
-          <span className="rotulo">Equipe</span>
+          <Users size={14} className="text-terra-500" aria-hidden="true" />
+          <Rotulo>Equipe</Rotulo>
         </div>
         <TeamRoster members={view.teammates} />
       </div>
@@ -491,20 +492,20 @@ function WaitingRoundScreen({ view }: { view: PlayerView }) {
 
 function FinishedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="filete-grosso flex flex-col gap-2 pt-3">
-        <Chapeu>Partida encerrada</Chapeu>
-        <p className="manchete-md text-tinta-900">
+    <div className="flex flex-col gap-4">
+      <div className="degrau mirante terr-fundo-verde animate-emergir flex flex-col gap-2 p-5">
+        <Rotulo className="text-verde-300">Partida encerrada</Rotulo>
+        <p className="relevo-md text-white">
           A safra da equipe {view.team.name} terminou por aqui.
         </p>
-        <p className="text-sm text-tinta-500">
+        <p className="text-sm text-nevoa-100">
           O professor vai conduzir o debate com a turma inteira a partir dos resultados de cada
           equipe.
         </p>
       </div>
 
-      <div className="filete-fino flex flex-col gap-4 pt-3">
-        <span className="rotulo">Indicadores finais</span>
+      <div className="degrau banco terr-claro animate-emergir flex flex-col gap-4 p-4">
+        <Rotulo>Indicadores finais</Rotulo>
         <IndicatorPanel indicators={view.team.state} variant="full" />
       </div>
     </div>

@@ -8,10 +8,10 @@ import type { PropertyProfile } from '@/types/game';
  * A abertura da partida.
  *
  * Quatro linhas em sequência, uma vez só, na primeira rodada: hora e local,
- * a manchete de abertura (`animate-manchete`, espacejamento fechando como uma
- * chapa de impressão travando), o orçamento e um dado concreto da própria
- * propriedade da equipe. Rápida: o aluno precisa estar jogando em menos de um
- * minuto, e por isso "Pular" fica sempre visível.
+ * a manchete de abertura em `.relevo-xl` (`animate-emergir`, o degrau
+ * emergindo do fundo), o orçamento e um dado concreto da própria propriedade
+ * da equipe. Rápida: o aluno precisa estar jogando em menos de um minuto, e
+ * por isso "Pular" fica sempre visível.
  *
  * Só CSS, nenhuma biblioteca de animação.
  */
@@ -71,29 +71,28 @@ export function OpeningSequence({
     ? `${property.name}: ${property.tagline}`
     : 'Cada decisão muda o futuro da propriedade.';
 
-  const lines: { text: string; className: string; animate?: boolean }[] = [
+  const lines: { text: string; className: string }[] = [
     {
       text: 'BRASÍLIA · 06:20',
-      className: 'font-mono text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-papel-300',
+      className: 'rotulo text-verde-300',
     },
     {
       text: 'Uma nova safra começa.',
-      className: 'manchete-xl text-papel-50',
-      animate: true,
+      className: 'relevo-xl text-white',
     },
     {
       text: `Vocês têm ${formatMoney(budget)}.`,
-      className: 'dado-lg text-papel-100',
+      className: 'dado-lg text-verde-300',
     },
     {
       text: propertyLine,
-      className: 'max-w-sm text-base text-papel-200',
+      className: 'max-w-sm text-base text-nevoa-100',
     },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-tinta-900 px-7 py-10 sm:px-16"
+      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-terra-900 px-7 py-10 sm:px-16"
       role="dialog"
       aria-modal="true"
       aria-label="Abertura da partida"
@@ -101,12 +100,11 @@ export function OpeningSequence({
       {lines.map((line, index) => (
         <p
           key={line.text}
-          className={line.className}
+          className={reducedMotion ? line.className : `${line.className} animate-emergir`}
           style={
             reducedMotion
               ? undefined
               : {
-                  animation: line.animate ? 'var(--animate-manchete)' : 'var(--animate-sobe)',
                   animationDelay: `${BEATS[index]}ms`,
                 }
           }
@@ -115,12 +113,12 @@ export function OpeningSequence({
         </p>
       ))}
 
-      <div aria-hidden="true" className="mt-2 h-px w-40 bg-papel-400/40" />
+      <div aria-hidden="true" className="mt-2 h-px w-40 bg-verde-800" />
 
       <button
         type="button"
         onClick={onDone}
-        className="mt-2 inline-flex min-h-11 items-center rounded-bloco border border-papel-400/40 px-4 text-sm font-semibold text-papel-200 transition-colors duration-150 hover:border-papel-200 hover:text-papel-50"
+        className="degrau banco pisavel terr-claro mt-2 inline-flex min-h-11 items-center px-4 text-sm font-bold text-terra-900"
       >
         {reducedMotion ? 'Seguir para a partida' : 'Pular'}
       </button>

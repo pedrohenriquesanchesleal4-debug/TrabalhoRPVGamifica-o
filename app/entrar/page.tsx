@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, TriangleAlert } from 'lucide-react';
 import { joinGame, RequestError } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
-import { Button, Chapeu, Field } from '@/components/ui/primitives';
+import { Button, Field, Rotulo } from '@/components/ui/primitives';
 
 /**
  * Entrada do aluno.
@@ -68,10 +68,10 @@ export default function EntrarPage() {
   if (!showForm && existing) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
-        <div className="filete-grosso flex flex-col gap-2 pt-3">
-          <Chapeu>Safra DF</Chapeu>
-          <h1 className="manchete-md text-tinta-900">Continuar como {existing.playerName}</h1>
-          <p className="text-sm text-tinta-500">
+        <div className="flex flex-col gap-2">
+          <Rotulo>Safra DF</Rotulo>
+          <h1 className="relevo-md text-terra-900">Continuar como {existing.playerName}</h1>
+          <p className="text-sm text-terra-700">
             Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
           </p>
         </div>
@@ -103,10 +103,10 @@ export default function EntrarPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
-      <div className="filete-grosso flex flex-col gap-2 pt-3">
-        <Chapeu>Safra DF</Chapeu>
-        <h1 className="manchete-md text-tinta-900">Entrar na partida</h1>
-        <p className="text-sm text-tinta-500">
+      <div className="flex flex-col gap-2">
+        <Rotulo>Safra DF</Rotulo>
+        <h1 className="relevo-md text-terra-900">Entrar na partida</h1>
+        <p className="text-sm text-terra-700">
           Peça o código de 4 a 8 letras que o professor está projetando na tela.
         </p>
       </div>
