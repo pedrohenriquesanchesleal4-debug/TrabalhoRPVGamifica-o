@@ -1,59 +1,104 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 
 /**
- * SAFRA DF · corte lateral do solo da propriedade.
+ * SAFRA DF · parcela vista de cima, curvas de nível (direção V3).
  *
- * Linguagem de prancha técnica de agronomia, não fazendinha ilustrada: corte
- * vertical do terreno visto de lado, com a parte aérea como matéria principal
- * e o perfil de solo como base.
+ * Substitui o corte lateral de solo da direção anterior ("Boletim de Safra").
+ * A cena agora é a propriedade vista de cima, em perspectiva levemente
+ * oblíqua (trapézios simples, nunca isometria): três anéis concêntricos que
+ * afunilam para o topo, simulando o terraceamento em curva de nível que dá
+ * nome à direção.
  *
- * De baixo para cima: lençol freático (lâmina fina), subsolo, solo
- * superficial, linha do solo, e acima dela a lavoura (fileira de plantas cuja
- * quantidade cresce com a PRODUÇÃO, cada uma com raiz simples). Casa e galpão
- * assentam exatamente na linha do solo, com tique de fundação. Tecnologia
- * soma-se numa régua vertical de patamares fixos, cada um com sua faixa
- * própria (nunca cruza outro rótulo). A identidade de cada propriedade é um
- * selo de linha fina fixo no canto superior direito.
+ * De fora para dentro: anel de vegetação nativa (textura pontilhada ligada à
+ * SUSTENTABILIDADE), anel de plantio (fileiras verticais ligadas à
+ * PRODUÇÃO) e o núcleo, a sede da propriedade (ícones de TECNOLOGIA
+ * acumulativos). Um canal de água sinuoso atravessa os três anéis; sua
+ * espessura reflete a mesma sustentabilidade que rege a vegetação nativa (a
+ * API deste componente não recebe finanças, então o indicador de água usa o
+ * dado disponível mais próximo do tema "água/conservação").
  *
- * `viewBox` fixo com `preserveAspectRatio="xMidYMid slice"`: o mesmo desenho
- * serve para a miniatura da projeção, a faixa `compact` do celular e o bloco
- * cheio da tela do aluno, cortando só as bordas conforme o recipiente.
+ * `viewBox` fixo 0..200 quadrado: mesmo desenho serve para a cena cheia e
+ * para a faixa `compact`, que descarta os anéis e mostra só o núcleo mais o
+ * glifo de identidade, em escala de destaque, para nunca mais confundir as
+ * seis propriedades entre si numa miniatura.
  */
 
-const VIEW_W = 400;
-const VIEW_H = 220;
+const VIEW = 200;
 
-/** Faixa realmente enquadrada no bloco cheio: sem corte, mostra 106-220 inteiro. */
-const VIEW_Y = 106;
-const VIEW_VISIBLE_H = VIEW_H - VIEW_Y;
-
-/**
- * Zona segura: sobrevive ao corte mais apertado da faixa `compact` (que
- * mostra só o miolo de 82 dos 114 visíveis, cortando ~16px de cada borda).
- * Selo de identidade fica sempre dentro de 122-204.
- */
-const SAFE_BOTTOM = 204;
-
-/**
- * Linha do solo: a matéria da cena é o que cresce acima dela. Aérea ocupa a
- * maior parte da faixa visível (~58%), o perfil de solo é a base (~42%),
- * dividido em solo superficial fixo e subsolo/lençol variáveis.
- */
-const SOIL_Y = 172;
-const TOPSOIL_H = 14;
-const UNDER_SHARED_H = VIEW_H - SOIL_Y - TOPSOIL_H;
-
-const HOUSE_X = 55;
-const SHED_X = 345;
-const FIELD_X0 = 105;
-const FIELD_X1 = 300;
-const SPINE_X = 322;
-const BADGE_X = 378;
-const BADGE_Y = 140;
+/** Anel externo · vegetação nativa. Trapézio mais largo, mais próximo da borda. */
+const OUTER = { topY: 30, botY: 178, topX0: 40, topX1: 160, botX0: 14, botX1: 186 };
+/** Anel médio · área de plantio. */
+const MID = { topY: 64, botY: 146, topX0: 64, topX1: 136, botX0: 48, botX1: 152 };
+/** Núcleo · sede da propriedade. */
+const CORE = { topY: 80, botY: 136, topX0: 76, topX1: 124, botX0: 68, botX1: 132 };
+const CORE_CX = 100;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Contorno em perspectiva oblíqua: trapézio simples, sem isometria. */
+function trapezoid(t: { topY: number; botY: number; topX0: number; topX1: number; botX0: number; botX1: number }): string {
+  return `M ${t.topX0} ${t.topY} L ${t.topX1} ${t.topY} L ${t.botX1} ${t.botY} L ${t.botX0} ${t.botY} Z`;
+}
+
+/** Faixa entre topo e base de um trapézio, para posicionar linha/ponto em função de x normalizado (0..1) e y absoluto. */
+function lerp(a: number, b: number, f: number): number {
+  return a + (b - a) * f;
+}
+
+const GOLDEN_ANGLE_RAD = (137.50776 * Math.PI) / 180;
+
+/**
+ * Pontos fixos da textura pontilhada do anel externo, gerados uma única vez
+ * (sem `Math.random`, sem divergência entre servidor e cliente). A ordem é
+ * estável: crescer a contagem só acrescenta pontos novos, nunca reposiciona
+ * os existentes.
+ */
+function gerarPontosVegetacao(n: number): { x: number; y: number }[] {
+  return Array.from({ length: n }, (_, i) => {
+    const t = (i + 0.5) / n;
+    const r = 58 + (92 - 58) * Math.sqrt(t);
+    const angle = i * GOLDEN_ANGLE_RAD;
+    return { x: 100 + r * Math.cos(angle), y: 104 + r * Math.sin(angle) * 0.62 };
+  });
+}
+const VEGETATION_POINTS = gerarPontosVegetacao(24);
+const VEGETATION_TETO = VEGETATION_POINTS.length;
+const CROP_TETO = 12;
+
+/** Patamares de tecnologia, cumulativos: nunca somem depois de aparecer. */
+const TECH_TIERS = [
+  { key: 'sol', min: 30, x: 76, y: 84 },
+  { key: 'gotas', min: 60, x: 95.5, y: 84 },
+  { key: 'antena', min: 85, x: 115, y: 84 },
+] as const;
+
+function descreverProducao(v: number): string {
+  if (v < 20) return 'poucas fileiras de plantio, a parcela é quase só vegetação nativa';
+  if (v < 50) return 'fileiras de plantio em expansão';
+  if (v < 80) return 'plantio ocupando boa parte da parcela';
+  return 'plantio denso, cobrindo quase toda a área cultivável';
+}
+
+function descreverTecnologia(v: number): string {
+  const ativos = TECH_TIERS.filter((tier) => v >= tier.min).map((tier) =>
+    tier.key === 'sol' ? 'energia solar' : tier.key === 'gotas' ? 'irrigação por gotejamento' : 'antena de conectividade',
+  );
+  if (ativos.length === 0) return 'sede sem estrutura tecnológica instalada';
+  return `sede equipada com ${ativos.join(', ')}`;
+}
+
+function descreverSustentabilidade(v: number): string {
+  if (v < 35) return 'vegetação nativa rala ao redor da parcela e canal de água estreito';
+  if (v < 70) return 'vegetação nativa em recuperação e canal de água moderado';
+  return 'vegetação nativa densa cercando a parcela e canal de água caudaloso';
+}
+
+function construirAriaLabel(propertyKey: string, production: number, technology: number, sustainability: number): string {
+  const nome = PROPERTY_BY_KEY[propertyKey]?.name ?? 'Propriedade';
+  return `${nome}: ${descreverProducao(production)}. ${descreverTecnologia(technology)}. ${descreverSustentabilidade(sustainability)}.`;
 }
 
 type PropertyKey =
@@ -64,114 +109,106 @@ type PropertyKey =
   | 'nova-safra'
   | 'planalto-familiar';
 
-/** Selo de identidade: glifo de linha fina + etiqueta curta, fixo por propriedade. */
-const IDENTITY: Record<PropertyKey, { label: string; houseFinished: boolean }> = {
-  'sitio-horizonte': { label: 'hortaliças', houseFinished: true },
-  'cerrado-vivo': { label: 'nascente', houseFinished: true },
-  'boa-esperanca': { label: 'morango', houseFinished: true },
-  'riacho-verde': { label: 'grãos', houseFinished: true },
-  'nova-safra': { label: 'avicultura', houseFinished: false },
-  'planalto-familiar': { label: 'laticínios', houseFinished: true },
+const IDENTITY_LABEL: Record<PropertyKey, string> = {
+  'sitio-horizonte': 'hortaliças',
+  'cerrado-vivo': 'nascente',
+  'boa-esperanca': 'morango',
+  'riacho-verde': 'grãos',
+  'nova-safra': 'avicultura',
+  'planalto-familiar': 'laticínios',
 };
 
-/** Patamares de tecnologia, do mais básico ao mais avançado: régua de faixas fixas, nunca se sobrepõem. */
-const TECH_TIERS = [
-  { key: 'rega', min: 20, dy: -26 },
-  { key: 'solar', min: 40, dy: -38 },
-  { key: 'sensor', min: 65, dy: -50 },
-  { key: 'estufa', min: 90, dy: -62 },
-] as const;
-
-/** Descrição textual por faixa: alimenta o `aria-label`, único canal para leitor de tela. */
-function descreverProducao(v: number): string {
-  if (v < 34) return 'poucos pés na lavoura, raiz rasa';
-  if (v < 67) return 'lavoura em desenvolvimento, raiz mais profunda';
-  return 'lavoura densa, raiz profunda e ramificada';
-}
-
-function descreverTecnologia(v: number): string {
-  if (v < 20) return 'sem equipamento visível';
-  if (v < 40) return 'com irrigação instalada';
-  if (v < 65) return 'com irrigação e painel solar';
-  if (v < 90) return 'com irrigação, painel solar e sensor de campo';
-  return 'com estrutura completa: irrigação, painel solar, sensor e estufa';
-}
-
-function descreverSustentabilidade(v: number): string {
-  if (v < 35) return 'lençol freático baixo e copa rala';
-  if (v < 67) return 'lençol freático em nível médio e copa moderada';
-  return 'lençol freático alto e copa densa';
-}
-
-function construirAriaLabel(propertyKey: string, production: number, technology: number, sustainability: number): string {
-  const nome = PROPERTY_BY_KEY[propertyKey]?.name ?? 'Propriedade';
-  return `${nome}: ${descreverProducao(production)}, ${descreverTecnologia(technology)}, ${descreverSustentabilidade(sustainability)}.`;
-}
-
-/** Selo de identidade: um traço distintivo por propriedade, simples o bastante para ler pequeno. */
-function BadgeGlyph({ propertyKey }: { propertyKey: PropertyKey }) {
-  const strokeProps = { fill: 'none', stroke: 'var(--color-tinta-900)', strokeWidth: 1.3, strokeLinecap: 'round' as const };
+/**
+ * Glifo de identidade: um traço por propriedade, desenhado em coordenadas
+ * locais 0..22 e posicionado em escala de destaque no núcleo (nunca um selo
+ * de poucos pixels no canto, que era o problema da versão anterior). Cada
+ * glifo usa no máximo 2 nós SVG (um traço e, quando precisa de um ponto
+ * sólido, um preenchimento à parte).
+ */
+function IdentityGlyph({ propertyKey }: { propertyKey: PropertyKey }) {
+  const stroke = { fill: 'none', stroke: 'var(--color-terra-900)', strokeWidth: 1.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const fill = { fill: 'var(--color-terra-900)', stroke: 'none' };
 
   switch (propertyKey) {
     case 'sitio-horizonte':
-      // Folhas de hortaliça: três lóbulos saindo de um talo curto.
-      return (
-        <g {...strokeProps}>
-          <path d="M11 20 L11 12" />
-          <path d="M11 14 C6 13 4 9 5 4 C9 5 11 8 11 14 Z" />
-          <path d="M11 14 C16 13 18 9 17 4 C13 5 11 8 11 14 Z" />
-        </g>
-      );
+      // Talo com duas folhas em lóbulo: hortaliça.
+      return <path {...stroke} d="M11 20 L11 12 M11 14 C6 13 4 9 5 4 C9 5 11 8 11 14 Z M11 14 C16 13 18 9 17 4 C13 5 11 8 11 14 Z" />;
     case 'cerrado-vivo':
-      // Nascente: gota com onda na base.
+      // Gota com onda na base: nascente.
       return (
-        <g {...strokeProps}>
-          <path d="M11 3 C15 9 16 12 16 14 C16 17.3 13.6 20 11 20 C8.4 20 6 17.3 6 14 C6 12 7 9 11 3 Z" />
-          <path d="M4 20.5 Q11 23 18 20.5" />
-        </g>
+        <path
+          {...stroke}
+          d="M11 3 C15 9 16 12 16 14 C16 17.3 13.6 20 11 20 C8.4 20 6 17.3 6 14 C6 12 7 9 11 3 Z M4 20.5 Q11 23 18 20.5"
+        />
       );
     case 'boa-esperanca':
-      // Túnel baixo sobre a fileira de morango.
+      // Túnel baixo sobre a fileira, com o morango como ponto sólido.
       return (
-        <g {...strokeProps}>
-          <path d="M2 20 Q11 4 20 20" />
-          <line x1="2" y1="20" x2="20" y2="20" />
-          <circle cx="11" cy="16" r="2" fill="var(--color-tinta-900)" stroke="none" />
-        </g>
+        <>
+          <path {...stroke} d="M2 20 Q11 4 20 20 M2 20 L20 20" />
+          <circle {...fill} cx="11" cy="16" r="2" />
+        </>
       );
     case 'riacho-verde':
-      // Espiga de grão.
+      // Espiga de grão: um único traço com quatro pares de aristas.
       return (
-        <g {...strokeProps}>
-          <line x1="11" y1="21" x2="11" y2="3" />
-          {[6, 9.5, 13, 16.5].map((y) => (
-            <g key={y}>
-              <line x1="11" y1={y} x2="6" y2={y - 2.4} />
-              <line x1="11" y1={y} x2="16" y2={y - 2.4} />
-            </g>
-          ))}
-        </g>
+        <path
+          {...stroke}
+          d="M11 21 L11 3 M11 6 L6 3.6 M11 6 L16 3.6 M11 9.5 L6 7.1 M11 9.5 L16 7.1 M11 13 L6 10.6 M11 13 L16 10.6 M11 16.5 L6 14.1 M11 16.5 L16 14.1"
+        />
       );
     case 'nova-safra':
-      // Ovo em ninho: assentamento recente, avicultura como início de renda.
+      // Ovo em ninho: assentamento recente.
       return (
-        <g {...strokeProps}>
-          <ellipse cx="11" cy="11" rx="6" ry="7.4" />
-          <path d="M2 19 Q11 15 20 19" />
-        </g>
+        <>
+          <ellipse {...stroke} cx="11" cy="11" rx="6" ry="7.4" />
+          <path {...stroke} d="M2 19 Q11 15 20 19" />
+        </>
       );
     case 'planalto-familiar':
-      // Cunha de queijo.
+      // Cunha de queijo com dois furos sólidos.
       return (
-        <g {...strokeProps}>
-          <path d="M3 18 L11 5 L19 18 Z" />
-          <circle cx="12" cy="14.5" r="1" fill="var(--color-tinta-900)" stroke="none" />
-          <circle cx="9" cy="16.5" r="0.8" fill="var(--color-tinta-900)" stroke="none" />
-        </g>
+        <>
+          <path {...stroke} d="M3 18 L11 5 L19 18 Z" />
+          <path {...fill} d="M13 14.5 a1 1 0 1 0 -2 0 a1 1 0 1 0 2 0 M9.8 16.5 a0.8 0.8 0 1 0 -1.6 0 a0.8 0.8 0 1 0 1.6 0" />
+        </>
       );
     default:
       return null;
   }
+}
+
+/** Ícones de tecnologia, compartilhados via `<symbol>`/`<use>`: nunca um `<svg>` repetido por instância. */
+function TechDefs({ idPrefix }: { idPrefix: string }) {
+  return (
+    <>
+      <symbol id={`${idPrefix}-sol`} viewBox="0 0 10 10">
+        <path
+          d="M5 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z M5 0.5v1.3 M5 8.2v1.3 M0.5 5h1.3 M8.2 5h1.3 M1.8 1.8l0.95 0.95 M7.25 7.25l0.95 0.95 M1.8 8.2l0.95-0.95 M7.25 2.75l0.95-0.95"
+          fill="none"
+          stroke="var(--color-tecnologia)"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+        />
+      </symbol>
+      <symbol id={`${idPrefix}-antena`} viewBox="0 0 10 10">
+        <path
+          d="M5 9.2V3 M1.6 9.2 1.6 5 M8.4 9.2 8.4 5 M1 3 5 0.3 9 3"
+          fill="none"
+          stroke="var(--color-tecnologia)"
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </symbol>
+      <symbol id={`${idPrefix}-gotas`} viewBox="0 0 10 10">
+        <path
+          d="M3 1.6c-1.2 1.6-2 2.8-2 3.8a2 2 0 1 0 4 0c0-1-.8-2.2-2-3.8Zm4.2 1c-1 1.3-1.6 2.2-1.6 3a1.6 1.6 0 1 0 3.2 0c0-.8-.6-1.7-1.6-3Z"
+          fill="var(--color-tecnologia)"
+        />
+      </symbol>
+    </>
+  );
 }
 
 export function PropertyScene({
@@ -194,212 +231,109 @@ export function PropertyScene({
   const t = clamp(technology, 0, 100);
   const s = clamp(sustainability, 0, 100);
 
-  const key = (propertyKey in IDENTITY ? propertyKey : 'sitio-horizonte') as PropertyKey;
-  const identity = IDENTITY[key];
+  const key = (propertyKey in IDENTITY_LABEL ? propertyKey : 'sitio-horizonte') as PropertyKey;
   const ariaLabel = construirAriaLabel(propertyKey, p, t, s);
 
-  // Lençol freático: lâmina fina que sobe com a sustentabilidade, empurrando o subsolo, nunca dominando a cena.
-  const waterH = 6 + (s / 100) * 22;
-  const subsoloH = UNDER_SHARED_H - waterH;
-  const waterY = VIEW_H - waterH;
-  const subsoloY = SOIL_Y + TOPSOIL_H;
+  // Anel de plantio: fileiras sobem em degraus de +2 a cada faixa de 20 pontos de produção, teto 12.
+  const plantioTier = Math.floor(p / 20);
+  const cropCount = clamp(2 + plantioTier * 2, 2, CROP_TETO);
 
-  // Copa: densidade e opacidade das folhas sobem com a sustentabilidade.
-  const copaOpacidade = 0.32 + (s / 100) * 0.68;
+  // Anel de vegetação nativa: contagem e opacidade crescem com a sustentabilidade, teto de 24 pontos.
+  const vegetationCount = clamp(Math.round((s / 100) * VEGETATION_TETO), 0, VEGETATION_TETO);
+  const vegetationOpacity = 0.3 + (s / 100) * 0.7;
+  const vegetationPoints = VEGETATION_POINTS.slice(0, vegetationCount);
 
-  // Lavoura: número de pés cresce com a produção, distribuídos em fileira. Uma planta não é lavoura.
-  const cropCount = compact
-    ? clamp(2 + Math.floor(p / 25), 2, 5)
-    : clamp(3 + Math.floor(p / 12), 3, 11);
-  const cropXs = Array.from({ length: cropCount }, (_, i) => FIELD_X0 + ((i + 0.5) * (FIELD_X1 - FIELD_X0)) / cropCount);
+  // Canal de água: espessura transiciona (nunca em laço) entre crise e situação saudável.
+  const canalStrokeWidth = 2 + (s / 100) * 4;
 
-  // Planta padrão (aérea + raiz simples), compartilhada por toda a fileira via <use>: mesma altura e raiz para todos os pés.
-  const plantId = `${uid}-planta`;
-  const stemStrokeW = 1.1 + (p / 100) * 1.2;
-  const stemApexLocal = -(8 + (p / 100) * (compact ? 30 : 44));
-  const rootDepthLocal = 10 + (p / 100) * (compact ? 22 : 32);
-  const FOLHAS_LOCAL = [
-    { y: stemApexLocal * 0.35, lado: -1 as const },
-    { y: stemApexLocal * 0.6, lado: 1 as const },
-    { y: stemApexLocal * 0.85, lado: -1 as const },
-  ];
+  // Movimento 6 "copa cresce": dispara uma única vez quando a produção cruza uma faixa, nunca no carregamento inicial.
+  const prevTierRef = useRef(plantioTier);
+  const [growPulse, setGrowPulse] = useState(0);
+  useEffect(() => {
+    if (plantioTier > prevTierRef.current) {
+      setGrowPulse((v) => v + 1);
+    }
+    prevTierRef.current = plantioTier;
+  }, [plantioTier]);
 
-  // Escala dos elementos que sobram na faixa compacta: menos coisa, cada uma maior, para não parecer diagrama truncado.
-  const houseScale = compact ? 1.3 : 1;
-  const shedScale = compact ? 1.3 : 1;
-  const badgeScale = compact ? 1.15 : 1;
+  const ativosTecnologia = TECH_TIERS.filter((tier) => t >= tier.min);
 
-  // Equipamentos: cada patamar soma um item, nunca remove o anterior.
-  const activeTechCount = TECH_TIERS.filter((tier) => t >= tier.min).length;
+  if (compact) {
+    // Faixa reduzida: só o núcleo mais o glifo de identidade, ~4 nós, sem anéis.
+    return (
+      <svg
+        role="img"
+        aria-label={ariaLabel}
+        focusable="false"
+        viewBox={`0 0 ${VIEW} ${VIEW}`}
+        preserveAspectRatio="xMidYMid meet"
+        className={`block w-full aspect-square ${className ?? ''}`}
+      >
+        <path d={trapezoid(CORE)} fill="var(--color-nevoa-100)" stroke="var(--color-terra-700)" strokeWidth="1.5" />
+        <g transform="translate(76,90) scale(2.05)">
+          <IdentityGlyph propertyKey={key} />
+        </g>
+      </svg>
+    );
+  }
 
   return (
     <svg
       role="img"
       aria-label={ariaLabel}
       focusable="false"
-      viewBox={`0 ${VIEW_Y} ${VIEW_W} ${VIEW_VISIBLE_H}`}
-      preserveAspectRatio="xMidYMid slice"
-      className={`block w-full ${compact ? 'aspect-[400/82]' : 'aspect-[400/114]'} ${className ?? ''}`}
+      viewBox={`0 0 ${VIEW} ${VIEW}`}
+      preserveAspectRatio="xMidYMid meet"
+      className={`block w-full aspect-square ${className ?? ''}`}
     >
       <defs>
-        {/* Planta padrão em coordenadas locais (solo em y=0): reaproveitada por toda a fileira. */}
-        <g id={plantId}>
-          <path
-            d={`M0 0 C 0 ${stemApexLocal * 0.5}, -0.6 ${stemApexLocal * 0.8}, 0 ${stemApexLocal}`}
-            fill="none"
-            stroke="var(--color-producao)"
-            strokeWidth={stemStrokeW}
-            strokeLinecap="round"
-            style={{ transition: 'd 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-          />
-          {FOLHAS_LOCAL.map(({ y, lado }, i) => (
-            <path
-              key={i}
-              d={`M0 ${y} C ${lado * 4} ${y - 0.4}, ${lado * 7} ${y - 1.6}, ${lado * 8} ${y - 3.6}`}
-              fill="none"
-              stroke="var(--color-producao)"
-              strokeWidth={stemStrokeW * 0.75}
-              strokeLinecap="round"
-              opacity={copaOpacidade}
-            />
-          ))}
-          <path
-            d={`M0 0 Q ${rootDepthLocal * 0.2} ${rootDepthLocal * 0.5} 0 ${rootDepthLocal}`}
-            fill="none"
-            stroke="var(--color-producao)"
-            strokeWidth={Math.max(stemStrokeW - 0.3, 0.7)}
-            strokeLinecap="round"
-            opacity="0.85"
-            style={{ transition: 'd 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-          />
-        </g>
+        <TechDefs idPrefix={`${uid}-ico`} />
       </defs>
 
-      {/* Perfil do solo: base da cena, não a matéria dela. Chapado, fio de separação, sem degradê. */}
-      <rect x="0" y={SOIL_Y} width={VIEW_W} height={TOPSOIL_H} fill="var(--color-papel-400)" />
-      <rect
-        x="0"
-        y={subsoloY}
-        width={VIEW_W}
-        height={Math.max(subsoloH, 0)}
-        fill="var(--color-tinta-500)"
-        style={{ transition: 'height 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-      />
-      <rect
-        x="0"
-        y={waterY}
-        width={VIEW_W}
-        height={waterH}
-        fill="var(--color-sustentabilidade)"
-        opacity="0.82"
-        style={{ transition: 'y 500ms cubic-bezier(0.16, 1, 0.3, 1), height 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-      />
-      <line x1="0" y1={subsoloY} x2={VIEW_W} y2={subsoloY} stroke="var(--color-regua)" strokeWidth="1" />
-      <line
-        x1="0"
-        y1={waterY}
-        x2={VIEW_W}
-        y2={waterY}
-        stroke="var(--color-regua)"
-        strokeWidth="1"
-        style={{ transition: 'y1 500ms cubic-bezier(0.16, 1, 0.3, 1), y2 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-      />
-      {/* Linha do solo: referência fixa entre a terra e o ar. */}
-      <line x1="0" y1={SOIL_Y} x2={VIEW_W} y2={SOIL_Y} stroke="var(--color-tinta-900)" strokeWidth="1.4" />
-
-      {/* Lavoura: fileira de pés, cada um com parte aérea e raiz, quantidade cresce com a produção. */}
-      {cropXs.map((x, i) => (
-        <use key={i} href={`#${plantId}`} x={x} y={SOIL_Y} />
+      {/* Anel externo · vegetação nativa: contorno + textura pontilhada ligada à sustentabilidade. */}
+      <path d={trapezoid(OUTER)} fill="var(--color-verde-300)" fillOpacity="0.28" stroke="var(--color-verde-700)" strokeWidth="1.5" />
+      {vegetationPoints.map((pt, i) => (
+        <circle key={i} cx={pt.x} cy={pt.y} r="2.1" fill="var(--color-sustentabilidade)" opacity={vegetationOpacity} />
       ))}
 
-      {/* Casa: elevação de linha fina, sem preenchimento, assentada na linha do solo com tique de fundação. */}
-      <g transform={`translate(${HOUSE_X}, ${SOIL_Y}) scale(${houseScale})`} fill="none" stroke="var(--color-tinta-900)" strokeWidth="1.2">
-        <path d="M-16,-12 L0,-26 L16,-12" strokeDasharray={identity.houseFinished ? undefined : '2.5 2.5'} />
-        <path d="M-14,-12 L-14,0 L14,0 L14,-12" strokeDasharray={identity.houseFinished ? undefined : '2.5 2.5'} />
-        {identity.houseFinished && <line x1="4" y1="0" x2="4" y2="-12" strokeWidth="1" />}
-        <line x1="-18" y1="1.2" x2="-14" y2="1.2" strokeWidth="1.4" opacity="0.55" />
-        <line x1="14" y1="1.2" x2="18" y2="1.2" strokeWidth="1.4" opacity="0.55" />
+      {/* Anel médio · área de plantio: contorno + fileiras verticais ligadas à produção. Remonta a cada nova faixa para disparar o motion "copa cresce". */}
+      <g
+        key={growPulse}
+        className={growPulse > 0 ? 'animate-copa' : ''}
+        style={{ transformBox: 'fill-box', transformOrigin: 'bottom' }}
+      >
+        <path d={trapezoid(MID)} fill="var(--color-producao)" fillOpacity="0.16" stroke="var(--color-producao)" strokeWidth="1.5" />
+        {Array.from({ length: cropCount }, (_, i) => {
+          const f = (i + 0.5) / cropCount;
+          const x1 = lerp(MID.topX0, MID.topX1, f);
+          const x2 = lerp(MID.botX0, MID.botX1, f);
+          return (
+            <line key={i} x1={x1} y1={MID.topY + 4} x2={x2} y2={MID.botY - 4} stroke="var(--color-producao)" strokeWidth="2" strokeLinecap="round" />
+          );
+        })}
       </g>
 
-      {/* Galpão: elevação de duas águas, mesma linguagem de linha fina, também assentado e com fundação. */}
-      <g transform={`translate(${SHED_X}, ${SOIL_Y}) scale(${shedScale})`} fill="none" stroke="var(--color-tinta-900)" strokeWidth="1.2">
-        <path d="M-20,-8 L0,-20 L20,-8" />
-        <path d="M-18,-8 L-18,0 L18,0 L18,-8" />
-        <line x1="-18" y1="-4" x2="18" y2="-4" strokeWidth="0.8" opacity="0.6" />
-        <line x1="-22" y1="1.2" x2="-18" y2="1.2" strokeWidth="1.4" opacity="0.55" />
-        <line x1="18" y1="1.2" x2="22" y2="1.2" strokeWidth="1.4" opacity="0.55" />
+      {/* Canal de água: atravessa os anéis, espessura transiciona entre crise e situação saudável. */}
+      <path
+        d="M100 20 C 60 50, 140 70, 90 100 C 50 125, 120 150, 100 190"
+        fill="none"
+        stroke="var(--color-sustentabilidade)"
+        strokeWidth={canalStrokeWidth}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-width 500ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      />
+
+      {/* Núcleo · sede da propriedade: contorno neutro, ícones acumulativos de tecnologia, glifo de identidade em destaque. */}
+      <path d={trapezoid(CORE)} fill="var(--color-nevoa-100)" stroke="var(--color-terra-700)" strokeWidth="1.5" />
+      {ativosTecnologia.map((tier) => (
+        <use key={tier.key} href={`#${uid}-ico-${tier.key}`} x={tier.x} y={tier.y} width="9" height="9" />
+      ))}
+      <g transform={`translate(${CORE_CX - 14},100) scale(1.27)`}>
+        <IdentityGlyph propertyKey={key} />
       </g>
-
-      {/* Tecnologia, bloco cheio: régua vertical de patamares fixos. Cada rótulo tem faixa própria, nunca cruza outro. */}
-      {!compact && (
-        <g>
-          <line
-            x1={SPINE_X}
-            y1={SOIL_Y - 6}
-            x2={SPINE_X}
-            y2={SOIL_Y + TECH_TIERS[TECH_TIERS.length - 1].dy}
-            stroke="var(--color-tinta-900)"
-            strokeWidth="1"
-            opacity="0.3"
-          />
-          {TECH_TIERS.map((tier) => {
-            const ativo = t >= tier.min;
-            const y = SOIL_Y + tier.dy;
-            return (
-              <g key={tier.key}>
-                <line
-                  x1={SPINE_X - 5}
-                  y1={y}
-                  x2={SPINE_X + 5}
-                  y2={y}
-                  stroke="var(--color-tecnologia)"
-                  strokeWidth="1.4"
-                  opacity={ativo ? 1 : 0.18}
-                  style={{ transition: 'opacity 350ms ease-out' }}
-                />
-                {ativo && (
-                  <text x={SPINE_X + 9} y={y + 2.6} fontFamily="var(--font-mono)" fontSize="7" fill="var(--color-tinta-700)">
-                    {tier.key}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      )}
-
-      {/* Tecnologia, faixa compacta: sem linha de chamada nem rótulo, só um pequeno bloco de marcas ao lado do galpão. */}
-      {compact && activeTechCount > 0 && (
-        <g>
-          {TECH_TIERS.filter((tier) => t >= tier.min).map((tier, i) => (
-            <rect
-              key={tier.key}
-              x={SHED_X + 26}
-              y={SOIL_Y - 14 - i * 9}
-              width="7"
-              height="7"
-              fill="var(--color-tecnologia)"
-            />
-          ))}
-        </g>
-      )}
-
-      {/* Selo de identidade: glifo fixo por propriedade, sempre no mesmo lugar, sempre inteiro e livre de colisão. */}
-      <g transform={`translate(${BADGE_X - 11 * badgeScale}, ${BADGE_Y - 11 * badgeScale}) scale(${badgeScale})`}>
-        <BadgeGlyph propertyKey={key} />
-      </g>
-      {!compact && (
-        <text
-          x={BADGE_X}
-          y={Math.min(BADGE_Y + 20, SAFE_BOTTOM - 4)}
-          textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          fontSize="7"
-          fill="var(--color-tinta-700)"
-        >
-          {identity.label}
-        </text>
-      )}
+      <text x={CORE_CX} y={134} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="6" fill="var(--color-terra-700)">
+        {IDENTITY_LABEL[key]}
+      </text>
     </svg>
   );
 }
