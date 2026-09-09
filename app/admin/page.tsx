@@ -24,7 +24,7 @@ import {
 } from '@/lib/client-api';
 import { hostSession } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
-import { Button, Field, Filete, Pill, SectionHeading, Chapeu } from '@/components/ui/primitives';
+import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DenseTeamCard } from '@/components/host/team-board';
 import { DEFAULT_CONFIG, ROUND_META, TOTAL_ROUNDS } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
@@ -120,7 +120,7 @@ export default function AdminPage() {
   if (phase === 'checking') {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="dado-lg text-tinta-700">Carregando painel...</p>
+        <p className="dado-lg text-terra-700">Carregando painel...</p>
       </main>
     );
   }
@@ -207,22 +207,22 @@ function CreateGameScreen({
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-6 py-16">
       <div className="flex flex-col gap-2">
-        <Chapeu>SAFRA DF · Painel do professor</Chapeu>
-        <h1 className="manchete-lg text-tinta-900">Criar uma nova partida</h1>
-        <p className="max-w-prose text-tinta-500">
+        <Rotulo>SAFRA DF · Painel do professor</Rotulo>
+        <h1 className="relevo-lg text-terra-900">Criar uma nova partida</h1>
+        <p className="max-w-prose text-terra-700">
           A turma vai entrar pelo celular com um código. Você controla o ritmo das cinco rodadas
           por esta tela, projetada em telão ou não.
         </p>
       </div>
 
       {expired ? (
-        <div className="bloco-realce flex items-center gap-3 p-4">
+        <Degrau nivel="terraco" familia="alerta" className="flex items-center gap-3 p-4">
           <AlertTriangle className="shrink-0 text-alerta" size={20} aria-hidden />
-          <p className="text-sm text-tinta-700">
+          <p className="text-sm text-terra-700">
             A partida salva neste navegador não existe mais ou o acesso expirou. Crie uma nova
             partida para continuar.
           </p>
-        </div>
+        </Degrau>
       ) : null}
 
       <Button
@@ -241,12 +241,12 @@ function CreateGameScreen({
         </p>
       ) : null}
 
-      <Filete espessura="fino" />
+      <div className="h-px w-full bg-nevoa-200" />
 
       <button
         type="button"
         onClick={() => setCustomize((value) => !value)}
-        className="flex items-center gap-2 self-start text-sm font-medium text-tinta-700 hover:text-tinta-900"
+        className="flex items-center gap-2 self-start text-sm font-medium text-terra-700 hover:text-terra-900"
         aria-expanded={customize}
       >
         <Settings2 size={16} aria-hidden />
@@ -259,7 +259,7 @@ function CreateGameScreen({
       </button>
 
       {customize ? (
-        <div className="bloco flex flex-col gap-5 p-6">
+        <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-5 p-6">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Field
               label="Orçamento inicial (R$)"
@@ -327,11 +327,11 @@ function CreateGameScreen({
                 onChange={(event) => setSustainability(Number(event.target.value))}
               />
             </div>
-            <p className={`dado text-sm ${weightSum === 100 ? 'text-tinta-500' : 'text-alerta'}`}>
+            <p className={`dado text-sm ${weightSum === 100 ? 'text-terra-500' : 'text-alerta'}`}>
               Soma atual: {weightSum}{weightSum !== 100 ? ' · precisa somar exatamente 100' : ''}
             </p>
           </div>
-        </div>
+        </Degrau>
       ) : null}
     </main>
   );
@@ -453,7 +453,7 @@ function ControlPanel({
     return (
       <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={28} aria-hidden />
-        <p className="text-tinta-700">{loadError}</p>
+        <p className="text-terra-700">{loadError}</p>
         <Button variant="secundario" onClick={onReload}>
           <RefreshCcw size={16} aria-hidden />
           Tentar de novo
@@ -465,7 +465,7 @@ function ControlPanel({
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="dado-lg text-tinta-700">Carregando a partida...</p>
+        <p className="dado-lg text-terra-700">Carregando a partida...</p>
       </main>
     );
   }
@@ -480,12 +480,12 @@ function ControlPanel({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10">
-      <header className="filete-grosso flex flex-col gap-6 pt-4 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-6 border-t-2 border-nevoa-200 pt-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
-          <Chapeu>SAFRA DF · Painel do professor</Chapeu>
+          <Rotulo>SAFRA DF · Painel do professor</Rotulo>
           <div className="flex items-baseline gap-4">
-            <span className="rotulo">Código</span>
-            <span data-testid="game-code" className="dado-xl uppercase tracking-[0.1em] text-tinta-900">
+            <Rotulo>Código</Rotulo>
+            <span data-testid="game-code" className="dado-xl uppercase tracking-[0.1em] text-terra-900">
               {code}
             </span>
           </div>
@@ -514,28 +514,28 @@ function ControlPanel({
           <Link
             href={`/host/${gameId}`}
             target="_blank"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-tinta-700 hover:text-tinta-900"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-terra-700 hover:text-terra-900"
           >
             Abrir projeção <ExternalLink size={14} aria-hidden />
           </Link>
           <Link
             href={`/host/${gameId}/diagnostico`}
             target="_blank"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-tinta-700 hover:text-tinta-900"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-terra-700 hover:text-terra-900"
           >
             Abrir diagnóstico da turma <ExternalLink size={14} aria-hidden />
           </Link>
           <Link
             href={`/host/${gameId}/resultado`}
             target="_blank"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-tinta-700 hover:text-tinta-900"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-terra-700 hover:text-terra-900"
           >
             Abrir resultado <ExternalLink size={14} aria-hidden />
           </Link>
         </div>
       </header>
 
-      <section className="bloco flex flex-col gap-4 p-6">
+      <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-4 p-6">
         <SectionHeading overline="Controle da partida" title="O que fazer agora" />
 
         {actionError ? (
@@ -590,7 +590,7 @@ function ControlPanel({
           />
         </div>
 
-        <Filete espessura="fino" />
+        <div className="h-px w-full bg-nevoa-200" />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -605,8 +605,8 @@ function ControlPanel({
                 Encerrar partida
               </Button>
             ) : (
-              <div className="bloco-realce flex flex-col gap-2 p-4">
-                <p className="text-sm text-tinta-700">
+              <Degrau nivel="banco" familia="alerta" className="flex flex-col gap-2 p-4">
+                <p className="text-sm text-terra-700">
                   Encerrar calcula o resultado final e trava novas decisões. Confirma?
                 </p>
                 <div className="flex gap-2">
@@ -623,10 +623,10 @@ function ControlPanel({
                     Cancelar
                   </Button>
                 </div>
-              </div>
+              </Degrau>
             )}
             {actionStates?.finish.reason ? (
-              <p className="text-xs text-tinta-500">{actionStates.finish.reason}</p>
+              <p className="text-xs text-terra-500">{actionStates.finish.reason}</p>
             ) : null}
           </div>
 
@@ -637,8 +637,8 @@ function ControlPanel({
                 Reiniciar partida
               </Button>
             ) : (
-              <div className="bloco-realce flex flex-col gap-2 p-4">
-                <p className="text-sm text-tinta-700">
+              <Degrau nivel="banco" familia="alerta" className="flex flex-col gap-2 p-4">
+                <p className="text-sm text-terra-700">
                   Reiniciar apaga rodadas, decisões e resultado, e devolve os indicadores ao
                   início. As equipes e os jogadores continuam conectados. Confirma?
                 </p>
@@ -657,7 +657,7 @@ function ControlPanel({
                     Cancelar
                   </Button>
                 </div>
-              </div>
+              </Degrau>
             )}
           </div>
         </div>
@@ -665,26 +665,26 @@ function ControlPanel({
         <button
           type="button"
           onClick={onReset}
-          className="self-start text-xs text-tinta-500 underline-offset-2 hover:underline"
+          className="self-start text-xs text-terra-500 underline-offset-2 hover:underline"
         >
           Esquecer esta partida neste navegador
         </button>
-      </section>
+      </Degrau>
 
       {lastOutcomes && lastOutcomes.length > 0 ? (
-        <section className="bloco flex flex-col gap-4 p-6">
+        <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-4 p-6">
           <SectionHeading
             overline="Última rodada resolvida"
             title="O que aconteceu com cada equipe"
           />
-          <ul className="flex flex-col">
+          <ul className="flex flex-col gap-3">
             {lastOutcomes.map((outcome) => (
-              <li key={outcome.teamId} className="filete-fino py-3 first:border-t-0 first:pt-0">
-                <p className="text-base text-tinta-900">
-                  <span className="font-semibold">{outcome.teamName}:</span> {outcome.outcome}
+              <li key={outcome.teamId} className="border-t-2 border-nevoa-200 pt-3 first:border-t-0 first:pt-0">
+                <p className="text-base text-terra-900">
+                  <span className="font-bold">{outcome.teamName}:</span> {outcome.outcome}
                 </p>
                 {outcome.effects.length > 0 ? (
-                  <p className="dado mt-1 flex flex-wrap gap-x-3 text-sm text-tinta-700">
+                  <p className="dado mt-1 flex flex-wrap gap-x-3 text-sm text-terra-700">
                     {outcome.effects.map((effect) => (
                       <span key={effect.indicator}>
                         {effect.indicator}: {effect.delta > 0 ? '+' : ''}
@@ -694,7 +694,7 @@ function ControlPanel({
                   </p>
                 ) : null}
                 {outcome.notes.length > 0 ? (
-                  <ul className="mt-1 list-inside list-disc text-sm text-tinta-500">
+                  <ul className="mt-1 list-inside list-disc text-sm text-terra-500">
                     {outcome.notes.map((note, index) => (
                       <li key={index}>{note}</li>
                     ))}
@@ -703,7 +703,7 @@ function ControlPanel({
               </li>
             ))}
           </ul>
-        </section>
+        </Degrau>
       ) : null}
 
       <section className="flex flex-col gap-4">
@@ -712,7 +712,7 @@ function ControlPanel({
           title={`${view.teams.length} equipes se formando`}
           description="Visão privada do professor: aqui a decisão de cada equipe aparece assim que confirmada, mesmo com a rodada aberta."
         />
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-4">
           {view.teams.map((team) => (
             <DenseTeamCard
               key={team.id}
@@ -763,7 +763,7 @@ function ActionButton({
         {icon}
         {pending ? 'Aguarde...' : label}
       </Button>
-      {state?.reason ? <p className="text-xs text-tinta-500">{state.reason}</p> : null}
+      {state?.reason ? <p className="text-xs text-terra-500">{state.reason}</p> : null}
     </div>
   );
 }

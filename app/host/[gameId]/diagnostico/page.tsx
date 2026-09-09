@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { AlertTriangle, Lightbulb } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
-import { SectionHeading } from '@/components/ui/primitives';
+import { Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DiagnosticBars } from '@/components/host/diagnostic-bars';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { POLICY_DISCLAIMER } from '@/data/policies';
@@ -15,9 +15,13 @@ import type { HostView } from '@/lib/game-service';
 /**
  * Diagnóstico da turma: a peça central da aula.
  *
- * Nada aqui classifica equipe como certa ou errada. O painel só conta o que a
- * turma fez, com barra visual e o histórico rodada a rodada de cada grupo,
- * para o professor puxar o fio da exposição teórica a partir de fatos.
+ * Nada aqui classifica equipe como certa ou errada. O `mirante` único no
+ * topo é a pergunta que abre o debate: o gancho mais forte já calculado por
+ * `game/diagnostics.ts` (o primeiro de `teachingHooks`, porque a função os
+ * empilha em ordem de força do contraste). Abaixo, cada métrica da turma é
+ * um `banco` com o canal reaproveitado, e por último o histórico por equipe
+ * em coluna única, nunca em grade: seis caixas iguais lado a lado é
+ * exatamente a geometria que esta direção proíbe.
  */
 export default function DiagnosticoPage() {
   const params = useParams<{ gameId: string }>();
@@ -70,7 +74,7 @@ export default function DiagnosticoPage() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-tinta-700">{error}</p>
+        <p className="text-lg text-terra-700">{error}</p>
       </main>
     );
   }
@@ -78,7 +82,7 @@ export default function DiagnosticoPage() {
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="dado-lg text-tinta-700">Carregando diagnóstico...</p>
+        <p className="dado-lg text-terra-700">Carregando diagnóstico...</p>
       </main>
     );
   }
@@ -87,36 +91,41 @@ export default function DiagnosticoPage() {
   const showPolicyDisclaimer = view.diagnostics.some(
     (entry) => entry.tag === 'public_policy' && entry.decisions > 0,
   );
+  const openingHook = view.teachingHooks[0] ?? null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10">
-      <SectionHeading
-        overline="SAFRA DF · Diagnóstico da turma"
-        title="O que a turma decidiu"
-        description="Este painel não diz quem acertou. Ele mostra o que aconteceu na turma inteira, para virar pergunta na aula."
-      />
+      <Rotulo>SAFRA DF · Diagnóstico da turma</Rotulo>
 
-      {!hasDecisions ? (
-        <div className="bloco flex items-center gap-3 p-6">
-          <AlertTriangle className="shrink-0 text-tinta-500" size={22} aria-hidden />
-          <p className="text-tinta-700">
-            Ainda não há decisões suficientes registradas. O diagnóstico ganha corpo à medida que
-            as equipes jogam as rodadas.
-          </p>
-        </div>
+      {openingHook ? (
+        <Degrau nivel="mirante" familia="azul" className="flex flex-col gap-3 p-6 sm:p-8">
+          <Rotulo className="text-azul-800">Pergunta para abrir o debate</Rotulo>
+          <h1 className="relevo-lg text-terra-900">{openingHook}</h1>
+        </Degrau>
       ) : (
-        <section className="bloco p-6">
-          <DiagnosticBars entries={view.diagnostics} />
-        </section>
+        <Degrau nivel="mirante" familia="claro" className="flex items-center gap-3 p-6">
+          <AlertTriangle className="shrink-0 text-terra-500" size={22} aria-hidden />
+          <p className="text-terra-700">
+            Ainda não há decisões suficientes registradas para gerar um gancho de debate. O
+            diagnóstico ganha corpo à medida que as equipes jogam as rodadas.
+          </p>
+        </Degrau>
       )}
 
-      {view.teachingHooks.length > 0 ? (
+      {hasDecisions ? (
         <section className="flex flex-col gap-4">
-          <SectionHeading overline="Ganchos para o debate" title="Perguntas prontas para a turma" />
+          <SectionHeading overline="O que a turma decidiu" title="Contagem por comportamento" />
+          <DiagnosticBars entries={view.diagnostics} />
+        </section>
+      ) : null}
+
+      {view.teachingHooks.length > 1 ? (
+        <section className="flex flex-col gap-4">
+          <SectionHeading overline="Mais ganchos para o debate" title="Outras perguntas prontas" />
           <ul className="flex flex-col gap-4">
-            {view.teachingHooks.map((hook, index) => (
-              <li key={index} className="flex items-start gap-3 text-lg text-tinta-700">
-                <Lightbulb className="mt-1 shrink-0 text-manchete" size={20} aria-hidden />
+            {view.teachingHooks.slice(1).map((hook, index) => (
+              <li key={index} className="flex items-start gap-3 text-lg text-terra-700">
+                <Lightbulb className="mt-1 shrink-0 text-terra-500" size={20} aria-hidden />
                 <span>{hook}</span>
               </li>
             ))}
@@ -129,20 +138,25 @@ export default function DiagnosticoPage() {
           overline="Por equipe"
           title="Histórico de decisões, rodada a rodada"
         />
-        <div className="grid grid-cols-1 gap-x-10 lg:grid-cols-2">
+        <div className="flex flex-col gap-3">
           {view.teams.map((team) => {
             const property = PROPERTY_BY_KEY[team.propertyKey];
             return (
-              <div key={team.id} className="filete-fino flex flex-col gap-3 py-5">
+              <Degrau
+                key={team.id}
+                nivel="banco"
+                familia="neutro"
+                className="flex flex-col gap-3 p-5"
+              >
                 <header className="flex flex-col gap-0.5">
-                  <span className="rotulo">{property?.region ?? 'Propriedade'}</span>
-                  <h3 className="manchete-sm text-tinta-900">{team.name}</h3>
+                  <Rotulo>{property?.region ?? 'Propriedade'}</Rotulo>
+                  <h3 className="relevo-sm text-terra-900">{team.name}</h3>
                 </header>
 
                 {team.history.length === 0 ? (
-                  <p className="text-sm text-tinta-500">Nenhuma decisão registrada ainda.</p>
+                  <p className="text-sm text-terra-500">Nenhuma decisão registrada ainda.</p>
                 ) : (
-                  <ol className="flex flex-col">
+                  <ol className="flex flex-col gap-1">
                     {team.history.map((entry) => {
                       const phase = ROUND_META[
                         (Object.keys(ROUND_META) as (keyof typeof ROUND_META)[]).find(
@@ -152,12 +166,12 @@ export default function DiagnosticoPage() {
                       return (
                         <li
                           key={`${team.id}-${entry.roundIndex}`}
-                          className="flex items-baseline justify-between gap-3 py-1.5"
+                          className="flex items-baseline justify-between gap-3 py-1"
                         >
-                          <span className="text-sm text-tinta-500">
+                          <span className="text-sm text-terra-500">
                             Rodada {entry.roundIndex} · {phase.title}
                           </span>
-                          <span className="text-right text-sm font-medium text-tinta-900">
+                          <span className="text-right text-sm font-bold text-terra-900">
                             {entry.optionLabel}
                           </span>
                         </li>
@@ -165,14 +179,16 @@ export default function DiagnosticoPage() {
                     })}
                   </ol>
                 )}
-              </div>
+              </Degrau>
             );
           })}
         </div>
       </section>
 
       {showPolicyDisclaimer ? (
-        <p className="filete-fino pt-4 text-xs text-tinta-500">{POLICY_DISCLAIMER}</p>
+        <p className="border-t-2 border-nevoa-200 pt-4 text-xs text-terra-500">
+          {POLICY_DISCLAIMER}
+        </p>
       ) : null}
     </main>
   );

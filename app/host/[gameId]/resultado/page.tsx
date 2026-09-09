@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, ArrowRight, Lightbulb, Sprout } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
-import { Button, Chapeu, SectionHeading } from '@/components/ui/primitives';
+import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { RankingTable } from '@/components/host/ranking-table';
 import { DiagnosticBars } from '@/components/host/diagnostic-bars';
 import { POLICY_DISCLAIMER } from '@/data/policies';
@@ -74,7 +74,7 @@ export default function ResultadoPage() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-tinta-700">{error}</p>
+        <p className="text-lg text-terra-700">{error}</p>
       </main>
     );
   }
@@ -82,7 +82,7 @@ export default function ResultadoPage() {
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="dado-lg text-tinta-700">Carregando resultado...</p>
+        <p className="dado-lg text-terra-700">Carregando resultado...</p>
       </main>
     );
   }
@@ -90,9 +90,9 @@ export default function ResultadoPage() {
   if (view.scores.length === 0) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-        <Sprout className="text-tinta-500" size={36} aria-hidden />
-        <h1 className="manchete-md text-tinta-900">O resultado ainda não foi calculado</h1>
-        <p className="max-w-prose text-tinta-500">
+        <Sprout className="text-terra-500" size={36} aria-hidden />
+        <h1 className="relevo-md text-terra-900">O resultado ainda não foi calculado</h1>
+        <p className="max-w-prose text-terra-700">
           Volte ao painel do professor em <code className="dado">/admin</code> e clique em
           &quot;Encerrar partida&quot; para fechar as cinco rodadas e gerar o ranking, os perfis e
           os prêmios de cada equipe.
@@ -108,9 +108,9 @@ export default function ResultadoPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-8 py-10">
       <nav className="flex items-center justify-between gap-4">
-        <span className="rotulo">
+        <Rotulo>
           Bloco {block + 1} de {BLOCK_COUNT}
-        </span>
+        </Rotulo>
         <div className="flex gap-2">
           <Button
             variant="secundario"
@@ -150,17 +150,15 @@ export default function ResultadoPage() {
             description="O que a turma fez, agregado, sem apontar equipe certa ou errada."
           />
 
-          <div className="bloco p-6">
-            <DiagnosticBars entries={view.diagnostics} />
-          </div>
+          <DiagnosticBars entries={view.diagnostics} />
 
           {view.teachingHooks.length > 0 ? (
             <div className="flex flex-col gap-3">
-              <span className="rotulo">Ganchos para o debate</span>
+              <Rotulo>Ganchos para o debate</Rotulo>
               <ul className="flex flex-col gap-4">
                 {view.teachingHooks.map((hook, index) => (
-                  <li key={index} className="flex items-start gap-3 text-lg text-tinta-700">
-                    <Lightbulb className="mt-1 shrink-0 text-manchete" size={20} aria-hidden />
+                  <li key={index} className="flex items-start gap-3 text-lg text-terra-700">
+                    <Lightbulb className="mt-1 shrink-0 text-terra-500" size={20} aria-hidden />
                     <span>{hook}</span>
                   </li>
                 ))}
@@ -168,17 +166,21 @@ export default function ResultadoPage() {
             </div>
           ) : null}
 
-          <p className="filete-fino pt-4 text-xs text-tinta-500">{POLICY_DISCLAIMER}</p>
+          <p className="border-t-2 border-nevoa-200 pt-4 text-xs text-terra-500">
+            {POLICY_DISCLAIMER}
+          </p>
         </section>
       ) : null}
 
       {block === 2 ? (
-        <section className="flex flex-1 flex-col items-center justify-center gap-8 py-16 text-center">
-          <Chapeu>Para pensar</Chapeu>
-          <h1 className="manchete-lg max-w-4xl text-tinta-900">
-            O principal problema da agricultura familiar é a falta de tecnologia ou a dificuldade
-            de acesso e adoção dessas tecnologias?
-          </h1>
+        <section className="flex flex-1 items-center justify-center py-16">
+          <Degrau nivel="mirante" familia="azul" className="flex flex-col items-center gap-6 p-10 text-center">
+            <Rotulo className="text-azul-800">Para pensar</Rotulo>
+            <h1 className="relevo-lg max-w-4xl text-terra-900">
+              O principal problema da agricultura familiar é a falta de tecnologia ou a dificuldade
+              de acesso e adoção dessas tecnologias?
+            </h1>
+          </Degrau>
         </section>
       ) : null}
     </main>

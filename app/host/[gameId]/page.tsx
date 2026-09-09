@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation';
 import { AlertTriangle, Timer, Trophy, Users } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel, useRoundTimer, formatClock } from '@/hooks/use-game-channel';
-import { Pill, Chapeu } from '@/components/ui/primitives';
-import { FocusTeamBoard, TeamRow, DenseTeamCard } from '@/components/host/team-board';
+import { Pill, Rotulo } from '@/components/ui/primitives';
+import { FocusTeamBoard, TeamRow, DenseTeamCard, useFlipRows } from '@/components/host/team-board';
 import { ROUND_META, TOTAL_ROUNDS, type GameStatus } from '@/types/game';
 import type { HostView, HostTeamView } from '@/lib/game-service';
 
@@ -18,12 +18,13 @@ import type { HostView, HostTeamView } from '@/lib/game-service';
  * mostra só "decidiu" ou "pensando": revelar a escolha em tempo real mataria
  * a discussão que é o ponto do jogo.
  *
- * Layout de manchete + classificados: uma equipe em foco ocupa a matéria
- * principal, as outras cinco viram lista numerada densa. A escolha de quem
- * entra em foco é só de apresentação, calculada no cliente a partir da
- * variação de índice composto entre duas cargas consecutivas da projeção
- * (ou seja, entre antes e depois de uma rodada ser resolvida): nenhum
- * endpoint novo, nenhum dado que a API já não devolvesse.
+ * Layout "curva de nível": UM `mirante` no topo com a equipe em foco, as
+ * outras cinco formam uma "encosta", coluna única em que a altura da parede
+ * de cada linha é proporcional à posição no ranking. A escolha de quem entra
+ * em foco é só de apresentação, calculada no cliente a partir da variação de
+ * índice composto entre duas cargas consecutivas da projeção (ou seja, entre
+ * antes e depois de uma rodada ser resolvida): nenhum endpoint novo, nenhum
+ * dado que a API já não devolvesse.
  */
 
 const STATUS_LABEL: Record<GameStatus, string> = {
@@ -32,6 +33,17 @@ const STATUS_LABEL: Record<GameStatus, string> = {
   paused: 'Pausada pelo professor',
   finished: 'Partida encerrada',
 };
+
+/**
+ * Altura da parede (px) de cada linha da encosta, por ÍNDICE dentro da lista
+ * já ordenada por rank (0 = melhor colocada fora do foco). A direção fixa
+ * dois pontos ("2º lugar = 10px" e "6º = 5px") e a descida entre eles: como
+ * o foco costuma ser a 1ª colocada, o índice 0 desta lista normalmente É o
+ * 2º lugar geral, e assim por diante até o índice 4 (6º lugar geral).
+ * Quando o foco é outra equipe, a mesma escala de degrau desce igual, só que
+ * ancorada nas cinco que sobraram, o que mantém a leitura física idêntica.
+ */
+const WALL_BY_ENCOSTA_INDEX = [10, 9, 8, 7, 5] as const;
 
 interface RankedTeam {
   team: HostTeamView;
@@ -169,6 +181,15 @@ export default function HostProjectionPage() {
   const roundKey = view ? `${view.game.currentRound}-${view.game.roundStatus}` : 'sem-partida';
   const focusTeamId = useFocusTeamId(ranking, roundKey);
 
+  const focusEntry = ranking.find((entry) => entry.team.id === focusTeamId) ?? ranking[0] ?? null;
+  const classificados = ranking.filter((entry) => entry.team.id !== focusEntry?.team.id);
+  const encostaOrderKey = classificados.map((entry) => entry.team.id).join(',');
+  const setRowRef = useFlipRows(encostaOrderKey);
+
+  // Cronômetro entrando na reta final: dispara o pulso de nascente (movimento
+  // 2), o único laço infinito do sistema, quando faltam 30 segundos ou menos.
+  const isEnding = remaining !== null && remaining <= 30;
+
   if (!gameId) {
     return null;
   }
@@ -177,7 +198,7 @@ export default function HostProjectionPage() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={32} aria-hidden />
-        <p className="text-lg text-tinta-700">{error}</p>
+        <p className="text-lg text-terra-700">{error}</p>
       </main>
     );
   }
@@ -185,7 +206,7 @@ export default function HostProjectionPage() {
   if (!view) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
-        <p className="dado-lg text-tinta-700">Carregando projeção...</p>
+        <p className="dado-lg text-terra-700">Carregando projeção...</p>
       </main>
     );
   }
@@ -198,22 +219,20 @@ export default function HostProjectionPage() {
 
   const phase = game.phase ? ROUND_META[game.phase] : null;
   const revealDecision = game.roundStatus !== 'active';
-  const focusEntry = ranking.find((entry) => entry.team.id === focusTeamId) ?? ranking[0] ?? null;
-  const classificados = ranking.filter((entry) => entry.team.id !== focusEntry?.team.id);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-10 px-10 py-8">
-      <header className="filete-grosso flex flex-wrap items-center justify-between gap-6 pt-4">
+      <header className="flex flex-wrap items-center justify-between gap-6 pt-4">
         <div className="flex flex-col gap-1">
-          <Chapeu>SAFRA DF · Decisões que Alimentam</Chapeu>
+          <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
           {phase ? (
-            <h1 className="manchete-lg text-tinta-900">
+            <h1 className="relevo-lg text-terra-900">
               Rodada {phase.index} de {TOTAL_ROUNDS} · {phase.title}
             </h1>
           ) : (
-            <h1 className="manchete-lg text-tinta-900">{STATUS_LABEL[game.status]}</h1>
+            <h1 className="relevo-lg text-terra-900">{STATUS_LABEL[game.status]}</h1>
           )}
-          {phase ? <p className="olho">{phase.subtitle}</p> : null}
+          {phase ? <p className="text-lg text-terra-700">{phase.subtitle}</p> : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-6">
@@ -222,14 +241,19 @@ export default function HostProjectionPage() {
           </Pill>
 
           {game.roundStatus === 'active' ? (
-            <div className="flex items-center gap-3">
-              <Timer className={remaining !== null && remaining <= 20 ? 'text-alerta' : 'text-manchete'} size={30} aria-hidden />
+            <div className="relative flex items-center gap-3">
+              {isEnding ? (
+                <span aria-hidden="true" className="absolute -left-2 -top-2 h-9 w-9">
+                  <span className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta" />
+                  <span
+                    className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta"
+                    style={{ animationDelay: '600ms' }}
+                  />
+                </span>
+              ) : null}
+              <Timer className={isEnding ? 'text-alerta' : 'text-terra-700'} size={30} aria-hidden />
               <span
-                className={
-                  remaining !== null && remaining <= 20
-                    ? 'dado-xl animate-brasa text-alerta'
-                    : 'dado-xl text-tinta-900'
-                }
+                className={isEnding ? 'dado-xl text-alerta' : 'dado-xl text-terra-900'}
                 aria-live="polite"
               >
                 {formatClock(remaining)}
@@ -259,17 +283,21 @@ export default function HostProjectionPage() {
       ) : null}
 
       {classificados.length > 0 ? (
-        <section className="flex flex-col gap-1" aria-live="polite">
-          <span className="rotulo flex items-center gap-1.5 pb-1">
-            <Trophy size={12} aria-hidden />
-            Classificados
-          </span>
-          <ol className="flex flex-col">
-            {classificados.map(({ team, position }) => (
+        <section className="flex flex-col gap-3" aria-live="polite">
+          <Rotulo>
+            <span className="inline-flex items-center gap-1.5">
+              <Trophy size={12} aria-hidden />
+              Classificados
+            </span>
+          </Rotulo>
+          <ol className="flex flex-col gap-3">
+            {classificados.map(({ team, position }, index) => (
               <TeamRow
                 key={team.id}
+                ref={setRowRef(team.id)}
                 team={team}
                 position={position}
+                wallPx={WALL_BY_ENCOSTA_INDEX[index] ?? 5}
                 initialBudget={game.config.initialBudget}
                 revealDecision={revealDecision}
               />
@@ -278,9 +306,11 @@ export default function HostProjectionPage() {
         </section>
       ) : null}
 
-      <footer className="filete-fino mt-auto flex items-center justify-center gap-3 py-4">
-        <span className="text-sm text-tinta-500">Chegou atrasado? O código da partida é</span>
-        <span className="dado text-2xl font-bold uppercase tracking-[0.2em] text-tinta-900">{game.code}</span>
+      <footer className="mt-auto flex items-center justify-center gap-3 border-t-2 border-nevoa-200 py-4">
+        <span className="text-sm text-terra-500">Chegou atrasado? O código da partida é</span>
+        <span className="dado text-3xl font-bold uppercase tracking-[0.25em] text-terra-900">
+          {game.code}
+        </span>
       </footer>
     </main>
   );
@@ -290,21 +320,26 @@ function LobbyScreen({ view }: { view: HostView }) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-10 px-6 py-12 text-center">
       <div className="flex flex-col items-center gap-3">
-        <Chapeu>SAFRA DF · Decisões que Alimentam</Chapeu>
-        <p className="olho">Acesse, digite o código e seu nome</p>
-        <span className="dado-xl text-tinta-900" style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '0.08em' }}>
+        <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
+        <p className="text-lg text-terra-700">Acesse, digite o código e seu nome</p>
+        <span
+          className="dado-xl text-terra-900"
+          style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '0.08em' }}
+        >
           {view.game.code}
         </span>
       </div>
 
-      <div className="filete-duplo w-full max-w-3xl" />
+      <div className="h-1 w-full max-w-3xl rounded-full bg-nevoa-200" />
 
-      <div className="flex w-full max-w-6xl flex-col gap-4">
-        <span className="rotulo flex items-center justify-center gap-1.5">
-          <Users size={14} aria-hidden />
-          {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
-        </span>
-        <div className="grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
+      <div className="flex w-full max-w-3xl flex-col gap-4">
+        <Rotulo>
+          <span className="inline-flex items-center justify-center gap-1.5">
+            <Users size={14} aria-hidden />
+            {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
+          </span>
+        </Rotulo>
+        <div className="flex flex-col gap-3 text-left">
           {view.teams.map((team) => (
             <DenseTeamCard
               key={team.id}
