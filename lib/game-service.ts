@@ -155,6 +155,111 @@ function unwrap<T>(result: { data: T | null; error: { message: string } | null }
   return result.data;
 }
 
+// ---------------------------------------------------------------------------
+// Classificação de erro inesperado (criação de partida)
+//
+// `@supabase/supabase-js` nesta versão já converte falha de rede em `{ data:
+// null, error }` em vez de rejeitar a promise (ver PostgrestBuilder: o catch
+// só relança se `.throwOnError()` for chamado, o que este projeto nunca faz).
+// Então a exceção crua que chega até aqui na criação da partida vem de outro
+// lugar: `adminClient()`/`createClient()` lançando `Error` síncrono quando a
+// variável de ambiente está ausente/mal formada, ou `initialTeamState`
+// lançando para uma chave de propriedade desconhecida. Ainda assim, a escrita
+// (INSERT) não tem retry embutido na biblioteca (só leitura idempotente tem),
+// então uma falha de rede transitória numa escrita chega como resultado com
+// `error` preenchido, não como exceção. As duas rotas (exceção e resultado com
+// erro) precisam de tratamento explícito para nunca sobrar no fallback
+// genérico de `toResponse`.
+// ---------------------------------------------------------------------------
+
+const NETWORK_ERROR_PATTERN =
+  /fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|network|socket hang up/i;
+
+const CONFIG_ERROR_PATTERN =
+  /vari.vel de ambiente ausente|Invalid supabaseUrl|supabaseKey is required|supabaseUrl is required/i;
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  return NETWORK_ERROR_PATTERN.test(errorMessageOf(error));
+}
+
+function isConfigError(error: unknown): boolean {
+  return CONFIG_ERROR_PATTERN.test(errorMessageOf(error));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Converte qualquer exceção não prevista da criação de partida numa ApiError
+ * com causa distinguível. O professor vendo o erro precisa saber se é rede
+ * (tenta de novo), configuração do servidor (avisa a coordenação técnica) ou
+ * outra coisa: a ação de recuperação é diferente em cada caso. O erro real
+ * completo (tipo, causa, etapa) sempre vai para o log do servidor.
+ */
+function classifyGameCreationError(error: unknown, step: string): ApiError {
+  if (error instanceof ApiError) return error;
+
+  const detail = errorMessageOf(error);
+  console.error(`[safra-df] erro inesperado ao criar partida (etapa: ${step}):`, {
+    type: error instanceof Error ? error.constructor.name : typeof error,
+    message: detail,
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+
+  if (isConfigError(error)) {
+    return new ApiError(
+      'server_error',
+      'O servidor não está configurado corretamente para acessar o banco de dados. Avise a coordenação técnica antes de tentar de novo.',
+      detail,
+    );
+  }
+
+  if (isNetworkError(error)) {
+    return new ApiError(
+      'server_error',
+      'Não foi possível falar com o banco de dados agora. Verifique a conexão de rede e tente criar a partida de novo.',
+      detail,
+    );
+  }
+
+  return new ApiError(
+    'server_error',
+    'Não foi possível criar a partida por um erro inesperado no servidor.',
+    detail,
+  );
+}
+
+/**
+ * Repete uma escrita (INSERT) algumas vezes só quando a falha detectada é de
+ * rede transitória: erro de negócio (violação de constraint, RLS, etc.) falha
+ * na primeira tentativa, sem esperar.
+ *
+ * A biblioteca do Supabase já reexecuta requisições GET/HEAD sozinha; POST não
+ * é idempotente por natureza, então essa camada de retry é responsabilidade
+ * de quem chama, e só faz sentido para a etapa de escrita da criação da
+ * partida, que não pode falhar a aula por uma oscilação de rede de um segundo.
+ */
+async function withNetworkRetry<T>(
+  step: string,
+  attempt: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  const backoffMs = [150, 400];
+
+  let result = await attempt();
+  for (let index = 0; index < backoffMs.length && result.error && isNetworkError(new Error(result.error.message)); index += 1) {
+    console.error(`[safra-df] falha de rede transitória em "${step}", tentando de novo:`, result.error.message);
+    await sleep(backoffMs[index]);
+    result = await attempt();
+  }
+  return result;
+}
+
 function teamStateOf(team: TeamRow): TeamState {
   return {
     cash: Number(team.cash),
@@ -215,61 +320,80 @@ export interface CreateGameResult {
 export async function createGame(
   overrides: Partial<GameConfig> = {},
 ): Promise<CreateGameResult> {
-  const config: GameConfig = {
-    ...DEFAULT_CONFIG,
-    ...overrides,
-    weights: { ...DEFAULT_CONFIG.weights, ...(overrides.weights ?? {}) },
-  };
-
-  const teamCount = Math.max(1, Math.min(config.teamCount, PROPERTIES.length));
-  config.teamCount = teamCount;
-
-  // Colisão de código é improvável, mas a partida não pode falhar por isso.
-  let game: GameRow | null = null;
-  let lastError: string | null = null;
-
-  for (let attempt = 0; attempt < 5 && !game; attempt += 1) {
-    const { data, error } = await db()
-      .from('games')
-      .insert({ code: generateGameCode(), config })
-      .select('*')
-      .single();
-
-    if (data) game = data as GameRow;
-    else lastError = error?.message ?? null;
-  }
-
-  if (!game) {
-    throw new ApiError('server_error', 'Não foi possível criar a partida.', lastError);
-  }
-
-  const hostToken = generateToken();
-  const secretResult = await db()
-    .from('game_secrets')
-    .insert({ game_id: game.id, host_token_hash: hashToken(hostToken) });
-
-  if (secretResult.error) {
-    throw new ApiError('server_error', 'Falha ao registrar o acesso do professor.', secretResult.error.message);
-  }
-
-  const teamRows = PROPERTIES.slice(0, teamCount).map((property, index) => {
-    const state = initialTeamState(property.key, config);
-    return {
-      game_id: game!.id,
-      slug: property.key,
-      name: property.name,
-      property_key: property.key,
-      order_index: index,
-      ...teamUpdateFrom(state),
+  // Todo o caminho de criação passa por um único try/catch: qualquer exceção
+  // não prevista (env ausente, cliente mal configurado, chave de propriedade
+  // desconhecida, ou algo ainda não catalogado) é classificada aqui em vez de
+  // vazar para o fallback genérico de `toResponse`. O professor precisa saber
+  // se é rede, configuração do servidor ou outra coisa.
+  try {
+    const config: GameConfig = {
+      ...DEFAULT_CONFIG,
+      ...overrides,
+      weights: { ...DEFAULT_CONFIG.weights, ...(overrides.weights ?? {}) },
     };
-  });
 
-  const teams = unwrap(
-    await db().from('teams').insert(teamRows).select('*'),
-    'criar as equipes',
-  ) as TeamRow[];
+    const teamCount = Math.max(1, Math.min(config.teamCount, PROPERTIES.length));
+    config.teamCount = teamCount;
 
-  return { game, hostToken, teams };
+    // Colisão de código é improvável, mas a partida não pode falhar por isso.
+    // Esse laço também absorve uma falha de rede transitória isolada: se uma
+    // tentativa falha por rede, a próxima tentativa (com um novo código) tem
+    // outra chance, sem esperar o backoff de `withNetworkRetry`.
+    let game: GameRow | null = null;
+    let lastError: string | null = null;
+
+    for (let attempt = 0; attempt < 5 && !game; attempt += 1) {
+      const { data, error } = await db()
+        .from('games')
+        .insert({ code: generateGameCode(), config })
+        .select('*')
+        .single();
+
+      if (data) game = data as GameRow;
+      else lastError = error?.message ?? null;
+    }
+
+    if (!game) {
+      // Deixa a classificação para o catch externo: se as 5 tentativas
+      // falharam por rede, o professor recebe a mensagem de rede, não a
+      // genérica de colisão de código.
+      throw new Error(lastError ?? 'Não foi possível criar a partida após 5 tentativas.');
+    }
+
+    const hostToken = generateToken();
+    const secretResult = await withNetworkRetry('registrar o token do professor', () =>
+      db().from('game_secrets').insert({ game_id: game!.id, host_token_hash: hashToken(hostToken) }),
+    );
+
+    if (secretResult.error) {
+      throw new ApiError(
+        'server_error',
+        'Falha ao registrar o acesso do professor.',
+        secretResult.error.message,
+      );
+    }
+
+    const teamRows = PROPERTIES.slice(0, teamCount).map((property, index) => {
+      const state = initialTeamState(property.key, config);
+      return {
+        game_id: game!.id,
+        slug: property.key,
+        name: property.name,
+        property_key: property.key,
+        order_index: index,
+        ...teamUpdateFrom(state),
+      };
+    });
+
+    const teamsResult = await withNetworkRetry('criar as equipes', () =>
+      db().from('teams').insert(teamRows).select('*'),
+    );
+    const teams = unwrap(teamsResult, 'criar as equipes') as TeamRow[];
+
+    return { game, hostToken, teams };
+  } catch (error) {
+    throw classifyGameCreationError(error, 'criar-partida');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -452,25 +576,29 @@ export async function authenticatePlayer(token: string): Promise<PlayerSession> 
     throw new ApiError('unauthorized', 'Sessão expirada. Entre na partida de novo.');
   }
 
-  const player = unwrap(
-    await db().from('players').select('*').eq('id', secret.player_id).single(),
-    'carregar o jogador',
-  ) as PlayerRow;
+  // `member` só depende de secret.player_id (não do resultado de `player`), e
+  // `player` só depende de secret.player_id também: as duas consultas rodam em
+  // paralelo em vez de em série, o que corta um hop de rede por chamada. O
+  // mesmo vale para `team` (depende só de `member`) e `game` (depende só de
+  // `player`) no segundo par. Isso importa de verdade aqui: o Supabase deste
+  // projeto fica em us-west-2 e só é alcançável por um pooler IPv4, então cada
+  // round-trip evitado é ~250-400ms medidos a menos por chamada de
+  // /api/player/view, e essa função é chamada em toda leitura de tela do aluno.
+  const [playerResult, memberResult] = await Promise.all([
+    db().from('players').select('*').eq('id', secret.player_id).single(),
+    db().from('team_members').select('*').eq('player_id', secret.player_id).single(),
+  ]);
 
-  const member = unwrap(
-    await db().from('team_members').select('*').eq('player_id', player.id).single(),
-    'carregar a equipe do jogador',
-  ) as TeamMemberRow;
+  const player = unwrap(playerResult, 'carregar o jogador') as PlayerRow;
+  const member = unwrap(memberResult, 'carregar a equipe do jogador') as TeamMemberRow;
 
-  const team = unwrap(
-    await db().from('teams').select('*').eq('id', member.team_id).single(),
-    'carregar a equipe',
-  ) as TeamRow;
+  const [teamResult, gameResult] = await Promise.all([
+    db().from('teams').select('*').eq('id', member.team_id).single(),
+    db().from('games').select('*').eq('id', player.game_id).single(),
+  ]);
 
-  const game = unwrap(
-    await db().from('games').select('*').eq('id', player.game_id).single(),
-    'carregar a partida',
-  ) as GameRow;
+  const team = unwrap(teamResult, 'carregar a equipe') as TeamRow;
+  const game = unwrap(gameResult, 'carregar a partida') as GameRow;
 
   return { player, member, team, game };
 }
@@ -1141,35 +1269,36 @@ export interface PlayerView {
 export async function getPlayerView(token: string): Promise<PlayerView> {
   const { player, member, team, game } = await authenticatePlayer(token);
 
-  const roster = unwrap(
+  // Uma consulta com embedding de FK (`team_members.player_id -> players.id`)
+  // no lugar de duas consultas em série (buscar os ids do time e só depois
+  // buscar os jogadores desses ids): o PostgREST resolve o join num único
+  // round-trip.
+  const rosterRows = unwrap(
     await db()
       .from('team_members')
-      .select('player_id, role')
+      .select('player_id, role, players(id, name, connected, state, last_seen)')
       .eq('team_id', team.id),
     'carregar os integrantes',
-  ) as { player_id: string; role: Role }[];
+  ) as { player_id: string; role: Role; players: PlayerRow | PlayerRow[] | null }[];
 
-  const players = unwrap(
-    await db()
-      .from('players')
-      .select('*')
-      .in(
-        'id',
-        roster.map((entry) => entry.player_id),
-      ),
-    'carregar os jogadores da equipe',
-  ) as PlayerRow[];
+  // O tipo sem generics do Supabase infere o embed de FK como array mesmo
+  // sendo `team_members.player_id -> players.id` (um-para-um): normaliza os
+  // dois formatos possíveis em runtime.
+  function embeddedPlayer(row: (typeof rosterRows)[number]): PlayerRow | null {
+    if (Array.isArray(row.players)) return row.players[0] ?? null;
+    return row.players;
+  }
 
-  const roleByPlayer = new Map(roster.map((entry) => [entry.player_id, entry.role]));
-
-  const teammates: TeammateView[] = players
+  const teammates: TeammateView[] = rosterRows
+    .map((row) => ({ role: row.role, player: embeddedPlayer(row) }))
+    .filter((entry): entry is { role: Role; player: PlayerRow } => entry.player !== null)
     .map((entry) => ({
-      playerId: entry.id,
-      name: entry.name,
-      role: roleByPlayer.get(entry.id) ?? 'produtor',
-      connected: entry.connected,
-      state: entry.state,
-      isSelf: entry.id === player.id,
+      playerId: entry.player.id,
+      name: entry.player.name,
+      role: entry.role,
+      connected: entry.player.connected,
+      state: entry.player.state,
+      isSelf: entry.player.id === player.id,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -1181,12 +1310,13 @@ export async function getPlayerView(token: string): Promise<PlayerView> {
     const round = await roundOf(game.id, game.current_round);
 
     if (round) {
-      const { data: eventRow } = await db()
-        .from('events')
-        .select('*')
-        .eq('round_id', round.id)
-        .eq('team_id', team.id)
-        .maybeSingle();
+      // O evento e a decisão da equipe não dependem um do outro (ambos só
+      // precisam de round.id + team.id): buscar em paralelo evita um hop de
+      // rede em série a cada carregamento de tela do aluno.
+      const [{ data: eventRow }, { data: decisionRow }] = await Promise.all([
+        db().from('events').select('*').eq('round_id', round.id).eq('team_id', team.id).maybeSingle(),
+        db().from('decisions').select('*').eq('round_id', round.id).eq('team_id', team.id).maybeSingle(),
+      ]);
 
       if (eventRow) {
         const row = eventRow as EventRow;
@@ -1208,27 +1338,20 @@ export async function getPlayerView(token: string): Promise<PlayerView> {
           options: row.options,
           roleHint: (hint as { hint: string } | null)?.hint ?? null,
         };
+      }
 
-        const { data: decisionRow } = await db()
-          .from('decisions')
-          .select('*')
-          .eq('round_id', round.id)
-          .eq('team_id', team.id)
-          .maybeSingle();
+      if (decisionRow) {
+        const row2 = decisionRow as DecisionRow;
+        decision = { optionKey: row2.option_key, optionLabel: row2.option_label, locked: true };
 
-        if (decisionRow) {
-          const row2 = decisionRow as DecisionRow;
-          decision = { optionKey: row2.option_key, optionLabel: row2.option_label, locked: true };
-
-          if (round.resolved_at) {
-            lastResolution = {
-              roundIndex: round.index,
-              optionLabel: row2.option_label,
-              outcome: `A equipe escolheu: ${row2.option_label}.`,
-              notes: row2.notes,
-              effects: row2.effects,
-            };
-          }
+        if (round.resolved_at) {
+          lastResolution = {
+            roundIndex: round.index,
+            optionLabel: row2.option_label,
+            outcome: `A equipe escolheu: ${row2.option_label}.`,
+            notes: row2.notes,
+            effects: row2.effects,
+          };
         }
       }
     }

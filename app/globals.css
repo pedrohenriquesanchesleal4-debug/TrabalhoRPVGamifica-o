@@ -1,105 +1,100 @@
 @import 'tailwindcss';
 
 /*
-  SAFRA DF · direção visual "Boletim de Safra".
+  SAFRA DF · direção visual V3 "Curva de Nível".
+  Especificação completa em docs/DIRECAO-VISUAL-V3.md.
 
-  A identidade nasce do relatório técnico que a extensão rural entrega ao
-  produtor: papel manteiga, tinta de imprensa, filete editorial, manchete em
-  serifa pesada e dado numérico em monoespaçada. É reportagem impressa, não
-  dashboard.
+  A identidade nasce do terraceamento em curva de nível: a técnica real que o
+  produtor do Cerrado usa para conter erosão e reter água, degraus de terra
+  que seguem o relevo.
 
-  Três decisões estruturais que valem para todo o projeto:
+  Cada superfície da interface é um desses degraus: um PRATO colorido apoiado
+  sobre uma PAREDE sólida da mesma família de cor. A parede é box-shadow com
+  blur zero, deslocada só para baixo. Sem vidro, sem borrão, sem sombra suave
+  de card, sem transparência decorativa.
 
-  1. Não existe card. Existe bloco separado por filete. Caixa com borda nos
-     quatro lados, raio uniforme e sombra suave é o que fazia as seis equipes
-     parecerem seis linhas de planilha. Aqui a hierarquia vem de escala
-     tipográfica e de régua horizontal, como numa primeira página.
+  Três regras que sustentam a direção:
 
-  2. Escala tipográfica com salto real. Manchete chega a 140px na projeção e
-     rótulo fica em 11px. Nada de tudo entre 16 e 24px.
+  1. Hierarquia é altitude. Uma tela usa no máximo UM degrau de nível 3
+     (`mirante`). É isso que torna impossível voltar ao grid de seis blocos
+     iguais que fez as duas direções anteriores parecerem genéricas.
 
-  3. Cada indicador tem forma própria, desenhada em SVG, além de cor própria.
-     Ler o indicador nunca depende de distinguir dois verdes parecidos.
+  2. O raio de canto DIMINUI conforme a altitude sobe. Degrau alto é compacto
+     e reto (3px); degrau baixo é largo e relaxado (10px). Substitui o
+     `rounded-2xl` uniforme por uma regra que muda com a hierarquia.
 
-  Fundo claro em ambas as superfícies: projetor de sala com luz acesa não
-  produz preto real, então o contraste não pode depender do nível de preto do
-  aparelho.
+  3. Cor não é enfeite. Verde e azul cobrem área grande de tela, não só texto
+     e ícone. O tom "600" é para superfície e UI; só o tom "700" carrega texto
+     de corpo pequeno, porque é o que passa AA.
 
-  Tudo é SVG e CSS. Nenhuma imagem, nenhum vídeo, nenhum WebGL.
+  Tudo é SVG e CSS. Zero imagem, zero vídeo, zero WebGL, zero biblioteca de
+  animação. Movimento só em `transform` e `opacity`, que é o que roda liso em
+  celular popular.
 */
 
 @theme {
-  /* Papel: a superfície. Do quase branco da coluna ao creme da página. */
-  --color-papel-50: #fdfbf5;
-  --color-papel-100: #f7f2e6;
-  --color-papel-200: #efe7d4;
-  --color-papel-300: #e3d8be;
-  --color-papel-400: #cbbb96;
+  /* Névoa: o fundo. Verde tão dessaturado que lê como neutro, sem ser cinza. */
+  --color-nevoa-50: #eef6f4;
+  --color-nevoa-100: #dcefe9;
+  --color-nevoa-200: #c7e3db;
 
-  /* Tinta: o texto. Preto de imprensa puxado para o marrom, nunca #000. */
-  --color-tinta-900: #201a12;
-  --color-tinta-700: #3d3325;
-  --color-tinta-500: #5c4f38;
+  /* Terra: o texto. Verde profundo puxado para o neutro, nunca #000. */
+  --color-terra-900: #10241d;
+  --color-terra-700: #35493f;
+  --color-terra-500: #5c7268;
 
-  /* Régua: filete, moldura de tabela, fio de coluna. Nunca texto de corpo. */
-  --color-regua: #8a7a5c;
+  /* Verde: produção, ação, crescimento. */
+  --color-verde-300: #8fd9ae;
+  --color-verde-600: #1f7a4d;
+  --color-verde-700: #155c3a;
+  --color-verde-800: #145536;
 
-  /* Manchete: o único acento. Vermelho de carimbo, usado com parcimônia. */
-  --color-manchete: #a3341c;
-  --color-manchete-escura: #7d2412;
+  /* Azul: tecnologia, água, informação. */
+  --color-azul-300: #8fcaf0;
+  --color-azul-600: #1c6fa8;
+  --color-azul-700: #12507d;
+  --color-azul-800: #124a72;
 
   /*
-    Indicadores. Quatro matizes deliberadamente afastados no círculo cromático
-    (ouro, oliva, índigo, verde-azulado) porque dois verdes vizinhos se
-    confundem em daltonismo e a seis metros de distância. A forma em SVG é a
-    diferenciação primária; a cor é reforço.
+    Indicadores. Quatro matizes afastados no círculo cromático, porque dois
+    verdes vizinhos se confundem em daltonismo e a seis metros de distância.
+    A forma (ícone) e o número impresso são a diferenciação primária; a cor é
+    o terceiro canal, nunca o único.
   */
-  --color-financas: #8a5a1f;
-  --color-producao: #4c6b2c;
-  --color-tecnologia: #2f4470;
-  --color-sustentabilidade: #14685c;
+  --color-financas: #b6791a;
+  --color-financas-texto: #8a5a14;
+  --color-financas-800: #6b4310;
 
-  --color-alerta: #a3341c;
-  --color-sucesso: #3d6b3f;
+  --color-producao: #1f7a4d;
+  --color-producao-800: #145536;
 
-  /* Fraunces em peso alto: a manchete. Nunca em corpo de texto. */
-  --font-manchete: var(--font-fraunces), 'Iowan Old Style', Georgia, serif;
-  /* Public Sans: grotesca de relatório institucional. Não é Inter. */
-  --font-sans: var(--font-public), ui-sans-serif, system-ui, sans-serif;
-  /* Space Mono: todo número, toda tabela, todo código de partida. */
-  --font-mono: var(--font-space), ui-monospace, 'Courier New', monospace;
+  --color-tecnologia: #1c6fa8;
+  --color-tecnologia-800: #124a72;
 
-  /* Papel não tem canto arredondado. 2px é o limite. */
-  --radius-bloco: 2px;
-  --radius-pill: 999px;
+  --color-sustentabilidade: #0e7d72;
+  --color-sustentabilidade-800: #0a5f57;
 
-  --animate-manchete: manchete 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-sobe: sobe 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-caule: caule 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-selo: selo 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-brasa: brasa 2.4s ease-in-out infinite;
+  --color-alerta: #b23a1f;
+  --color-alerta-800: #7d2712;
+  --color-sucesso: #1f7a4d;
+
+  /* Space Grotesk: instrumento de campo, não reportagem. */
+  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  /* Manrope: humanista de x-height alta, lê em 0.875rem no celular. */
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  /* JetBrains Mono: todo número. Ligadura desligada. */
+  --font-mono: var(--font-jetbrains), ui-monospace, 'Courier New', monospace;
+
+  --animate-emergir: emergir 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-nascente: nascente 1.8s ease-out infinite;
+  --animate-copa: copa 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/*
-  Movimento assinatura 1 · o entretítulo se ajusta.
-  A manchete entra com o espacejamento aberto e fecha para o normal, como uma
-  chapa de impressão travando no lugar.
-*/
-@keyframes manchete {
+/* Movimento 1 · emergência do terraço. Entrada de bloco novo. */
+@keyframes emergir {
   from {
     opacity: 0;
-    letter-spacing: 0.22em;
-  }
-  to {
-    opacity: 1;
-    letter-spacing: -0.03em;
-  }
-}
-
-@keyframes sobe {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -108,43 +103,29 @@
 }
 
 /*
-  Movimento assinatura 2 · o caule cresce.
-  Um passo só, da base para cima, quando a produção sobe de faixa. Sem laço.
+  Movimento 2 · pulso de nascente. Único laço infinito do sistema, e só entra
+  em cena quando o cronômetro cruza 30 segundos.
 */
-@keyframes caule {
+@keyframes nascente {
   from {
-    transform: scaleY(0.35);
-    opacity: 0.4;
+    opacity: 0.6;
+    transform: scale(1);
   }
   to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
-/*
-  Movimento assinatura 3 · o carimbo bate.
-  O selo de finanças fecha girando, como carimbo de cartório encostando no
-  papel.
-*/
-@keyframes selo {
-  from {
-    transform: rotate(-14deg) scale(0.9);
     opacity: 0;
-  }
-  to {
-    transform: rotate(0deg) scale(1);
-    opacity: 1;
+    transform: scale(1.6);
   }
 }
 
-@keyframes brasa {
-  0%,
-  100% {
-    opacity: 0.5;
+/* Movimento 6 · copa cresce. Disparo único quando a produção sobe de faixa. */
+@keyframes copa {
+  from {
+    opacity: 0.6;
+    transform: scaleY(0.72);
   }
-  50% {
+  to {
     opacity: 1;
+    transform: scaleY(1);
   }
 }
 
@@ -154,40 +135,41 @@
   }
 
   body {
-    background-color: var(--color-papel-100);
-    color: var(--color-tinta-900);
+    background-color: var(--color-nevoa-50);
+    color: var(--color-terra-900);
     font-family: var(--font-sans);
+    font-weight: 500;
     /*
-      Grão de papel: fio horizontal de baixíssimo contraste a cada 3px. Custo
-      zero, nenhuma requisição, e tira a chapa do fundo liso.
+      Curva de nível no fundo: duas linhas de contorno larguíssimas e de
+      contraste mínimo, que dão relevo ao vazio sem virar textura barulhenta.
+      Custo zero, nenhuma requisição.
     */
-    background-image: repeating-linear-gradient(
-      to bottom,
-      rgba(32, 26, 18, 0.016) 0px,
-      rgba(32, 26, 18, 0.016) 1px,
-      transparent 1px,
-      transparent 3px
-    );
+    background-image:
+      radial-gradient(
+        120% 60% at 50% -10%,
+        color-mix(in srgb, var(--color-verde-600) 7%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        90% 50% at 100% 105%,
+        color-mix(in srgb, var(--color-azul-600) 6%, transparent),
+        transparent 70%
+      );
+    background-attachment: fixed;
   }
 
   h1,
   h2,
   h3 {
-    font-family: var(--font-manchete);
+    font-family: var(--font-display);
+    font-weight: 700;
     text-wrap: balance;
-  }
-
-  /* Número que dança a cada atualização de realtime cansa quem lê de longe. */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
   }
 
   /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
   :focus-visible {
-    outline: 2px solid var(--color-manchete);
+    outline: 3px solid var(--color-azul-600);
     outline-offset: 2px;
-    border-radius: 1px;
   }
 
   /* Quem pediu menos movimento recebe menos movimento. */
@@ -199,171 +181,221 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+
+    /*
+      O pulso de nascente é o único movimento em laço: colapsado, ele pararia
+      invisível. Aqui ele passa a existir como anel estático.
+    */
+    .nascente-anel {
+      opacity: 0.35 !important;
+      transform: scale(1.3) !important;
+    }
   }
 }
 
 @layer components {
   /*
-    Escala de manchete. Quatro degraus com salto grande de propósito: o nome da
-    equipe em foco na projeção não pode ter o mesmo tamanho do rótulo da seção
-    ao lado. Cada degrau é clamp, então o projetor recebe o topo da faixa e o
-    celular recebe a base.
+    Escala tipográfica. Salto real entre degraus: o nome da equipe em foco na
+    projeção não pode ter o mesmo tamanho de um rótulo ao lado. Todo tamanho é
+    clamp, então o celular recebe a base e o projetor recebe o topo.
   */
-  .manchete-xl {
-    font-family: var(--font-manchete);
-    font-weight: 900;
-    font-size: clamp(3.25rem, 7.2vw, 8.75rem);
-    line-height: 0.84;
-    letter-spacing: -0.035em;
-    font-variation-settings: 'SOFT' 0, 'WONK' 1;
-  }
-
-  .manchete-lg {
-    font-family: var(--font-manchete);
+  .relevo-xl {
+    font-family: var(--font-display);
     font-weight: 800;
-    font-size: clamp(2.25rem, 4.4vw, 5rem);
-    line-height: 0.9;
-    letter-spacing: -0.028em;
-    font-variation-settings: 'SOFT' 0, 'WONK' 1;
+    font-size: clamp(2.5rem, 6.5vw, 7rem);
+    line-height: 0.92;
+    letter-spacing: -0.03em;
   }
 
-  .manchete-md {
-    font-family: var(--font-manchete);
+  .relevo-lg {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.625rem, 2.6vw, 2.75rem);
+    font-size: clamp(1.75rem, 4vw, 3.25rem);
     line-height: 0.98;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.022em;
   }
 
-  .manchete-sm {
-    font-family: var(--font-manchete);
+  .relevo-md {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1.3125rem;
-    line-height: 1.12;
+    font-size: clamp(1.375rem, 2.4vw, 1.875rem);
+    line-height: 1.08;
     letter-spacing: -0.015em;
   }
 
-  /*
-    Olho da matéria: o parágrafo de abertura, em serifa itálica. É o que dá
-    voz editorial ao texto do evento sem virar corpo de texto serifado (que
-    cansa no celular).
-  */
-  .olho {
-    font-family: var(--font-manchete);
-    font-weight: 500;
-    font-style: italic;
-    font-size: 1.0625rem;
-    line-height: 1.5;
-    color: var(--color-tinta-700);
+  .relevo-sm {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.125rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
   }
 
-  /* Chapéu: linha curta acima da manchete, em monoespaçada vermelha. */
-  .chapeu {
+  .rotulo {
     font-family: var(--font-mono);
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--color-manchete);
-  }
-
-  /* Rótulo de campo e de coluna. Estrutura sem peso visual. */
-  .rotulo {
-    font-family: var(--font-sans);
-    font-size: 0.6875rem;
-    font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--color-tinta-500);
+    color: var(--color-terra-500);
   }
 
   /*
-    Dado. Toda cifra, todo indicador, todo código de partida, todo cronômetro.
-    Monoespaçada tabular para que a coluna não mexa quando o número muda.
+    Dado. Toda cifra, todo indicador, todo cronômetro, todo código de partida.
+    Tabular para que a coluna não dance quando o realtime atualiza o valor.
+    Ligadura desligada: ligadura de mono em painel de dado distrai.
   */
   .dado {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
+    font-feature-settings: 'tnum', 'liga' 0;
     letter-spacing: -0.01em;
-  }
-
-  /* Dado de projeção: legível do fundo da sala. */
-  .dado-xl {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
-    font-weight: 700;
-    font-size: clamp(2rem, 3.4vw, 4rem);
-    line-height: 1;
-    letter-spacing: -0.04em;
   }
 
   .dado-lg {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
+    font-feature-settings: 'tnum', 'liga' 0;
     font-weight: 700;
     font-size: clamp(1.375rem, 1.9vw, 2rem);
     line-height: 1;
     letter-spacing: -0.03em;
   }
 
-  /*
-    Filetes. A separação estrutural do projeto inteiro, no lugar de borda de
-    card. Grosso abre seção, fino separa registro, duplo fecha bloco.
-  */
-  .filete-grosso {
-    border-top: 3px solid var(--color-tinta-900);
-  }
-
-  .filete-medio {
-    border-top: 1.5px solid var(--color-tinta-700);
-  }
-
-  .filete-fino {
-    border-top: 1px solid color-mix(in srgb, var(--color-regua) 45%, transparent);
-  }
-
-  .filete-duplo {
-    border-top: 1px solid var(--color-tinta-900);
-    box-shadow: inset 0 3px 0 0 var(--color-papel-100), inset 0 4px 0 0 var(--color-tinta-900);
-  }
-
-  /* Fio de coluna: separa colunas de classificado sem virar grade de tabela. */
-  .fio-coluna {
-    border-left: 1px solid color-mix(in srgb, var(--color-regua) 35%, transparent);
-  }
-
-  /*
-    Bloco. A única superfície elevada do projeto, e ela não tem sombra nem
-    borda nos quatro lados: tem filete no topo. É o que impede o retorno do
-    grid de cards iguais.
-  */
-  .bloco {
-    background-color: var(--color-papel-50);
-    border-top: 3px solid var(--color-tinta-900);
-  }
-
-  .bloco-realce {
-    background-color: var(--color-papel-200);
-    border-top: 3px solid var(--color-manchete);
-  }
-
-  /*
-    Carimbo. Selo de canto para estado que merece destaque físico: decisão
-    registrada, equipe em foco, oportunidade tomada.
-  */
-  .carimbo {
+  /* Dado de projeção: legível do fundo da sala, a seis metros. */
+  .dado-xl {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'liga' 0;
     font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--color-manchete);
-    border: 1.5px solid color-mix(in srgb, var(--color-manchete) 55%, transparent);
-    border-radius: 1px;
-    padding: 0.25rem 0.5rem;
-    transform: rotate(-1.5deg);
+    font-size: clamp(2rem, 3.4vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  /*
+    ---------------------------------------------------------------------
+    O sistema de terraço. Substitui integralmente card, filete e sombra.
+    ---------------------------------------------------------------------
+
+    Todo elemento elevado tem dois planos: o prato (a superfície onde o
+    conteúdo mora) e a parede (a face vertical do degrau, vista de frente).
+
+    A parede é `box-shadow` com blur ZERO, deslocada só para baixo. Nunca
+    para os lados: degrau de terra não projeta sombra lateral.
+
+    Cada terraço precisa de uma família de cor, aplicada por uma das classes
+    `terr-*` abaixo, que definem `--prato`, `--paredao` e `--linha-nivel`.
+  */
+  .degrau {
+    background-color: var(--prato, var(--color-nevoa-100));
+    box-shadow:
+      0 var(--pared-h, 4px) 0 0 var(--paredao, var(--color-verde-800)),
+      inset 0 2px 0 0 var(--linha-nivel, transparent);
+    transition: transform 120ms linear;
+  }
+
+  /* Nível 1 · banco. Degrau baixo e largo: opção, linha de lista, campo. */
+  .banco {
+    --pared-h: 4px;
+    border-radius: 10px;
+  }
+
+  /* Nível 2 · terraço. Carta de evento, medidor, bloco de resultado. */
+  .terraco {
+    --pared-h: 8px;
+    border-radius: 6px;
+  }
+
+  /*
+    Nível 3 · mirante. UM por tela, sem exceção: a decisão ativa no celular,
+    a equipe em foco na projeção, o gancho de debate no diagnóstico.
+  */
+  .mirante {
+    --pared-h: 14px;
+    border-radius: 3px;
+  }
+
+  /* Famílias de cor do terraço. A parede é sempre o tom 800 da própria família. */
+  .terr-neutro {
+    --prato: var(--color-nevoa-100);
+    --paredao: var(--color-verde-800);
+    --linha-nivel: color-mix(in srgb, #fff 55%, transparent);
+  }
+
+  .terr-claro {
+    --prato: var(--color-nevoa-50);
+    --paredao: var(--color-verde-800);
+    --linha-nivel: color-mix(in srgb, #fff 65%, transparent);
+  }
+
+  .terr-verde {
+    --prato: var(--color-verde-300);
+    --paredao: var(--color-verde-800);
+    --linha-nivel: color-mix(in srgb, #fff 45%, transparent);
+  }
+
+  .terr-azul {
+    --prato: var(--color-azul-300);
+    --paredao: var(--color-azul-800);
+    --linha-nivel: color-mix(in srgb, #fff 45%, transparent);
+  }
+
+  .terr-financas {
+    --prato: color-mix(in srgb, var(--color-financas) 26%, #fff);
+    --paredao: var(--color-financas-800);
+    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+  }
+
+  .terr-sustentabilidade {
+    --prato: color-mix(in srgb, var(--color-sustentabilidade) 24%, #fff);
+    --paredao: var(--color-sustentabilidade-800);
+    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+  }
+
+  .terr-alerta {
+    --prato: color-mix(in srgb, var(--color-alerta) 16%, #fff);
+    --paredao: var(--color-alerta-800);
+    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+  }
+
+  /* Prato escuro: cabeçalho de mirante, onde o texto vai em branco. */
+  .terr-fundo-verde {
+    --prato: var(--color-verde-800);
+    --paredao: var(--color-terra-900);
+    --linha-nivel: color-mix(in srgb, var(--color-verde-300) 30%, transparent);
+  }
+
+  .terr-fundo-azul {
+    --prato: var(--color-azul-800);
+    --paredao: var(--color-terra-900);
+    --linha-nivel: color-mix(in srgb, var(--color-azul-300) 30%, transparent);
+  }
+
+  /*
+    Movimento 5 · toque de decisão. O degrau é pisado: o prato desce e a
+    parede comprime pela metade. Feedback físico, não mudança de cor.
+    Só `transform` transiciona; a parede troca de altura no mesmo instante.
+  */
+  .pisavel {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .pisavel:active {
+    transform: translateY(calc(var(--pared-h, 4px) / 2));
+    --pared-h: calc(var(--pared-h-base, 4px) / 2);
+  }
+
+  .banco.pisavel {
+    --pared-h-base: 4px;
+  }
+
+  .terraco.pisavel {
+    --pared-h-base: 8px;
+  }
+
+  .mirante.pisavel {
+    --pared-h-base: 14px;
   }
 }

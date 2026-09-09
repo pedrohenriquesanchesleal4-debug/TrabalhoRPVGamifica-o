@@ -1,44 +1,43 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Public_Sans, Space_Mono } from 'next/font/google';
+import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 
 /*
-  Três famílias, três funções, nenhuma delas a fonte padrão de projeto gerado
-  por IA.
+  Três famílias, três funções. Nenhuma repete as duas direções visuais
+  rejeitadas, e nenhuma é a fonte padrão de projeto gerado por IA.
 
-  Fraunces tem eixo ótico variável e peso até 900: é a manchete do boletim, e
-  aqui ela é usada em escala grande de verdade (até 140px na projeção), não
-  como título discreto de card.
+  Space Grotesk é geométrica com personalidade de instrumento de campo: onde
+  uma serifada falaria "reportagem", ela fala "painel". Carrega só título.
 
-  Public Sans é a grotesca de relatório institucional: rótulo, corpo, botão.
+  Manrope é humanista de x-height alta: lê bem em 0.875rem na tela de celular,
+  que é onde 30 dos 31 usuários de uma partida estão.
 
-  Space Mono carrega todo número: indicador, cifra, cronômetro, código de
-  partida. Monoespaçada tabular é o que impede a coluna de dançar quando o
-  realtime atualiza o valor.
+  JetBrains Mono carrega todo número, com tabular ligado e ligadura desligada.
 
-  Todas autoexpedidas no build pelo next/font: nenhuma requisição a servidor
-  de fonte em tempo de execução, o que importa numa sala com rede ruim.
+  Só os pesos usados, subconjunto latino, autoexpedidas no build pelo
+  next/font: nenhuma requisição a servidor de fonte em tempo de execução, o
+  que importa numa sala de aula com rede ruim e 30 celulares.
 */
 
-const fraunces = Fraunces({
+const grotesk = Space_Grotesk({
   subsets: ['latin'],
+  weight: ['700'],
   display: 'swap',
-  axes: ['SOFT', 'WONK'],
-  variable: '--font-fraunces',
+  variable: '--font-grotesk',
 });
 
-const publicSans = Public_Sans({
+const manrope = Manrope({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['500', '700'],
   display: 'swap',
-  variable: '--font-public',
+  variable: '--font-manrope',
 });
 
-const spaceMono = Space_Mono({
+const jetbrains = JetBrains_Mono({
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: ['500', '700'],
   display: 'swap',
-  variable: '--font-space',
+  variable: '--font-jetbrains',
 });
 
 export const metadata: Metadata = {
@@ -49,7 +48,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f7f2e6',
+  themeColor: '#eef6f4',
   width: 'device-width',
   initialScale: 1,
   // O aluno joga no celular com uma mão: zoom liberado é acessibilidade.
@@ -60,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="pt-BR"
-      className={`${fraunces.variable} ${publicSans.variable} ${spaceMono.variable}`}
+      className={`${grotesk.variable} ${manrope.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-dvh antialiased">{children}</body>
     </html>

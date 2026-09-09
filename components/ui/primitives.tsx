@@ -1,23 +1,93 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
-import { Gauge, GAUGE_INK, type IndicatorKind } from './gauges';
+import {
+  CanalIcone,
+  CanalTrilha,
+  GAUGE_LABEL,
+  GAUGE_TERRACO,
+  type CanalSize,
+  type IndicatorKind,
+} from './gauges';
 
 /**
  * Primitivas compartilhadas entre a tela do aluno (celular) e as telas do
- * professor (projetor).
+ * professor (projetor). Direção visual V3 "Curva de Nível".
  *
- * Não é design system: é o mínimo para que as duas superfícies não divirjam em
- * botão, campo, filete e medidor. Tudo com token de "Boletim de Safra".
- *
- * A regra estrutural da direção visual vive aqui: não existe card com borda
- * nos quatro lados, raio uniforme e sombra suave. Existe bloco separado por
- * filete, e hierarquia por escala tipográfica.
+ * A regra estrutural da direção vive aqui: não existe card com borda nos
+ * quatro lados, sombra difusa e raio uniforme. Existe DEGRAU, composto de
+ * prato e parede sólida, em três altitudes, e a altitude é a hierarquia da
+ * tela. Uma tela usa no máximo um `mirante`.
  */
 
 function classes(...values: (string | false | null | undefined)[]): string {
   return values.filter(Boolean).join(' ');
 }
 
-export type { IndicatorKind };
+export type { IndicatorKind, CanalSize };
+export { GAUGE_LABEL };
+
+// ---------------------------------------------------------------------------
+// Degrau: a superfície elevada do projeto
+// ---------------------------------------------------------------------------
+
+/** Altitude do degrau. Sobe a parede e FECHA o raio de canto. */
+export type Nivel = 'banco' | 'terraco' | 'mirante';
+
+/** Família de cor. A parede é sempre o tom 800 da própria família. */
+export type Familia =
+  | 'neutro'
+  | 'claro'
+  | 'verde'
+  | 'azul'
+  | 'financas'
+  | 'sustentabilidade'
+  | 'alerta'
+  | 'fundo-verde'
+  | 'fundo-azul';
+
+const FAMILIA: Record<Familia, string> = {
+  neutro: 'terr-neutro',
+  claro: 'terr-claro',
+  verde: 'terr-verde',
+  azul: 'terr-azul',
+  financas: 'terr-financas',
+  sustentabilidade: 'terr-sustentabilidade',
+  alerta: 'terr-alerta',
+  'fundo-verde': 'terr-fundo-verde text-white',
+  'fundo-azul': 'terr-fundo-azul text-white',
+};
+
+/**
+ * Um degrau de terraço.
+ *
+ * `pisavel` liga o movimento de toque: o prato desce e a parede comprime pela
+ * metade. Use só no que é de fato tocável, nunca em bloco decorativo.
+ */
+export function Degrau({
+  nivel = 'terraco',
+  familia = 'neutro',
+  pisavel = false,
+  className,
+  children,
+}: {
+  nivel?: Nivel;
+  familia?: Familia;
+  pisavel?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={classes('degrau', nivel, FAMILIA[familia], pisavel && 'pisavel', className)}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Rótulo de campo, de coluna e de seção. Mono, caixa alta, espaçado. */
+export function Rotulo({ children, className }: { children: ReactNode; className?: string }) {
+  return <span className={classes('rotulo', className)}>{children}</span>;
+}
 
 // ---------------------------------------------------------------------------
 // Botão
@@ -27,23 +97,16 @@ type ButtonVariant = 'principal' | 'secundario' | 'silencioso' | 'perigo';
 type ButtonSize = 'normal' | 'grande' | 'projecao';
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  /*
-    Tinta escura como ação principal, não o vermelho de manchete. O vermelho é
-    o acento do boletim: se ele virar cor de botão, deixa de destacar o que
-    importa. Contraste do papel sobre a tinta passa de 15:1.
-  */
-  principal:
-    'bg-tinta-900 text-papel-50 border-tinta-900 hover:bg-manchete-escura hover:border-manchete-escura',
-  secundario:
-    'bg-papel-50 text-tinta-900 border-tinta-700 hover:bg-papel-200 hover:border-tinta-900',
-  silencioso:
-    'bg-transparent text-tinta-700 border-transparent hover:bg-papel-200 hover:text-tinta-900',
-  perigo: 'bg-papel-50 text-alerta border-alerta/50 hover:bg-alerta/10 hover:border-alerta',
+  // Prato verde escuro com texto branco: 8.8:1, passa AAA.
+  principal: 'degrau banco pisavel terr-fundo-verde text-white',
+  secundario: 'degrau banco pisavel terr-claro text-terra-900',
+  silencioso: 'bg-transparent text-terra-700 hover:text-terra-900',
+  perigo: 'degrau banco pisavel terr-alerta text-alerta-800',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  // 44px de altura mínima: alvo de toque confortável no celular.
-  normal: 'min-h-11 px-4 text-sm',
+  // 44px é o piso de toque. O padrão do projeto é 48px, com folga.
+  normal: 'min-h-12 px-4 text-sm',
   grande: 'min-h-14 px-6 text-base',
   // Botão que o professor aciona olhando para o projetor, não para o mouse.
   projecao: 'min-h-16 px-8 text-lg',
@@ -64,9 +127,8 @@ export function Button({
     <button
       {...props}
       className={classes(
-        'inline-flex items-center justify-center gap-2 rounded-bloco border font-semibold',
-        'tracking-wide transition-colors duration-150',
-        'disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex items-center justify-center gap-2 font-bold tracking-[0.01em]',
+        'disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none',
         BUTTON_VARIANT[variant],
         BUTTON_SIZE[size],
         className,
@@ -83,10 +145,17 @@ export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   hint?: string;
   error?: string | null;
-  /** Campo de código de partida: monoespaçado, caixa alta, bem espaçado. */
+  /** Campo de código de partida: mono, caixa alta, bem espaçado. */
   codigo?: boolean;
 }
 
+/**
+ * Campo de entrada como valeta escavada, não como degrau elevado.
+ *
+ * A parede do degrau aponta para baixo, o que significa "isto está acima da
+ * página". Um campo é o contrário: é onde se deposita algo. Então ele recebe
+ * sombra INTERNA, e nenhuma parede.
+ */
 export function Field({
   label,
   hint,
@@ -111,23 +180,22 @@ export function Field({
         aria-describedby={describedBy}
         aria-invalid={error ? true : undefined}
         className={classes(
-          /* Linha de preenchimento de formulário impresso: fio embaixo, sem caixa. */
-          'min-h-14 rounded-none border-0 border-b-2 bg-transparent px-1 text-tinta-900',
-          'placeholder:text-tinta-500/45 focus:outline-none',
-          codigo ? 'dado text-3xl font-bold uppercase tracking-[0.28em]' : 'text-lg',
-          error
-            ? 'border-b-alerta'
-            : 'border-b-regua/60 focus:border-b-tinta-900',
+          'min-h-14 rounded-[10px] border-0 bg-nevoa-100 px-4 text-terra-900',
+          'shadow-[inset_0_2px_0_0_rgba(16,36,29,0.22)]',
+          'placeholder:text-terra-500/60 focus:outline-none',
+          'focus-visible:shadow-[inset_0_0_0_3px_var(--color-azul-600)]',
+          codigo ? 'dado text-3xl font-bold uppercase tracking-[0.3em]' : 'text-lg',
+          error && 'shadow-[inset_0_0_0_2px_var(--color-alerta)]',
           className,
         )}
       />
 
       {error ? (
-        <p id={`${inputId}-erro`} role="alert" className="text-sm font-semibold text-alerta">
+        <p id={`${inputId}-erro`} role="alert" className="text-sm font-bold text-alerta">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-dica`} className="text-sm text-tinta-500">
+        <p id={`${inputId}-dica`} className="text-sm text-terra-700">
           {hint}
         </p>
       ) : null}
@@ -142,10 +210,10 @@ export function Field({
 type PillTone = 'neutro' | 'ativo' | 'pronto' | 'alerta';
 
 const PILL_TONE: Record<PillTone, string> = {
-  neutro: 'border-regua/50 text-tinta-500',
-  ativo: 'border-manchete/60 bg-manchete/8 text-manchete',
-  pronto: 'border-sucesso/60 bg-sucesso/8 text-sucesso',
-  alerta: 'border-alerta bg-alerta/10 text-alerta',
+  neutro: 'bg-nevoa-200 text-terra-700',
+  ativo: 'bg-azul-300 text-azul-800',
+  pronto: 'bg-verde-300 text-verde-800',
+  alerta: 'bg-alerta text-white',
 };
 
 export function Pill({
@@ -160,7 +228,7 @@ export function Pill({
   return (
     <span
       className={classes(
-        'inline-flex items-center gap-1.5 rounded-bloco border px-2.5 py-1',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1',
         'font-mono text-[0.6875rem] font-bold uppercase tracking-[0.12em]',
         PILL_TONE[tone],
         className,
@@ -171,36 +239,17 @@ export function Pill({
   );
 }
 
-/** Selo de canto para estado físico: decisão registrada, equipe em foco. */
-export function Carimbo({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={classes('carimbo inline-block', className)}>{children}</span>;
-}
-
 // ---------------------------------------------------------------------------
 // Medidor de indicador
 // ---------------------------------------------------------------------------
 
-type MeterSize = 'aluno' | 'projecao' | 'compacto';
-
-const GAUGE_BOX: Record<MeterSize, string> = {
-  aluno: 'h-9 w-9 shrink-0',
-  // Grande de propósito: o professor lê isto do fundo da sala.
-  projecao: 'h-14 w-14 shrink-0 xl:h-16 xl:w-16',
-  compacto: 'h-5 w-5 shrink-0',
-};
-
-const VALUE_TYPE: Record<MeterSize, string> = {
-  aluno: 'dado-lg text-tinta-900',
-  projecao: 'dado-xl text-tinta-900',
-  compacto: 'dado text-sm font-bold text-tinta-900',
-};
-
 /**
- * Indicador 0..100 com forma própria em SVG e valor sempre em texto.
+ * Indicador 0..100 no formato canal: ícone, rótulo, valor impresso e trilha
+ * com preenchimento proporcional.
  *
- * Duas garantias que não podem ser removidas: a forma do medidor identifica o
- * indicador sem depender de cor (daltonismo, projetor desbotado), e o número
- * aparece por extenso ao lado (leitura a seis metros, leitor de tela).
+ * Três garantias que não podem ser removidas: o ícone identifica o indicador
+ * sem depender de cor, o número aparece por extenso (leitura a seis metros e
+ * leitor de tela) e a trilha só se move quando o valor muda de verdade.
  */
 export function Meter({
   kind,
@@ -212,15 +261,24 @@ export function Meter({
 }: {
   kind: IndicatorKind;
   label: string;
-  /** 0..100 para desenhar o medidor. */
+  /** 0..100 para preencher a trilha. */
   value: number;
   /** Texto do valor: pode ser "R$ 62.000" ou "58". */
   display: string;
   /** Variação da última rodada, se houver. */
   delta?: number | null;
-  size?: MeterSize;
+  size?: CanalSize;
 }) {
   const pct = Math.max(0, Math.min(100, value));
+
+  const variacao =
+    delta !== undefined && delta !== null && delta !== 0 ? (
+      <span
+        className={classes('dado text-xs font-bold', delta > 0 ? 'text-sucesso' : 'text-alerta')}
+      >
+        {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
+      </span>
+    ) : null;
 
   if (size === 'compacto') {
     return (
@@ -232,26 +290,15 @@ export function Meter({
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
       >
-        <Gauge kind={kind} value={pct} className={classes(GAUGE_BOX.compacto, GAUGE_INK[kind])} />
-        <span className={VALUE_TYPE.compacto}>{display}</span>
+        <CanalIcone kind={kind} size="compacto" />
+        <span className="dado text-sm font-bold text-terra-900">{display}</span>
       </span>
     );
   }
 
-  const variacao =
-    delta !== undefined && delta !== null && delta !== 0 ? (
-      <span
-        className={classes('dado text-xs font-bold', delta > 0 ? 'text-sucesso' : 'text-alerta')}
-      >
-        {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
-      </span>
-    ) : null;
-
   /*
-    Na projeção o medidor fica ACIMA do valor, não ao lado. Lado a lado, uma
-    cifra longa como "R$ 76.000" em 64px atropela o desenho do indicador
-    vizinho no grid de quatro colunas. Empilhado, o número recebe a largura
-    inteira da coluna e continua legível do fundo da sala.
+    Na projeção o valor ganha linha própria em `dado-xl`. Lado a lado, uma
+    cifra longa como "R$ 76.000" em 64px atropela a coluna vizinha.
   */
   if (size === 'projecao') {
     return (
@@ -263,9 +310,12 @@ export function Meter({
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
       >
-        <span className="rotulo">{label}</span>
-        <Gauge kind={kind} value={pct} className={classes(GAUGE_BOX[size], GAUGE_INK[kind])} />
-        <span className={classes(VALUE_TYPE[size], 'whitespace-nowrap')}>{display}</span>
+        <div className="flex items-center gap-3">
+          <CanalIcone kind={kind} size="projecao" />
+          <span className="rotulo">{label}</span>
+        </div>
+        <span className="dado-xl whitespace-nowrap text-terra-900">{display}</span>
+        <CanalTrilha kind={kind} value={pct} size="projecao" />
         {variacao}
       </div>
     );
@@ -280,55 +330,25 @@ export function Meter({
       aria-valuemax={100}
       aria-label={`${label}: ${display}`}
     >
-      <span className="rotulo">{label}</span>
-
-      <div className="flex items-center gap-3">
-        <Gauge kind={kind} value={pct} className={classes(GAUGE_BOX[size], GAUGE_INK[kind])} />
-
-        <div className="flex min-w-0 flex-col">
-          <span className={classes(VALUE_TYPE[size], 'whitespace-nowrap')}>{display}</span>
-          {variacao}
-        </div>
+      <div className="flex items-center gap-2">
+        <CanalIcone kind={kind} size="aluno" />
+        <span className="rotulo min-w-0 flex-1 truncate">{label}</span>
+        <span className="dado-lg whitespace-nowrap text-terra-900">{display}</span>
       </div>
+
+      <CanalTrilha kind={kind} value={pct} size="aluno" />
+      {variacao}
     </div>
   );
 }
 
+/** Família de terraço do indicador, para tingir um degrau inteiro com ele. */
+export { GAUGE_TERRACO };
+
 // ---------------------------------------------------------------------------
-// Estrutura editorial
+// Cabeçalho de seção
 // ---------------------------------------------------------------------------
 
-/** Chapéu: linha curta em monoespaçada vermelha acima de um título. */
-export function Chapeu({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={classes('chapeu', className)}>{children}</p>;
-}
-
-type FileteEspessura = 'grosso' | 'medio' | 'fino' | 'duplo';
-
-const FILETE: Record<FileteEspessura, string> = {
-  grosso: 'filete-grosso',
-  medio: 'filete-medio',
-  fino: 'filete-fino',
-  duplo: 'filete-duplo',
-};
-
-/** Régua horizontal. Substitui borda de card em todo o projeto. */
-export function Filete({
-  espessura = 'fino',
-  className,
-}: {
-  espessura?: FileteEspessura;
-  className?: string;
-}) {
-  return <div aria-hidden="true" className={classes(FILETE[espessura], className)} />;
-}
-
-/**
- * Cabeçalho de seção no formato do boletim: chapéu, manchete e filete grosso.
- *
- * O filete fica no TOPO, não embaixo: é assim que se abre uma seção de jornal,
- * e é o que impede a seção de virar caixa fechada.
- */
 export function SectionHeading({
   overline,
   title,
@@ -341,13 +361,13 @@ export function SectionHeading({
   escala?: 'md' | 'lg';
 }) {
   return (
-    <header className="filete-grosso flex flex-col gap-1.5 pt-3">
-      {overline ? <Chapeu>{overline}</Chapeu> : null}
-      <h2 className={escala === 'lg' ? 'manchete-lg text-tinta-900' : 'manchete-md text-tinta-900'}>
+    <header className="flex flex-col gap-1.5">
+      {overline ? <Rotulo>{overline}</Rotulo> : null}
+      <h2 className={escala === 'lg' ? 'relevo-lg text-terra-900' : 'relevo-md text-terra-900'}>
         {title}
       </h2>
       {description ? (
-        <p className="max-w-[62ch] text-sm text-tinta-500">{description}</p>
+        <p className="max-w-[62ch] text-sm text-terra-700">{description}</p>
       ) : null}
     </header>
   );
