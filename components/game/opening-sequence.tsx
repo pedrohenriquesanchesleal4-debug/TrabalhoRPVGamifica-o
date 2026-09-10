@@ -86,7 +86,7 @@ export function OpeningSequence({
     },
     {
       text: propertyLine,
-      className: 'max-w-sm text-base text-nevoa-100',
+      className: 'max-w-sm text-base text-terra-700',
     },
   ];
 

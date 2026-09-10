@@ -42,7 +42,7 @@ export default function HomePage() {
             href="/entrar"
             className="degrau terraco pisavel terr-verde flex min-h-20 flex-col justify-center gap-1 px-6 py-5 text-terra-900 sm:min-h-24"
           >
-            <span className="rotulo text-verde-800">Sou aluno</span>
+            <span className="rotulo text-verde-300">Sou aluno</span>
             <span className="relevo-sm flex items-center gap-2">
               <Sprout size={20} aria-hidden="true" />
               Entrar na partida

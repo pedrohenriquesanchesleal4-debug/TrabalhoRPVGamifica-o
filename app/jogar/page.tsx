@@ -341,7 +341,7 @@ function LobbyScreen({ view }: { view: PlayerView }) {
           <>
             <p className="text-sm text-verde-300">{property.region}</p>
             <p className="text-base leading-[1.6] text-white">{property.tagline}</p>
-            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-nevoa-100">
+            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-terra-700">
               <div className="flex flex-wrap gap-1.5">
                 <dt className="font-semibold text-white">Força:</dt>
                 <dd>{property.strength}</dd>
@@ -381,10 +381,10 @@ function PausedScreen({ view }: { view: PlayerView }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="degrau mirante terr-azul animate-emergir flex items-start gap-3 p-5">
-        <PauseCircle size={22} className="mt-0.5 shrink-0 text-azul-800" aria-hidden="true" />
+        <PauseCircle size={22} className="mt-0.5 shrink-0 text-azul-300" aria-hidden="true" />
         <div className="flex flex-col gap-1">
-          <Rotulo className="text-azul-800">Partida pausada</Rotulo>
-          <p className="text-sm font-medium text-azul-800">
+          <Rotulo className="text-azul-300">Partida pausada</Rotulo>
+          <p className="text-sm font-medium text-azul-300">
             O professor pausou a partida. A rodada continua de onde parou assim que ele retomar.
           </p>
         </div>
@@ -409,10 +409,10 @@ function LockedScreen({ view }: { view: PlayerView }) {
       </div>
 
       <div className="degrau terraco terr-verde animate-emergir relative flex flex-col gap-2 p-4">
-        <CircleCheck size={22} className="absolute right-4 top-4 text-verde-800" aria-hidden="true" />
-        <Rotulo className="text-verde-800">Registrada</Rotulo>
-        <p className="relevo-sm pr-8 text-verde-800">{view.decision?.optionLabel}</p>
-        <p className="text-sm text-verde-800">
+        <CircleCheck size={22} className="absolute right-4 top-4 text-verde-300" aria-hidden="true" />
+        <Rotulo className="text-verde-300">Registrada</Rotulo>
+        <p className="relevo-sm pr-8 text-verde-300">{view.decision?.optionLabel}</p>
+        <p className="text-sm text-verde-300">
           A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam o
           que os colegas ainda estão fazendo.
         </p>
@@ -521,7 +521,7 @@ function FinishedScreen({ view }: { view: PlayerView }) {
         <p className="relevo-md text-white">
           A safra da equipe {view.team.name} terminou por aqui.
         </p>
-        <p className="text-sm text-nevoa-100">
+        <p className="text-sm text-terra-700">
           O professor vai conduzir o debate com a turma inteira a partir dos resultados de cada
           equipe.
         </p>

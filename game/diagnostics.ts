@@ -1,8 +1,10 @@
+import { POLICY_BY_KEY } from '@/data/policies';
 import {
   DECISION_TAG_LABEL,
   DIAGNOSTIC_TAGS,
   type DecisionTag,
   type DiagnosticEntry,
+  type PublicPolicy,
 } from '@/types/game';
 
 /**
@@ -166,4 +168,87 @@ export function buildTeachingHooks(
   }
 
   return hooks;
+}
+
+// ---------------------------------------------------------------------------
+// Ponte para política pública/assistência real, sem veredito
+// ---------------------------------------------------------------------------
+
+export interface PolicyConnection {
+  /** Tag de decisão que disparou esta conexão. */
+  tag: DecisionTag;
+  policy: PublicPolicy;
+  /**
+   * Frase neutra e informativa: o que existe de verdade e para que serve.
+   * NUNCA avaliativa ("vocês deveriam ter feito isso"): o jogo é diagnóstico,
+   * não avaliação, e essa regra vale também para o texto gerado aqui.
+   */
+  note: string;
+}
+
+/**
+ * Conecta o comportamento agregado da turma à política pública/assistência
+ * real correspondente, sem dizer se a equipe acertou ou errou.
+ *
+ * Reaproveita os mesmos contrastes de `buildTeachingHooks` (mesmo critério de
+ * "sem dado, sem gancho"), só que em vez de uma pergunta para o debate, entrega
+ * o programa real que se conecta ao comportamento observado. O professor
+ * decide como usar isso na exposição; a frase aqui nunca resolve a pergunta.
+ */
+export function buildPolicyConnections(
+  records: DecisionRecord[],
+  totalTeams: number,
+): PolicyConnection[] {
+  const connections: PolicyConnection[] = [];
+  const diagnostics = buildDiagnostics(records, totalTeams);
+  const byTag = new Map(diagnostics.map((entry) => [entry.tag, entry]));
+
+  const tech = byTag.get('tech_invest');
+  const training = byTag.get('training');
+  const emater = POLICY_BY_KEY['emater-df'];
+  if (tech && training && emater && tech.teams > 0 && tech.teams > training.teams) {
+    connections.push({
+      tag: 'tech_invest',
+      policy: emater,
+      note: 'Na vida real, é isso que a Emater-DF oferece: assistência técnica e extensão rural pra destravar o que a equipe comprou, não a tecnologia em si.',
+    });
+  }
+
+  const policyTag = byTag.get('public_policy');
+  const paa = POLICY_BY_KEY['paa'];
+  if (policyTag && paa && policyTag.teams < totalTeams) {
+    connections.push({
+      tag: 'public_policy',
+      policy: paa,
+      note: 'Quem não buscou programa público deixou de considerar isto: PAA, PNAE e PAPA-DF existem justamente pra dar escoamento garantido à produção da agricultura familiar.',
+    });
+  }
+
+  const credit = byTag.get('credit');
+  const creditoRural = POLICY_BY_KEY['credito-rural'];
+  if (credit && creditoRural && credit.teams > 0) {
+    connections.push({
+      tag: 'credit',
+      policy: creditoRural,
+      note: 'A parcela que apareceu nas rodadas seguintes representa isto: linhas de crédito rural têm prazo, taxa e regra própria, que vale estudar antes de contratar.',
+    });
+  }
+
+  const sustainability = byTag.get('sustainability');
+  const production = byTag.get('production_first');
+  const cooperativa = POLICY_BY_KEY['cooperativismo'];
+  if (
+    sustainability &&
+    production &&
+    cooperativa &&
+    sustainability.teams + production.teams > 0
+  ) {
+    connections.push({
+      tag: 'sustainability',
+      policy: cooperativa,
+      note: 'É pra essa tensão que a organização coletiva existe: cooperativas e associações reduzem o risco de mercado individual entre priorizar produção e priorizar sustentabilidade.',
+    });
+  }
+
+  return connections;
 }

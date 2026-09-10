@@ -56,6 +56,11 @@ export function EventCard({
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Dispara a animação `.travado` (movimento seco de encaixe, ver
+  // `@keyframes trava` em globals.css) no instante do clique, não depois da
+  // resposta do servidor: é o feedback físico de "a trava mecânica fechou",
+  // e ele precisa acontecer no toque, não esperar o round-trip de rede.
+  const [locking, setLocking] = useState(false);
 
   function pick(optionKey: string, available: boolean) {
     if (!available || submitting) return;
@@ -66,12 +71,14 @@ export function EventCard({
   async function confirm() {
     if (!selected || submitting) return;
     setSubmitting(true);
+    setLocking(true);
     setError(null);
     try {
       await onConfirm(selected);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível registrar a decisão.');
       setSubmitting(false);
+      setLocking(false);
     }
   }
 
@@ -122,7 +129,12 @@ export function EventCard({
                 <span
                   className={classes(
                     'text-base font-semibold',
-                    isSelected ? 'text-azul-800' : 'text-terra-900',
+                    // `terr-azul` é uma mistura clara-mas-ainda-escura (30% de
+                    // acento sobre painel escuro): texto precisa do tom CLARO
+                    // (`azul-300`, "destaque sobre parede escura"), não do
+                    // `azul-800` (quase tão escuro quanto o próprio painel,
+                    // que era o bug de contraste real da V4).
+                    isSelected ? 'text-azul-300' : 'text-terra-900',
                   )}
                 >
                   {option.label}
@@ -130,7 +142,7 @@ export function EventCard({
                 <span
                   className={classes(
                     'dado shrink-0 text-sm font-bold',
-                    isSelected ? 'text-azul-800' : 'text-terra-900',
+                    isSelected ? 'text-azul-300' : 'text-terra-900',
                   )}
                 >
                   {option.displayCost > 0 ? formatMoney(option.displayCost) : 'Sem custo'}
@@ -177,7 +189,7 @@ export function EventCard({
                 size="grande"
                 onClick={confirm}
                 disabled={submitting}
-                className="flex-1"
+                className={classes('flex-1', locking && 'travado')}
               >
                 {submitting ? 'Confirmando...' : 'Confirmar decisão'}
               </Button>

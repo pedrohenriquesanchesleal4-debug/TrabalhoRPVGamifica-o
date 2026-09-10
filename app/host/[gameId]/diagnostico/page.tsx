@@ -99,7 +99,7 @@ export default function DiagnosticoPage() {
 
       {openingHook ? (
         <Degrau nivel="mirante" familia="azul" className="flex flex-col gap-3 p-6 sm:p-8">
-          <Rotulo className="text-azul-800">Pergunta para abrir o debate</Rotulo>
+          <Rotulo className="text-azul-300">Pergunta para abrir o debate</Rotulo>
           <h1 className="relevo-lg text-terra-900">{openingHook}</h1>
         </Degrau>
       ) : (

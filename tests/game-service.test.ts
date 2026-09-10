@@ -329,3 +329,177 @@ describe('getPlayerView / authenticatePlayer · paralelismo de consultas', () =>
     expect(fake.maxConcurrency).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Escolha explícita de equipe e papel (jogador escolhe, em vez de auto-assign)
+// ---------------------------------------------------------------------------
+
+const TEAM_1 = {
+  id: 't1',
+  game_id: 'g1',
+  slug: 'sitio',
+  name: 'Sítio Horizonte',
+  property_key: 'sitio-horizonte',
+  order_index: 0,
+  cash: 80000,
+  production: 50,
+  technology: 40,
+  sustainability: 50,
+  traits: {},
+} as unknown as import('@/lib/game-service').TeamRow;
+
+const TEAM_2 = {
+  ...TEAM_1,
+  id: 't2',
+  slug: 'chacara',
+  name: 'Chácara Boa Vista',
+  order_index: 1,
+} as unknown as import('@/lib/game-service').TeamRow;
+
+function gameRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'g1',
+    code: 'ABCDE',
+    status: 'lobby',
+    current_round: 0,
+    round_status: 'idle',
+    round_started_at: null,
+    round_ends_at: null,
+    config: { maxPlayersPerTeam: 1 },
+    created_at: 'x',
+    finished_at: null,
+    ...overrides,
+  };
+}
+
+describe('chooseTeamAndRoleExplicit · escolha de equipe e papel pelo jogador', () => {
+  it('respeita a equipe e o papel pedidos quando ambos estão livres', async () => {
+    const { chooseTeamAndRoleExplicit } = await import('@/lib/game-service');
+
+    const result = chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], [], 5, {
+      teamId: 't2',
+      role: 'financeiro',
+    });
+
+    expect(result.team.id).toBe('t2');
+    expect(result.role).toBe('financeiro');
+  });
+
+  it('recusa a equipe pedida quando ela já está completa', async () => {
+    const { chooseTeamAndRoleExplicit } = await import('@/lib/game-service');
+    const { ApiError } = await import('@/lib/http');
+
+    const members = [{ id: 'm1', game_id: 'g1', team_id: 't2', player_id: 'p1', role: 'produtor' as const }];
+
+    expect(() =>
+      chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], members, 1, { teamId: 't2', role: 'financeiro' }),
+    ).toThrow(ApiError);
+
+    try {
+      chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], members, 1, { teamId: 't2', role: 'financeiro' });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as InstanceType<typeof ApiError>).code).toBe('conflict');
+    }
+  });
+
+  it('recusa o papel pedido quando já foi escolhido por outro jogador na mesma equipe', async () => {
+    const { chooseTeamAndRoleExplicit } = await import('@/lib/game-service');
+    const { ApiError } = await import('@/lib/http');
+
+    const members = [
+      { id: 'm1', game_id: 'g1', team_id: 't2', player_id: 'p1', role: 'financeiro' as const },
+    ];
+
+    try {
+      chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], members, 5, { teamId: 't2', role: 'financeiro' });
+      throw new Error('deveria ter lançado ApiError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as InstanceType<typeof ApiError>).code).toBe('conflict');
+    }
+  });
+
+  it('rejeita equipe inexistente', async () => {
+    const { chooseTeamAndRoleExplicit } = await import('@/lib/game-service');
+    const { ApiError } = await import('@/lib/http');
+
+    try {
+      chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], [], 5, { teamId: 'inexistente' });
+      throw new Error('deveria ter lançado ApiError');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as InstanceType<typeof ApiError>).code).toBe('bad_request');
+    }
+  });
+
+  it('quando só o papel é pedido, escolhe a equipe com vaga e o papel ainda livre', async () => {
+    const { chooseTeamAndRoleExplicit } = await import('@/lib/game-service');
+
+    const members = [
+      { id: 'm1', game_id: 'g1', team_id: 't1', player_id: 'p1', role: 'produtor' as const },
+    ];
+
+    const result = chooseTeamAndRoleExplicit([TEAM_1, TEAM_2], members, 5, { role: 'produtor' });
+
+    // t1 já tem "produtor" ocupado: só t2 tem o papel livre.
+    expect(result.team.id).toBe('t2');
+    expect(result.role).toBe('produtor');
+  });
+});
+
+describe('joinGame · caminho de escolha explícita, ponta a ponta', () => {
+  it('entra na equipe e no papel pedidos quando ambos estão livres', async () => {
+    const fake = makeFakeSupabase({
+      games: [{ data: gameRow({ config: { maxPlayersPerTeam: 5 } }), error: null }],
+      teams: [{ data: [TEAM_1, TEAM_2], error: null }],
+      team_members: [{ data: [], error: null }, { data: {}, error: null }],
+      players: [{ data: { id: 'p1', game_id: 'g1', name: 'Ana', connected: false, state: 'thinking', last_seen: 'x' }, error: null }],
+      player_secrets: [{ data: {}, error: null }],
+      game_events: [{ data: {}, error: null }],
+    });
+    adminClientMock.mockReturnValue(fake.client);
+
+    const { joinGame } = await import('@/lib/game-service');
+    const result = await joinGame('ABCDE', 'Ana', { teamId: 't2', role: 'financeiro' });
+
+    expect(result.team.id).toBe('t2');
+    expect(result.role).toBe('financeiro');
+  });
+
+  it('devolve conflict quando a equipe pedida já está completa', async () => {
+    const fake = makeFakeSupabase({
+      games: [{ data: gameRow({ config: { maxPlayersPerTeam: 1 } }), error: null }],
+      teams: [{ data: [TEAM_1, TEAM_2], error: null }],
+      team_members: [
+        { data: [{ id: 'm1', game_id: 'g1', team_id: 't2', player_id: 'p1', role: 'produtor' }], error: null },
+      ],
+    });
+    adminClientMock.mockReturnValue(fake.client);
+
+    const { joinGame } = await import('@/lib/game-service');
+
+    await expect(joinGame('ABCDE', 'Bia', { teamId: 't2', role: 'financeiro' })).rejects.toMatchObject({
+      code: 'conflict',
+    });
+  });
+
+  it('sem escolha nenhuma, continua caindo no auto-assign de sempre', async () => {
+    const fake = makeFakeSupabase({
+      games: [{ data: gameRow({ config: { maxPlayersPerTeam: 5 } }), error: null }],
+      teams: [{ data: [TEAM_1, TEAM_2], error: null }],
+      team_members: [{ data: [], error: null }, { data: {}, error: null }],
+      players: [{ data: { id: 'p1', game_id: 'g1', name: 'Ana', connected: false, state: 'thinking', last_seen: 'x' }, error: null }],
+      player_secrets: [{ data: {}, error: null }],
+      game_events: [{ data: {}, error: null }],
+    });
+    adminClientMock.mockReturnValue(fake.client);
+
+    const { joinGame } = await import('@/lib/game-service');
+    const result = await joinGame('ABCDE', 'Ana');
+
+    // Auto-assign: equipe com menos gente, primeira na ordem (t1).
+    expect(result.team.id).toBe('t1');
+    expect(result.role).toBe('produtor');
+  });
+});

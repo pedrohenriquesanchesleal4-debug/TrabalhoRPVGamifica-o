@@ -1,93 +1,104 @@
 @import 'tailwindcss';
 
 /*
-  SAFRA DF · direção visual V4 "Noite de Cerrado".
-  Especificação completa em docs/DIRECAO-VISUAL-V4.md.
+  SAFRA DF · direção visual V5 "Painel de Silo".
+  Especificação completa e tabela de contraste em docs/DIRECAO-VISUAL-V5.md.
 
-  V4 herda de V3 a física do terraceamento (prato + parede sólida, hierarquia
-  por altitude, raio de canto que fecha conforme a altitude sobe) porque essa
-  estrutura nunca foi o problema das duas direções rejeitadas. O que muda é a
-  superfície inteira: a partida agora acontece de noite, terra escura e areia
-  iluminada por fogueira, dourado e verde como brasa acesa sobre o breu, não
-  mais um painel claro de manhã de verão. Os NOMES de token (`nevoa`, `terra`,
-  `verde`, `azul`) continuam os mesmos para não obrigar reescrever nenhuma
-  tela: só o valor por trás de cada um vira noite.
+  V5 troca a metáfora inteira: não é mais terraço de terra à noite (V4), é uma
+  central de controle industrial. Prato vira PAINEL de aço parafusado; parede
+  vira MOLDURA da chapa. A física (painel elevado sobre a página, hierarquia
+  por altitude, raio de canto que fecha conforme o painel sobe, blur zero em
+  toda sombra) é a MESMA da V3/V4: essa estrutura nunca foi o problema. O que
+  muda é o material (terra → aço), a cor (terra/dourado/verde noturno → aço,
+  amarelo de segurança, ferrugem, areia) e a tipografia (serifada editorial →
+  condensada de rótulo de equipamento).
 
   Continua tudo em SVG e CSS. Zero imagem, zero vídeo, zero WebGL, zero
-  biblioteca de animação. Movimento só em `transform` e `opacity`, que é o que
-  roda liso em celular popular.
+  biblioteca de animação nova. Movimento só em `transform` e `opacity`.
 */
 
 @theme {
   /*
-    Névoa: agora a noite, não a manhã. `50` é o breu do fundo de página; `100`
-    e `200` sobem em degraus curtos de marrom-carvão para servir de prato
-    neutro e trilha, sempre mais claros que o fundo, nunca cinza puro.
+    Névoa: agora aço, não terra nem breu de terraço. `50` é a chapa de fundo da
+    página; `100` e `200` sobem em degraus curtos para servir de painel neutro
+    e ranhura, sempre mais claros que o fundo, nunca preto puro nem cinza
+    neutro de sistema operacional.
   */
-  --color-nevoa-50: #110d09;
-  --color-nevoa-100: #1c150e;
-  --color-nevoa-200: #2b2116;
+  --color-nevoa-50: #1a1a17;
+  --color-nevoa-100: #232320;
+  --color-nevoa-200: #2f2f2b;
 
-  /* Terra: agora o texto, areia clara sobre a noite. Nunca #fff puro. */
-  --color-terra-900: #f3e9d6;
-  --color-terra-700: #cbb896;
-  --color-terra-500: #94815f;
-
-  /* Verde: produção, ação, crescimento. Verde de folha sob luz de fogueira. */
-  --color-verde-300: #bfe2ac;
-  --color-verde-600: #5c9a52;
-  --color-verde-700: #8ecb7f;
-  --color-verde-800: #142912;
-
-  /* Azul: tecnologia, água, informação. Petróleo, não céu. */
-  --color-azul-300: #a6d9dd;
-  --color-azul-600: #3e8f9a;
-  --color-azul-700: #7fc7cf;
-  --color-azul-800: #0f272a;
+  /* Terra: areia clara, o texto sobre o aço. Nunca #fff puro. */
+  --color-terra-900: #d9d2c4;
+  --color-terra-700: #b3aa96;
+  --color-terra-500: #948a78;
 
   /*
-    Indicadores. Quatro matizes afastados no círculo cromático, porque dois
-    verdes vizinhos se confundem em daltonismo e a seis metros de distância.
-    A forma (ícone) e o número impresso são a diferenciação primária; a cor é
-    o terceiro canal, nunca o único. Finanças ganha o dourado que dá nome à
-    direção: o único acento quente e precioso do sistema, usado com reserva.
+    Verde: produção. Verde-oliva industrial, não verde de folha: a paleta
+    inteira é de oficina, então até o indicador "orgânico" da tríade lê como
+    faixa de manômetro, não como planta.
   */
-  --color-financas: #c9963c;
-  --color-financas-texto: #e3bd6d;
-  --color-financas-800: #3c2a10;
+  --color-verde-300: #c3d9a0;
+  --color-verde-600: #7a8f4a;
+  --color-verde-700: #a8c47a;
+  --color-verde-800: #1f2712;
 
-  --color-producao: #5c9a52;
-  --color-producao-800: #142912;
-
-  --color-tecnologia: #3e8f9a;
-  --color-tecnologia-800: #0f272a;
-
-  --color-sustentabilidade: #3f8f74;
-  --color-sustentabilidade-800: #0f2a20;
+  /* Azul: tecnologia. Aço-petróleo, não céu nem água. */
+  --color-azul-300: #b8dde5;
+  --color-azul-600: #4a7a8a;
+  --color-azul-700: #8fc0cf;
+  --color-azul-800: #10262c;
 
   /*
-    Alerta: um tom para preencher parede escura com texto branco em cima, e um
-    tom mais claro (`alerta-texto`) só para texto de corpo direto sobre o
-    fundo escuro, porque o primeiro não passa AA como texto pequeno na noite.
+    Indicadores: quatro matizes afastados no círculo cromático, como faixas de
+    mostrador de manômetro (cada instrumento tem a própria cor de escala). A
+    forma (ícone) e o número impresso continuam a diferenciação primária; a
+    cor é o terceiro canal, nunca o único. Amarelo de segurança é o único
+    acento quente e reservado do sistema: aparece em finanças e no destaque de
+    interface (foco de teclado, CTA principal), nunca como preenchimento de
+    área grande.
   */
-  --color-alerta: #b8431f;
-  --color-alerta-texto: #e08257;
-  --color-alerta-800: #3c1a0c;
-  --color-sucesso: #5c9a52;
+  --color-financas: #e8a93a;
+  --color-financas-texto: #f0c268;
+  --color-financas-800: #3a2810;
 
-  /* Newsreader: serifada editorial forte, o instrumento que faltava nas três direções só-sans anteriores. */
-  --font-display: var(--font-editorial), ui-serif, Georgia, serif;
-  /* Manrope: humanista de x-height alta, lê bem em 0.875rem no celular. Segue da V3: nunca foi o problema. */
+  --color-producao: #7a8f4a;
+  --color-producao-800: #1f2712;
+
+  --color-tecnologia: #4a7a8a;
+  --color-tecnologia-800: #10262c;
+
+  --color-sustentabilidade: #4a8a6a;
+  --color-sustentabilidade-texto: #8fcaa8;
+  --color-sustentabilidade-800: #12291f;
+
+  /*
+    Alerta: ferrugem, a segunda cor de acento/superfície quente do painel.
+    `alerta` é o tom saturado para preenchimento pequeno e ícone; `alerta-800`
+    é a variante escura para MOLDURA/fundo saturado com texto claro em cima
+    (mesmo padrão de `financas-800`/`verde-800`/`azul-800`); `alerta-texto` é
+    a única variante seguindo para TEXTO direto sobre a chapa de aço, porque o
+    `alerta` puro (mais claro que o aço) não fecha 4.5:1 como texto pequeno.
+  */
+  --color-alerta: #8a4a2e;
+  --color-alerta-texto: #d4835c;
+  --color-alerta-800: #2e160c;
+  --color-sucesso: #a8c47a;
+
+  /* Oswald: condensada de placa de máquina/rótulo industrial. Título e destaque numérico grande. */
+  --font-display: var(--font-industrial), ui-sans-serif, system-ui, sans-serif;
+  /* Manrope: humanista de x-height alta, corpo de texto. Segue de V3/V4: nunca foi o problema. */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  /* JetBrains Mono: todo número. Ligadura desligada. Segue da V3. */
+  /* JetBrains Mono: todo número e rótulo técnico. Ligadura desligada. */
   --font-mono: var(--font-jetbrains), ui-monospace, 'Courier New', monospace;
 
   --animate-emergir: emergir 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-nascente: nascente 1.8s ease-out infinite;
   --animate-copa: copa 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-trava: trava 0.22s ease-out both;
 }
 
-/* Movimento 1 · emergência do terraço. Entrada de bloco novo. */
+/* Movimento 1 · emergência do painel. Entrada de módulo novo. */
 @keyframes emergir {
   from {
     opacity: 0;
@@ -101,7 +112,8 @@
 
 /*
   Movimento 2 · pulso de nascente. Único laço infinito do sistema, e só entra
-  em cena quando o cronômetro cruza 30 segundos.
+  em cena quando o cronômetro cruza 30 segundos: a luz de alerta piscando no
+  painel, não decoração solta.
 */
 @keyframes nascente {
   from {
@@ -126,6 +138,23 @@
   }
 }
 
+/*
+  Movimento 7 · trava mecânica. Disparo único ao confirmar uma decisão: o
+  botão/módulo dá um movimento seco de encaixe (desce e volta, sem elástico),
+  simulando uma trava física fechando, não um fade de confirmação.
+*/
+@keyframes trava {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(3px) scale(0.985);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -139,35 +168,41 @@
     /*
       Três camadas, todas custo zero e nenhuma requisição:
 
-      1. Duas "fogueiras" (radial-gradient) de dourado e verde bem discretas,
-         simulando luz baixa vinda dos cantos, não um clarão central.
-      2. Um grão finíssimo (SVG feTurbulence embutido em data URI) para tirar
-         a chapadez de um fundo escuro liso: textura tátil, não decoração.
-      3. Linhas de nível bem afastadas (repeating-radial-gradient) ecoando o
-         relevo topográfico do Cerrado ao fundo da tela inteira, quase
-         subliminares.
+      1. Um grão fino (SVG feTurbulence embutido em data URI) simulando
+         textura de chapa de aço escovada, mais fino que o grão da V4 (é
+         metal, não terra).
+      2. Um brilho de amarelo de segurança bem discreto no canto superior,
+         como uma luz de painel ligada ao fundo, e um brilho de ferrugem no
+         canto oposto.
+      3. Uma grade fina (linear-gradient repetido nos dois eixos) ecoando
+         blueprint/grade de chapa parafusada, quase subliminar.
     */
     background-image:
       radial-gradient(
-        70% 45% at 12% -6%,
-        color-mix(in srgb, var(--color-financas) 9%, transparent),
-        transparent 65%
+        65% 45% at 8% -4%,
+        color-mix(in srgb, var(--color-financas) 7%, transparent),
+        transparent 62%
       ),
       radial-gradient(
-        80% 55% at 100% 108%,
-        color-mix(in srgb, var(--color-verde-600) 8%, transparent),
-        transparent 68%
+        75% 50% at 100% 108%,
+        color-mix(in srgb, var(--color-alerta) 10%, transparent),
+        transparent 66%
       ),
-      repeating-radial-gradient(
-        circle at 50% 30%,
+      repeating-linear-gradient(
+        to right,
         transparent 0,
-        transparent 130px,
-        color-mix(in srgb, var(--color-terra-500) 5%, transparent) 131px,
-        transparent 133px
+        transparent 63px,
+        color-mix(in srgb, var(--color-terra-500) 4%, transparent) 64px
       ),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    background-attachment: fixed, fixed, fixed, fixed;
-    background-size: auto, auto, auto, 180px 180px;
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 63px,
+        color-mix(in srgb, var(--color-terra-500) 4%, transparent) 64px
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+    background-attachment: fixed, fixed, fixed, fixed, fixed;
+    background-size: auto, auto, 64px 64px, 64px 64px, 160px 160px;
   }
 
   h1,
@@ -175,6 +210,7 @@
   h3 {
     font-family: var(--font-display);
     font-weight: 700;
+    text-transform: uppercase;
     text-wrap: balance;
   }
 
@@ -211,40 +247,41 @@
     projeção não pode ter o mesmo tamanho de um rótulo ao lado. Todo tamanho é
     clamp, então o celular recebe a base e o projetor recebe o topo.
 
-    A serifada (Newsreader) precisa de menos compressão de tracking que a
-    geométrica da V3: os valores negativos aqui são mais suaves de propósito,
-    porque tracking apertado em serifada some a curva da letra.
+    Oswald (condensada) lê como etiqueta de painel em caixa alta: tracking
+    levemente positivo em vez de negativo, porque condensada + tracking
+    apertado vira ilegível, e o efeito de "placa de máquina" pede letras um
+    pouco mais separadas, não mais coladas.
   */
   .relevo-xl {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(2.5rem, 6.5vw, 7rem);
+    font-size: clamp(2.25rem, 6vw, 6.25rem);
     line-height: 0.98;
-    letter-spacing: -0.012em;
+    letter-spacing: 0.006em;
   }
 
   .relevo-lg {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.75rem, 4vw, 3.25rem);
-    line-height: 1.04;
-    letter-spacing: -0.008em;
+    font-size: clamp(1.625rem, 3.6vw, 2.875rem);
+    line-height: 1.06;
+    letter-spacing: 0.004em;
   }
 
   .relevo-md {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.375rem, 2.4vw, 1.875rem);
-    line-height: 1.14;
-    letter-spacing: -0.006em;
+    font-size: clamp(1.25rem, 2.2vw, 1.625rem);
+    line-height: 1.18;
+    letter-spacing: 0.006em;
   }
 
   .relevo-sm {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 1.125rem;
-    line-height: 1.24;
-    letter-spacing: -0.004em;
+    font-size: 1rem;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
   }
 
   .rotulo {
@@ -291,51 +328,103 @@
 
   /*
     ---------------------------------------------------------------------
-    O sistema de terraço. Substitui integralmente card, filete e sombra.
+    O sistema de painel. Substitui integralmente card, filete e sombra.
     ---------------------------------------------------------------------
 
-    Todo elemento elevado tem dois planos: o prato (a superfície onde o
-    conteúdo mora) e a parede (a face vertical do degrau, vista de frente).
+    Todo elemento elevado é uma chapa parafusada: o PAINEL (a superfície onde
+    o conteúdo mora) e a MOLDURA (a face vertical da chapa, vista de frente,
+    como a borda de uma placa de metal presa por baixo).
 
-    A parede é `box-shadow` com blur ZERO, deslocada só para baixo. Nunca
-    para os lados: degrau de terra não projeta sombra lateral.
+    A moldura é `box-shadow` com blur ZERO, deslocada só para baixo, igual à
+    física de V3/V4 (degrau/parede), só que agora lê como borda de chapa
+    presa por parafuso, não como terra empilhada: um traço fino de brilho no
+    topo (`inset` claro) simula o bisel de metal pego pela luz.
 
-    Cada terraço precisa de uma família de cor, aplicada por uma das classes
-    `terr-*` abaixo, que definem `--prato`, `--paredao` e `--linha-nivel`.
+    Cada painel precisa de uma família de cor, aplicada por uma das classes
+    `terr-*` abaixo, que definem `--prato`, `--paredao` e `--linha-nivel`
+    (nomes de variável herdados de V3/V4 de propósito: zero variável CSS
+    renomeada, zero call site tocado por causa da direção visual).
   */
   .degrau {
     background-color: var(--prato, var(--color-nevoa-100));
     box-shadow:
       0 var(--pared-h, 4px) 0 0 var(--paredao, var(--color-verde-800)),
+      inset 0 1px 0 0 rgba(217, 210, 196, 0.07),
       inset 0 2px 0 0 var(--linha-nivel, transparent);
     transition: transform 120ms linear;
   }
 
-  /* Nível 1 · banco. Degrau baixo e largo: opção, linha de lista, campo. */
+  /* Nível 1 · placa. Módulo baixo e largo: opção, linha de lista, campo. */
   .banco {
     --pared-h: 4px;
-    border-radius: 10px;
+    border-radius: 5px;
   }
 
-  /* Nível 2 · terraço. Carta de evento, medidor, bloco de resultado. */
+  /* Nível 2 · painel. Carta de evento, medidor, bloco de resultado. */
   .terraco {
     --pared-h: 8px;
-    border-radius: 6px;
-  }
-
-  /*
-    Nível 3 · mirante. UM por tela, sem exceção: a decisão ativa no celular,
-    a equipe em foco na projeção, o gancho de debate no diagnóstico.
-  */
-  .mirante {
-    --pared-h: 14px;
     border-radius: 3px;
   }
 
   /*
-    Famílias de cor do terraço. A parede é sempre o tom mais escuro da própria
-    família, simulando a face do degrau em sombra. Na noite, "escuro" some
-    quase no breu do fundo: é o que dá o efeito de brasa suspensa no negrume.
+    Nível 3 · console. UM por tela, sem exceção: a decisão ativa no celular,
+    a equipe em foco na projeção, o gancho de debate no diagnóstico. Ganha os
+    quatro parafusos de canto: é o módulo de destaque, e só ele.
+  */
+  .mirante {
+    --pared-h: 14px;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  /*
+    Os quatro rebites de canto do console. Um único pseudo-elemento com 4
+    `radial-gradient` posicionados nos 4 cantos da própria caixa: zero marcação
+    nova, zero nó de DOM extra, e só aparece no nível de destaque da tela
+    (nunca em `banco`/`terraco`, para não virar ruído repetido em todo canto
+    pequeno da interface).
+  */
+  .mirante::before {
+    content: '';
+    position: absolute;
+    inset: 9px;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-size: 7px 7px;
+    background-position:
+      0% 0%,
+      100% 0%,
+      0% 100%,
+      100% 100%;
+    background-image: radial-gradient(
+        circle at 35% 35%,
+        color-mix(in srgb, var(--color-terra-500) 65%, white) 0%,
+        color-mix(in srgb, var(--color-terra-500) 40%, black) 55%,
+        transparent 75%
+      ),
+      radial-gradient(
+        circle at 35% 35%,
+        color-mix(in srgb, var(--color-terra-500) 65%, white) 0%,
+        color-mix(in srgb, var(--color-terra-500) 40%, black) 55%,
+        transparent 75%
+      ),
+      radial-gradient(
+        circle at 35% 35%,
+        color-mix(in srgb, var(--color-terra-500) 65%, white) 0%,
+        color-mix(in srgb, var(--color-terra-500) 40%, black) 55%,
+        transparent 75%
+      ),
+      radial-gradient(
+        circle at 35% 35%,
+        color-mix(in srgb, var(--color-terra-500) 65%, white) 0%,
+        color-mix(in srgb, var(--color-terra-500) 40%, black) 55%,
+        transparent 75%
+      );
+  }
+
+  /*
+    Famílias de cor do painel. A moldura é sempre o tom mais escuro da própria
+    família, simulando a face da chapa em sombra.
   */
   .terr-neutro {
     --prato: var(--color-nevoa-100);
@@ -379,7 +468,7 @@
     --linha-nivel: color-mix(in srgb, var(--color-alerta-texto) 35%, transparent);
   }
 
-  /* Prato escuro e saturado: cabeçalho de mirante, onde o texto vai em branco/areia. */
+  /* Painel escuro e saturado: cabeçalho de console, onde o texto vai em branco/areia. */
   .terr-fundo-verde {
     --prato: var(--color-verde-800);
     --paredao: color-mix(in srgb, var(--color-nevoa-50) 60%, black);
@@ -393,9 +482,9 @@
   }
 
   /*
-    Movimento 5 · toque de decisão. O degrau é pisado: o prato desce e a
-    parede comprime pela metade. Feedback físico, não mudança de cor.
-    Só `transform` transiciona; a parede troca de altura no mesmo instante.
+    Movimento 5 · toque de decisão. A chapa é pressionada: o painel desce e a
+    moldura comprime pela metade. Feedback físico, não mudança de cor.
+    Só `transform` transiciona; a moldura troca de altura no mesmo instante.
   */
   .pisavel {
     cursor: pointer;
@@ -417,5 +506,10 @@
 
   .mirante.pisavel {
     --pared-h-base: 14px;
+  }
+
+  /* Trava mecânica: aplicada uma única vez ao confirmar (via classe adicionada por JS). */
+  .travado {
+    animation: trava 220ms ease-out both;
   }
 }

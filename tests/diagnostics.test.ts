@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildDiagnostics,
+  buildPolicyConnections,
   buildTeachingHooks,
   diagnosticBar,
   diagnosticSentence,
@@ -215,5 +216,59 @@ describe('buildTeachingHooks · concordância e ganchos sem dado', () => {
 
     const hook = hooks.find((entry) => entry.includes('programa público'));
     expect(hook).toContain('5 equipes não buscaram');
+  });
+});
+
+describe('buildPolicyConnections', () => {
+  it('conecta tecnologia sem capacitação à Emater-DF, sem apontar certo ou errado', () => {
+    const connections = buildPolicyConnections(
+      [
+        record({ teamId: 't1', tags: ['tech_invest'] }),
+        record({ teamId: 't2', tags: ['tech_invest'] }),
+        record({ teamId: 't3', tags: ['training'] }),
+      ],
+      3,
+    );
+
+    const tech = connections.find((entry) => entry.tag === 'tech_invest');
+    expect(tech?.policy.acronym).toBe('Emater-DF');
+    expect(tech?.note).not.toMatch(/deveria|errou|certo|errado/i);
+  });
+
+  it('conecta ausência de política pública ao PAA, sem gerar veredito', () => {
+    const connections = buildPolicyConnections(
+      [record({ teamId: 't1', tags: ['public_policy'] })],
+      6,
+    );
+
+    const policy = connections.find((entry) => entry.tag === 'public_policy');
+    expect(policy?.policy.acronym).toBe('PAA');
+    expect(policy?.note).not.toMatch(/deveria|errou|certo|errado/i);
+  });
+
+  it('não gera a conexão de tecnologia/capacitação nem de crédito sem nenhuma decisão com essas tags', () => {
+    // "public_policy" continua o mesmo comportamento de `buildTeachingHooks`
+    // (fato válido mesmo com zero decisões: "nenhuma equipe buscou"), mas
+    // "tech_invest" e "credit" exigem ao menos uma ocorrência real: sem dado,
+    // sem conexão, mesma disciplina do resto do diagnóstico.
+    const connections = buildPolicyConnections([], 6);
+    expect(connections.some((entry) => entry.tag === 'tech_invest')).toBe(false);
+    expect(connections.some((entry) => entry.tag === 'credit')).toBe(false);
+    expect(connections.some((entry) => entry.tag === 'sustainability')).toBe(false);
+  });
+
+  it('não gera nenhuma conexão quando a partida não tem equipes', () => {
+    const connections = buildPolicyConnections([], 0);
+    expect(connections).toEqual([]);
+  });
+
+  it('conecta crédito buscado ao crédito rural real', () => {
+    const connections = buildPolicyConnections(
+      [record({ teamId: 't1', tags: ['credit'] })],
+      4,
+    );
+
+    const credit = connections.find((entry) => entry.tag === 'credit');
+    expect(credit?.policy.key).toBe('credito-rural');
   });
 });

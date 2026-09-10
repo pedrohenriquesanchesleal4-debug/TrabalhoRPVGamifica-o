@@ -10,7 +10,12 @@ import {
   resolveDecision,
   type TeamScoreInput,
 } from '@/game/engine';
-import { buildDiagnostics, buildTeachingHooks, type DecisionRecord } from '@/game/diagnostics';
+import {
+  buildDiagnostics,
+  buildPolicyConnections,
+  buildTeachingHooks,
+  type DecisionRecord,
+} from '@/game/diagnostics';
 import {
   DEFAULT_CONFIG,
   ROLE_ASSIGNMENT_ORDER,
@@ -445,6 +450,95 @@ export async function getGameByCode(code: string): Promise<GameRow> {
   return gameByCode(code);
 }
 
+// ---------------------------------------------------------------------------
+// Lobby: propriedade e papel visíveis antes de entrar
+// ---------------------------------------------------------------------------
+
+export interface LobbyRole {
+  role: Role;
+  taken: boolean;
+  /** Só o nome, nunca token nem qualquer dado de sessão: já é público via `team_members`/`players`. */
+  playerName: string | null;
+}
+
+export interface LobbyTeam {
+  id: string;
+  name: string;
+  propertyKey: string;
+  slotsUsed: number;
+  slotsMax: number;
+  roles: LobbyRole[];
+}
+
+export interface LobbyView {
+  gameId: string;
+  gameCode: string;
+  gameStatus: GameStatus;
+  teams: LobbyTeam[];
+}
+
+/**
+ * Leitura pública de pré-entrada: as 6 equipes, com quem já ocupa qual papel.
+ *
+ * Sem token porque o jogador ainda não tem um: é exatamente o que permite
+ * escolher propriedade e papel ANTES de digitar o nome e confirmar. Nenhum
+ * dado sensível sai daqui, só o que `team_members`/`players` já expõem via
+ * SELECT público (nome e papel), a mesma leitura que a projeção usa.
+ */
+export async function getGameLobby(code: string): Promise<LobbyView> {
+  const game = await gameByCode(code);
+
+  if (game.status === 'finished') {
+    throw new ApiError('conflict', 'Esta partida já terminou.');
+  }
+
+  const teams = await teamsOf(game.id);
+
+  const rows = unwrap(
+    await db()
+      .from('team_members')
+      .select('team_id, role, players(name)')
+      .eq('game_id', game.id),
+    'carregar os integrantes',
+  ) as { team_id: string; role: Role; players: { name: string } | { name: string }[] | null }[];
+
+  function embeddedName(row: (typeof rows)[number]): string | null {
+    const value = Array.isArray(row.players) ? (row.players[0] ?? null) : row.players;
+    return value?.name ?? null;
+  }
+
+  const membersByTeam = new Map<string, { role: Role; name: string | null }[]>();
+  for (const row of rows) {
+    const list = membersByTeam.get(row.team_id) ?? [];
+    list.push({ role: row.role, name: embeddedName(row) });
+    membersByTeam.set(row.team_id, list);
+  }
+
+  const lobbyTeams: LobbyTeam[] = teams.map((team) => {
+    const taken = membersByTeam.get(team.id) ?? [];
+    const roles: LobbyRole[] = ROLE_ASSIGNMENT_ORDER.map((role) => {
+      const match = taken.find((entry) => entry.role === role);
+      return { role, taken: Boolean(match), playerName: match?.name ?? null };
+    });
+
+    return {
+      id: team.id,
+      name: team.name,
+      propertyKey: team.property_key,
+      slotsUsed: taken.length,
+      slotsMax: game.config.maxPlayersPerTeam,
+      roles,
+    };
+  });
+
+  return {
+    gameId: game.id,
+    gameCode: game.code,
+    gameStatus: game.status,
+    teams: lobbyTeams,
+  };
+}
+
 /**
  * Distribui o jogador na equipe com menos gente.
  *
@@ -489,14 +583,94 @@ function chooseTeamAndRole(
   return { team, role };
 }
 
+/** O que o jogador pediu explicitamente ao entrar, em vez do auto-alocado. */
+export interface JoinChoice {
+  teamId?: string;
+  role?: Role;
+}
+
+/**
+ * Resolve equipe e papel quando o jogador ESCOLHE, em vez de receber o
+ * alocado automaticamente.
+ *
+ * Mesma regra de vaga e de "um papel por equipe" do auto-assign, só que
+ * aplicada à escolha explícita: equipe cheia ou papel já ocupado naquela
+ * equipe viram `ApiError('conflict', ...)`, nunca uma alocação silenciosa
+ * para outro lugar. É o que permite a tela de entrada mostrar a lista
+ * atualizada e deixar o jogador tentar de novo em vez de travar.
+ */
+export function chooseTeamAndRoleExplicit(
+  teams: TeamRow[],
+  members: TeamMemberRow[],
+  maxPerTeam: number,
+  choice: JoinChoice,
+): { team: TeamRow; role: Role } {
+  const rolesByTeam = new Map<string, Role[]>(teams.map((team) => [team.id, []]));
+  const countByTeam = new Map<string, number>(teams.map((team) => [team.id, 0]));
+  for (const member of members) {
+    countByTeam.set(member.team_id, (countByTeam.get(member.team_id) ?? 0) + 1);
+    rolesByTeam.get(member.team_id)?.push(member.role);
+  }
+
+  if (choice.teamId) {
+    const team = teams.find((entry) => entry.id === choice.teamId);
+    if (!team) {
+      throw new ApiError('bad_request', 'Esta equipe não existe nesta partida.');
+    }
+
+    const count = countByTeam.get(team.id) ?? 0;
+    if (count >= maxPerTeam) {
+      throw new ApiError('conflict', 'Esta equipe já está completa. Escolha outra.');
+    }
+
+    const taken = rolesByTeam.get(team.id) ?? [];
+
+    if (choice.role) {
+      if (taken.includes(choice.role)) {
+        throw new ApiError('conflict', 'Este papel já foi escolhido nesta equipe. Escolha outro.');
+      }
+      return { team, role: choice.role };
+    }
+
+    const free = ROLE_ASSIGNMENT_ORDER.find((role) => !taken.includes(role));
+    const role = free ?? ROLE_ASSIGNMENT_ORDER[taken.length % ROLE_ASSIGNMENT_ORDER.length];
+    return { team, role };
+  }
+
+  // Só o papel foi escolhido, sem equipe: procura, entre as equipes com vaga
+  // e com esse papel livre, a que tem menos gente (mesmo critério de
+  // balanceamento do auto-assign), para não empilhar todo mundo na primeira.
+  const candidates = teams
+    .filter((team) => (countByTeam.get(team.id) ?? 0) < maxPerTeam)
+    .filter((team) => !(rolesByTeam.get(team.id) ?? []).includes(choice.role!))
+    .sort((a, b) => {
+      const diff = (countByTeam.get(a.id) ?? 0) - (countByTeam.get(b.id) ?? 0);
+      return diff !== 0 ? diff : a.order_index - b.order_index;
+    });
+
+  const team = candidates[0];
+  if (!team) {
+    throw new ApiError('conflict', 'Nenhuma equipe com vaga tem este papel livre agora.');
+  }
+
+  return { team, role: choice.role! };
+}
+
 /**
  * Entra na partida: nome, equipe, função e token. Sem cadastro, sem senha.
  *
  * Entrada é permitida no lobby e também com a partida em andamento: aluno que
  * chega atrasado ou perde a conexão entra na equipe mais vazia em vez de ficar
- * de fora da aula.
+ * de fora da aula. Quando `choice` traz `teamId`/`role`, o jogador escolheu de
+ * propósito na tela de entrada; sem `choice`, cai no auto-assign de sempre
+ * (mesmo comportamento de quem usa a API direto ou de qualquer teste que já
+ * exista).
  */
-export async function joinGame(code: string, rawName: string): Promise<JoinResult> {
+export async function joinGame(
+  code: string,
+  rawName: string,
+  choice?: JoinChoice,
+): Promise<JoinResult> {
   const game = await gameByCode(code);
 
   if (game.status === 'finished') {
@@ -518,7 +692,10 @@ export async function joinGame(code: string, rawName: string): Promise<JoinResul
     'carregar os integrantes',
   ) as TeamMemberRow[];
 
-  const { team, role } = chooseTeamAndRole(teams, members, game.config.maxPlayersPerTeam);
+  const { team, role } =
+    choice && (choice.teamId || choice.role)
+      ? chooseTeamAndRoleExplicit(teams, members, game.config.maxPlayersPerTeam, choice)
+      : chooseTeamAndRole(teams, members, game.config.maxPlayersPerTeam);
 
   const player = unwrap(
     await db()
@@ -1422,6 +1599,8 @@ export interface HostView {
   decidedTeams: number;
   diagnostics: ReturnType<typeof buildDiagnostics>;
   teachingHooks: string[];
+  /** Ponte entre o que a turma fez e a política pública/assistência real correspondente. */
+  policyConnections: ReturnType<typeof buildPolicyConnections>;
   scores: {
     teamId: string;
     teamName: string;
@@ -1589,6 +1768,7 @@ async function buildHostView(game: GameRow): Promise<HostView> {
       : 0,
     diagnostics: buildDiagnostics(records, teams.length),
     teachingHooks: buildTeachingHooks(records, teams.length),
+    policyConnections: buildPolicyConnections(records, teams.length),
     scores: scoreRows.map((score) => ({
       teamId: score.team_id,
       teamName: teamNameById.get(score.team_id) ?? 'Equipe',

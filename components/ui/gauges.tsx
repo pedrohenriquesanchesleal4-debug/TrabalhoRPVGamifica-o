@@ -79,7 +79,7 @@ export const GAUGE_INK: Record<IndicatorKind, string> = {
   financas: 'text-financas-texto',
   producao: 'text-verde-700',
   tecnologia: 'text-azul-700',
-  sustentabilidade: 'text-sustentabilidade',
+  sustentabilidade: 'text-sustentabilidade-texto',
 };
 
 /** Família de terraço correspondente, para tingir um degrau do indicador. */
@@ -174,35 +174,92 @@ export function CanalIcone({
 }
 
 // ---------------------------------------------------------------------------
-// Arco: substitui a barra horizontal como forma primária dos 4 indicadores
+// Dial: manômetro de painel industrial, forma primária dos 4 indicadores
 // ---------------------------------------------------------------------------
 
 /*
-  Anel parcial (donut), não barra. Mesmas três leituras redundantes de sempre
-  (ícone, comprimento do traço, número impresso), só que a proporção agora é
-  um ângulo em vez de um comprimento horizontal: em uma tela com 4
-  indicadores lado a lado, 4 anéis se diferenciam de relance por FORMA
-  ocupada (um quarto cheio lê diferente de três quartos cheios), enquanto 4
-  barras horizontais da mesma largura só se diferenciam pelo comprimento do
-  preenchimento, o que exige mais atenção deliberada do professor a 6 metros
-  de distância.
+  Direção V5 "Painel de Silo": o indicador não é mais um anel de progresso
+  (V4), é um MOSTRADOR com escala numerada e PONTEIRO, como o manômetro de
+  pressão de um painel de silo/central de controle.
 
-  O traço nasce no topo (rotate -90) e cresce em sentido horário. Só
-  `stroke-dashoffset` transiciona (mesma disciplina da V3/V4: sem
-  `animation`, `transition` que só dispara quando o valor muda de verdade).
+  Quatro leituras redundantes agora, uma a mais que o anel da V4:
+  · o ícone diz QUAL indicador é (forma);
+  · as marcações de escala (ticks) dão a referência absoluta 0..100;
+  · o PONTEIRO aponta o valor exato, girando sobre um eixo fixo;
+  · o arco de faixa (mesmo `stroke-dashoffset` da V4) ainda preenche
+    proporcionalmente, then a leitura por comprimento não se perde.
+  · o número impresso ao lado (em `Meter`, não neste componente) fecha com o
+    valor exato por extenso.
+
+  Geometria: mostrador em domo (240° de varredura, ápice no topo, eixo do
+  ponteiro no terço inferior do quadrado que envolve o SVG), o desenho mais
+  comum de manômetro analógico. Ângulo em convenção de tela (0°=direita,
+  90°=baixo, sentido horário crescente): início 150° (baixo-esquerda),
+  fim 390°=30° (baixo-direita), atravessando 270° (topo) no meio do curso.
+
+  Movimento: o ponteiro gira via `transform: rotate()` num `<g>` com
+  `transform-origin` no eixo, `transition` em `transform` (nunca `animation`:
+  só dispara quando o valor muda de verdade, disciplina de sempre). Curva
+  `ease-out` simples, sem overshoot, "parada seca" de instrumento mecânico,
+  não elástico. `prefers-reduced-motion` já é coberto pela regra global em
+  `globals.css` (zera toda `transition-duration`).
 */
 
-interface ArcoDimensao {
+interface DialDimensao {
   diametro: number;
   espessura: number;
+  raioTicksMaior: number;
+  raioTicksMenor: number;
+  raioPonteiro: number;
+  raioCubo: number;
+  comTicksMenores: boolean;
 }
 
-const ARCO_DIMENSAO: Record<CanalSize, ArcoDimensao> = {
-  compacto: { diametro: 30, espessura: 4 },
-  aluno: { diametro: 58, espessura: 6 },
+const DIAL_DIMENSAO: Record<CanalSize, DialDimensao> = {
+  compacto: {
+    diametro: 32,
+    espessura: 3,
+    raioTicksMaior: 13,
+    raioTicksMenor: 10,
+    raioPonteiro: 11,
+    raioCubo: 2.2,
+    comTicksMenores: false,
+  },
+  aluno: {
+    diametro: 58,
+    espessura: 4,
+    raioTicksMaior: 24,
+    raioTicksMenor: 19,
+    raioPonteiro: 20,
+    raioCubo: 3.4,
+    comTicksMenores: true,
+  },
   // Grosso e grande de propósito: o professor lê isto do fundo da sala.
-  projecao: { diametro: 108, espessura: 10 },
+  projecao: {
+    diametro: 108,
+    espessura: 6,
+    raioTicksMaior: 45,
+    raioTicksMenor: 36,
+    raioPonteiro: 38,
+    raioCubo: 6,
+    comTicksMenores: true,
+  },
 };
+
+/** Ângulo (graus, convenção de tela) do início e do fim da varredura do mostrador. */
+const ANGULO_INICIO = 150;
+const VARREDURA = 240;
+
+/** Ponto no perímetro do mostrador para um ângulo em graus. */
+function pontoNoAngulo(cx: number, cy: number, raio: number, anguloGraus: number): [number, number] {
+  const rad = (anguloGraus * Math.PI) / 180;
+  return [cx + raio * Math.cos(rad), cy + raio * Math.sin(rad)];
+}
+
+/** Ângulo do ponteiro para um valor 0..100. */
+function anguloDoValor(pct: number): number {
+  return ANGULO_INICIO + (pct / 100) * VARREDURA;
+}
 
 export function CanalArco({
   kind,
@@ -215,15 +272,36 @@ export function CanalArco({
   value: number;
   size?: CanalSize;
   className?: string;
-  /** Conteúdo centralizado dentro do anel (o ícone do indicador). */
+  /** Conteúdo centralizado dentro do eixo do mostrador (o ícone do indicador). */
   children?: ReactNode;
 }) {
   const pct = clamp(value);
-  const { diametro, espessura } = ARCO_DIMENSAO[size];
-  const raio = (diametro - espessura) / 2;
-  const centro = diametro / 2;
-  const perimetro = 2 * Math.PI * raio;
+  const { diametro, espessura, raioTicksMaior, raioTicksMenor, raioPonteiro, raioCubo, comTicksMenores } =
+    DIAL_DIMENSAO[size];
+
+  // O eixo do ponteiro mora no terço inferior do quadrado, não no centro: é o
+  // que dá o formato de domo (arco bulge para cima, abertura embaixo), como
+  // um manômetro de verdade.
+  const eixoX = diametro / 2;
+  const eixoY = diametro * 0.62;
+  const raioTrilha = raioTicksMaior;
+
+  const inicio = pontoNoAngulo(eixoX, eixoY, raioTrilha, ANGULO_INICIO);
+  const fim = pontoNoAngulo(eixoX, eixoY, raioTrilha, ANGULO_INICIO + VARREDURA);
+  const perimetro = (VARREDURA / 360) * 2 * Math.PI * raioTrilha;
   const offset = perimetro * (1 - pct / 100);
+
+  const ticksMaiores = [0, 25, 50, 75, 100];
+  const ticksMenores = comTicksMenores
+    ? [10, 20, 30, 40, 60, 70, 80, 90].filter((tick) => !ticksMaiores.includes(tick))
+    : [];
+
+  const ponteiroAngulo = anguloDoValor(pct);
+  // O ponteiro é desenhado apontando para cima (270°, base = topo do quadro) e
+  // rotacionado pelo delta até o ângulo real: assim a rotação parte sempre da
+  // mesma referência, o que é o que permite ao CSS `transition` animar entre
+  // valores sucessivos sem salto de referência.
+  const rotacaoPonteiro = ponteiroAngulo - 270;
 
   return (
     <span
@@ -232,29 +310,92 @@ export function CanalArco({
       style={{ width: diametro, height: diametro }}
     >
       <svg width={diametro} height={diametro} viewBox={`0 0 ${diametro} ${diametro}`}>
-        <circle
-          cx={centro}
-          cy={centro}
-          r={raio}
+        {/* Trilha do mostrador: a faixa cinza-aço por trás da escala. */}
+        <path
+          d={`M ${inicio[0]} ${inicio[1]} A ${raioTrilha} ${raioTrilha} 0 1 1 ${fim[0]} ${fim[1]}`}
           fill="none"
           stroke="var(--color-nevoa-200)"
           strokeWidth={espessura}
+          strokeLinecap="round"
         />
-        <circle
-          cx={centro}
-          cy={centro}
-          r={raio}
+        {/* Faixa de valor: mesma leitura por comprimento que o anel da V4 mantinha. */}
+        <path
+          d={`M ${inicio[0]} ${inicio[1]} A ${raioTrilha} ${raioTrilha} 0 1 1 ${fim[0]} ${fim[1]}`}
           fill="none"
           stroke={`var(--color-${kind})`}
           strokeWidth={espessura}
           strokeLinecap="round"
           strokeDasharray={perimetro}
           strokeDashoffset={offset}
-          transform={`rotate(-90 ${centro} ${centro})`}
-          style={{ transition: 'stroke-dashoffset 550ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+          style={{ transition: 'stroke-dashoffset 550ms ease-out' }}
         />
+
+        {/* Marcações de escala: a referência absoluta que um anel sozinho não dava. */}
+        {ticksMaiores.map((tick) => {
+          const angulo = anguloDoValor(tick);
+          const [x1, y1] = pontoNoAngulo(eixoX, eixoY, raioTicksMaior + 1, angulo);
+          const [x2, y2] = pontoNoAngulo(eixoX, eixoY, raioTicksMenor - 1, angulo);
+          return (
+            <line
+              key={tick}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="var(--color-terra-500)"
+              strokeWidth={Math.max(1, espessura * 0.32)}
+              strokeLinecap="round"
+            />
+          );
+        })}
+        {ticksMenores.map((tick) => {
+          const angulo = anguloDoValor(tick);
+          const [x1, y1] = pontoNoAngulo(eixoX, eixoY, raioTicksMaior, angulo);
+          const [x2, y2] = pontoNoAngulo(eixoX, eixoY, raioTicksMenor + 2, angulo);
+          return (
+            <line
+              key={tick}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="var(--color-nevoa-200)"
+              strokeWidth={Math.max(0.75, espessura * 0.2)}
+              strokeLinecap="round"
+            />
+          );
+        })}
+
+        {/* Ponteiro: gira sobre o eixo fixo, ease-out sem overshoot, parada seca. */}
+        <g
+          style={{
+            transformOrigin: `${eixoX}px ${eixoY}px`,
+            transform: `rotate(${rotacaoPonteiro}deg)`,
+            transition: 'transform 550ms ease-out',
+          }}
+        >
+          <line
+            x1={eixoX}
+            y1={eixoY}
+            x2={eixoX}
+            y2={eixoY - raioPonteiro}
+            stroke={`var(--color-${kind})`}
+            strokeWidth={Math.max(1.25, espessura * 0.45)}
+            strokeLinecap="round"
+          />
+        </g>
+        {/* Cubo do eixo: o parafuso central do mostrador. */}
+        <circle cx={eixoX} cy={eixoY} r={raioCubo} fill="var(--color-nevoa-200)" />
+        <circle cx={eixoX} cy={eixoY} r={raioCubo * 0.45} fill="var(--color-terra-500)" />
       </svg>
-      {children ? <span className="absolute inset-0 flex items-center justify-center">{children}</span> : null}
+      {children ? (
+        <span
+          className="absolute inset-x-0 flex items-center justify-center"
+          style={{ top: eixoY - diametro * 0.42, height: diametro * 0.4 }}
+        >
+          {children}
+        </span>
+      ) : null}
     </span>
   );
 }

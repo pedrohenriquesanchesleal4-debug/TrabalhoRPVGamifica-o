@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, ArrowRight, Lightbulb, Sprout } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Landmark, Lightbulb, Sprout } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
@@ -13,15 +13,16 @@ import { POLICY_DISCLAIMER } from '@/data/policies';
 import type { HostView } from '@/lib/game-service';
 
 /**
- * Resultado e debriefing, em três blocos navegáveis na mesma página.
+ * Resultado e debriefing, em cinco blocos navegáveis na mesma página.
  *
  * A ordem é proposital: primeiro o placar concreto (com prêmios que não são
- * só dinheiro), depois os contrastes do diagnóstico, e por último uma
- * pergunta sozinha na tela, sem resposta pronta, para abrir a exposição
- * teórica.
+ * só dinheiro), depois os contrastes do diagnóstico, depois a ponte para
+ * política pública/tecnologia real (bloco 4, novo nesta rodada), e por
+ * último uma pergunta sozinha na tela, sem resposta pronta, para abrir a
+ * exposição teórica.
  */
 
-const BLOCK_COUNT = 4;
+const BLOCK_COUNT = 5;
 
 export default function ResultadoPage() {
   const params = useParams<{ gameId: string }>();
@@ -186,9 +187,48 @@ export default function ResultadoPage() {
       ) : null}
 
       {block === 3 ? (
+        <section className="flex flex-col gap-8" aria-live="polite">
+          <SectionHeading
+            overline="Bloco 4"
+            title="Onde política pública e tecnologia entram"
+            description="O que a turma fez, conectado ao programa real que existe para isso: não diz se a equipe acertou, diz o que existe de verdade."
+          />
+
+          {view.policyConnections.length === 0 ? (
+            <p className="text-terra-700">
+              Ainda não há decisões suficientes para conectar a um programa real. A conexão ganha
+              corpo à medida que as equipes jogam as rodadas.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {view.policyConnections.map((connection) => (
+                <li key={connection.tag} className="degrau terraco terr-neutro flex flex-col gap-3 p-5">
+                  <div className="flex items-start gap-3">
+                    <Landmark className="mt-1 shrink-0 text-financas-texto" size={20} aria-hidden />
+                    <div className="flex flex-col gap-1">
+                      <Rotulo className="text-financas-texto">
+                        {connection.policy.acronym} · {connection.policy.scope}
+                      </Rotulo>
+                      <h3 className="relevo-sm text-terra-900">{connection.policy.name}</h3>
+                    </div>
+                  </div>
+                  <p className="text-base leading-[1.6] text-terra-900">{connection.note}</p>
+                  <p className="text-sm text-terra-700">{connection.policy.description}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="border-t-2 border-nevoa-200 pt-4 text-xs text-terra-500">
+            {POLICY_DISCLAIMER}
+          </p>
+        </section>
+      ) : null}
+
+      {block === 4 ? (
         <section className="flex flex-1 items-center justify-center py-16">
           <Degrau nivel="mirante" familia="azul" className="flex flex-col items-center gap-6 p-10 text-center">
-            <Rotulo className="text-azul-800">Para pensar</Rotulo>
+            <Rotulo className="text-azul-300">Para pensar</Rotulo>
             <h1 className="relevo-lg max-w-4xl text-terra-900">
               O principal problema da agricultura familiar é a falta de tecnologia ou a dificuldade
               de acesso e adoção dessas tecnologias?

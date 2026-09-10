@@ -131,10 +131,48 @@ export interface JoinResponse {
   roleMission: string;
 }
 
-export function joinGame(code: string, name: string) {
+export interface JoinChoice {
+  teamId?: string;
+  role?: string;
+}
+
+export function joinGame(code: string, name: string, choice?: JoinChoice) {
   return request<JoinResponse>('/api/games/join', {
     method: 'POST',
-    body: JSON.stringify({ code, name }),
+    body: JSON.stringify({ code, name, ...choice }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Lobby de pré-entrada: propriedade e papel antes de confirmar
+// ---------------------------------------------------------------------------
+
+export interface LobbyRoleResponse {
+  role: string;
+  roleLabel: string;
+  taken: boolean;
+  playerName: string | null;
+}
+
+export interface LobbyTeamResponse {
+  id: string;
+  name: string;
+  propertyKey: string;
+  slotsUsed: number;
+  slotsMax: number;
+  roles: LobbyRoleResponse[];
+}
+
+export interface LobbyResponse {
+  gameId: string;
+  gameCode: string;
+  gameStatus: string;
+  teams: LobbyTeamResponse[];
+}
+
+export function fetchLobby(code: string) {
+  return request<LobbyResponse>(`/api/games/lobby?code=${encodeURIComponent(code)}`, {
+    cache: 'no-store',
   });
 }
 
