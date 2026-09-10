@@ -6,6 +6,7 @@ import { ArrowRight, Loader2, TriangleAlert } from 'lucide-react';
 import { joinGame, RequestError } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
 import { Button, Field, Rotulo } from '@/components/ui/primitives';
+import { PropertyScene } from '@/components/game/property-scene';
 
 /**
  * Entrada do aluno.
@@ -67,16 +68,23 @@ export default function EntrarPage() {
 
   if (!showForm && existing) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
-        <div className="flex flex-col gap-2">
-          <Rotulo>Safra DF</Rotulo>
-          <h1 className="relevo-md text-terra-900">Continuar como {existing.playerName}</h1>
-          <p className="text-sm text-terra-700">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:flex-row md:items-center md:gap-10 md:py-16">
+        <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
+          <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
+            <div className="w-16 shrink-0">
+              <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Rotulo className="text-azul-300">Safra DF</Rotulo>
+              <h1 className="relevo-md text-white">Continuar como {existing.playerName}</h1>
+            </div>
+          </div>
+          <p className="text-sm text-terra-700 md:max-w-[32ch]">
             Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 md:flex-1">
           <Button
             type="button"
             variant="principal"
@@ -102,16 +110,24 @@ export default function EntrarPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-5 py-10">
-      <div className="flex flex-col gap-2">
-        <Rotulo>Safra DF</Rotulo>
-        <h1 className="relevo-md text-terra-900">Entrar na partida</h1>
-        <p className="text-sm text-terra-700">
-          Peça o código de 4 a 8 letras que o professor está projetando na tela.
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:flex-row md:items-center md:gap-10 md:py-16">
+      <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
+        <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
+          <div className="w-16 shrink-0">
+            <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Rotulo className="text-azul-300">Safra DF</Rotulo>
+            <h1 className="relevo-md text-white">Entrar na partida</h1>
+          </div>
+        </div>
+        <p className="text-sm text-terra-700 md:max-w-[32ch]">
+          Peça o código de 4 a 8 letras que o professor está projetando na tela. Sua equipe já tem
+          uma propriedade esperando.
         </p>
       </div>
 
-      <form className="flex flex-col gap-6" onSubmit={handleSubmit} noValidate>
+      <form className="flex flex-col gap-6 md:flex-1" onSubmit={handleSubmit} noValidate>
         <Field
           label="Código da partida"
           name="codigo"

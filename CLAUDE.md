@@ -25,6 +25,35 @@ npm run verify      # typecheck + lint + test + build
 `.env.example`). `npm run test` e `npm run simulate` NÃO exigem: a engine é pura
 e roda sem Supabase, o que é o ponto principal da separação de camadas.
 
+Três camadas de verificação, cada uma provando uma coisa diferente:
+`npm run test`/`npm run simulate` provam a engine sem rede nem banco;
+`npm run smoke` (`scripts/smoke-live.mjs`) joga uma partida inteira pela API
+contra um Supabase de verdade; `npm run browser-check` abre professor,
+projeção e aluno em abas reais e grava captura de tela. Rode `smoke` e
+`browser-check` na véspera da aula, não como parte do dia a dia de código.
+
+## Rotas de API → serviço
+
+Todo route handler em `app/api/**` é uma casca fina que valida entrada com Zod,
+lê o bearer token e chama uma função de `lib/game-service.ts`:
+
+| Rota | Função em `game-service.ts` |
+|---|---|
+| `POST /api/games` | `createGame` |
+| `POST /api/games/join` | `joinGame` |
+| `GET /api/player/view` | `getPlayerView` (autentica com `authenticatePlayer`) |
+| `POST /api/player/decision` | `submitDecision` |
+| `POST /api/player/heartbeat` | `touchPlayer` |
+| `GET /api/host/[gameId]` | `getHostView` (autentica com `authenticateHost`) |
+| `POST /api/host/[gameId]/action` | despacha para `startRound` / `resolveRound` / `pauseGame` / `resumeGame` / `finishGame` / `resetGame` conforme o tipo de ação |
+| `GET /api/projection/[gameId]` | `getProjectionView` (sem token: leitura pública para a tela de projetor) |
+
+Toda função de escrita em `game-service.ts` grava uma linha em `game_events`
+antes de retornar. `hooks/use-game-channel.ts` assina esse barramento e o de
+`teams` via Supabase Realtime; ao chegar um evento, ele NÃO usa o payload como
+estado, só como gatilho para rechamar `fetchPlayerView`/`fetchHostView` via
+`@/lib/client-api`.
+
 ## A arquitetura em uma frase
 
 O navegador nunca escreve no banco: toda mutação passa por route handler em

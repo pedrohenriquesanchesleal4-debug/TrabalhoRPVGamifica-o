@@ -26,6 +26,7 @@ import { hostSession } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DenseTeamCard } from '@/components/host/team-board';
+import { PropertyScene } from '@/components/game/property-scene';
 import { DEFAULT_CONFIG, ROUND_META, TOTAL_ROUNDS } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
 
@@ -205,58 +206,66 @@ function CreateGameScreen({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-6 py-16">
-      <div className="flex flex-col gap-2">
-        <Rotulo>SAFRA DF · Painel do professor</Rotulo>
-        <h1 className="relevo-lg text-terra-900">Criar uma nova partida</h1>
-        <p className="max-w-prose text-terra-700">
-          A turma vai entrar pelo celular com um código. Você controla o ritmo das cinco rodadas
-          por esta tela, projetada em telão ou não.
-        </p>
+    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10 lg:py-16">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-8">
+        <section className="degrau mirante terr-fundo-verde flex flex-col gap-6 px-8 py-10 lg:col-span-3 lg:flex-row lg:items-center lg:gap-10 lg:py-14">
+          <div className="flex flex-col gap-3 lg:flex-1">
+            <Rotulo className="text-verde-300">SAFRA DF · Painel do professor</Rotulo>
+            <h1 className="relevo-lg text-white">Criar uma nova partida</h1>
+            <p className="max-w-[46ch] text-white/90">
+              A turma entra pelo celular com um código. Você controla o ritmo das cinco rodadas por
+              esta tela, projetada em telão ou não. Cada equipe assume uma das seis propriedades
+              rurais do Distrito Federal.
+            </p>
+          </div>
+          <div className="mx-auto w-32 shrink-0 sm:w-40 lg:w-48">
+            <PropertyScene propertyKey="planalto-familiar" production={58} technology={52} sustainability={64} />
+          </div>
+        </section>
+
+        <div className="flex flex-col justify-center gap-4 lg:col-span-2">
+          {expired ? (
+            <Degrau nivel="terraco" familia="alerta" className="flex items-center gap-3 p-4">
+              <AlertTriangle className="shrink-0 text-alerta" size={20} aria-hidden />
+              <p className="text-sm text-terra-700">
+                A partida salva neste navegador não existe mais ou o acesso expirou. Crie uma nova
+                partida para continuar.
+              </p>
+            </Degrau>
+          ) : null}
+
+          <Button
+            variant="principal"
+            size="projecao"
+            onClick={() => void handleCreate()}
+            disabled={creating || (customize && weightSum !== 100)}
+            className="w-full"
+          >
+            {creating ? 'Criando partida...' : 'Criar partida'}
+          </Button>
+
+          {error ? (
+            <p role="alert" className="text-sm text-alerta">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setCustomize((value) => !value)}
+            className="ml-2 flex items-center gap-2 self-start text-sm font-medium text-terra-700 hover:text-terra-900"
+            aria-expanded={customize}
+          >
+            <Settings2 size={16} aria-hidden />
+            Configuração opcional
+            <ChevronDown
+              size={16}
+              aria-hidden
+              className={customize ? 'rotate-180 transition-transform' : 'transition-transform'}
+            />
+          </button>
+        </div>
       </div>
-
-      {expired ? (
-        <Degrau nivel="terraco" familia="alerta" className="flex items-center gap-3 p-4">
-          <AlertTriangle className="shrink-0 text-alerta" size={20} aria-hidden />
-          <p className="text-sm text-terra-700">
-            A partida salva neste navegador não existe mais ou o acesso expirou. Crie uma nova
-            partida para continuar.
-          </p>
-        </Degrau>
-      ) : null}
-
-      <Button
-        variant="principal"
-        size="grande"
-        onClick={() => void handleCreate()}
-        disabled={creating || (customize && weightSum !== 100)}
-        className="text-lg"
-      >
-        {creating ? 'Criando partida...' : 'Criar partida'}
-      </Button>
-
-      {error ? (
-        <p role="alert" className="text-sm text-alerta">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="h-px w-full bg-nevoa-200" />
-
-      <button
-        type="button"
-        onClick={() => setCustomize((value) => !value)}
-        className="flex items-center gap-2 self-start text-sm font-medium text-terra-700 hover:text-terra-900"
-        aria-expanded={customize}
-      >
-        <Settings2 size={16} aria-hidden />
-        Configuração opcional
-        <ChevronDown
-          size={16}
-          aria-hidden
-          className={customize ? 'rotate-180 transition-transform' : 'transition-transform'}
-        />
-      </button>
 
       {customize ? (
         <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-5 p-6">
