@@ -13,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { fetchPlayerView, sendHeartbeat, submitDecision, RequestError } from '@/lib/client-api';
-import { playerSession } from '@/lib/client-session';
+import { playerSession, type PlayerSessionData } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import type { PlayerView } from '@/lib/game-service';
 import {
@@ -47,7 +47,28 @@ function currentRoundMeta(view: PlayerView) {
 
 export default function JogarPage() {
   const router = useRouter();
-  const [session] = useState(() => playerSession.get());
+  // A sessão mora no localStorage, que não existe durante a renderização no
+  // servidor. Lida direto num useState inicial, ela divergiria entre o HTML
+  // do servidor (sempre sem sessão) e a primeira renderização do cliente
+  // (com sessão real), causando hydration mismatch. Por isso começa nula nos
+  // dois lados e só é lida de fato depois de montar.
+  const [session, setSession] = useState<PlayerSessionData | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const current = playerSession.get();
+      if (cancelled) return;
+      setSession(current);
+      setHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [view, setView] = useState<PlayerView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,9 +100,11 @@ export default function JogarPage() {
   // acontece de forma sincrona no corpo do efeito, e o guarda de cancelamento
   // evita atualizar a tela depois de sair dela.
   useEffect(() => {
+    if (!hydrated) return undefined;
+
     if (!session) {
       router.replace('/entrar');
-      return;
+      return undefined;
     }
 
     let cancelled = false;
@@ -94,7 +117,7 @@ export default function JogarPage() {
     return () => {
       cancelled = true;
     };
-  }, [session, router, refresh]);
+  }, [hydrated, session, router, refresh]);
 
   useGameChannel({
     gameId: view?.game.id ?? null,

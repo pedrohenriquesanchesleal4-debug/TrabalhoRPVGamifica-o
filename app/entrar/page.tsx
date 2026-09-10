@@ -68,7 +68,57 @@ export default function EntrarPage() {
 
   if (!showForm && existing) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:flex-row md:items-center md:gap-10 md:py-16">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
+        <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-10">
+          <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
+            <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
+              <div className="w-16 shrink-0">
+                <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Rotulo className="text-azul-300">Safra DF</Rotulo>
+                <h1 className="relevo-md text-white">Continuar como {existing.playerName}</h1>
+              </div>
+            </div>
+            <p className="text-sm text-terra-700 md:max-w-[32ch]">
+              Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-1">
+            <Button
+              type="button"
+              variant="principal"
+              size="grande"
+              onClick={() => router.push('/jogar')}
+            >
+              Continuar como {existing.playerName}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="silencioso"
+              onClick={() => {
+                playerSession.clear();
+                setShowForm(true);
+              }}
+            >
+              Entrar com outro código
+            </Button>
+          </div>
+        </div>
+
+        <p className="text-xs text-terra-500">
+          Sem senha e sem e-mail: só o código da turma e o seu nome ficam guardados neste
+          aparelho.
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
+      <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-10">
         <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
           <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
             <div className="w-16 shrink-0">
@@ -76,107 +126,70 @@ export default function EntrarPage() {
             </div>
             <div className="flex flex-col gap-1">
               <Rotulo className="text-azul-300">Safra DF</Rotulo>
-              <h1 className="relevo-md text-white">Continuar como {existing.playerName}</h1>
+              <h1 className="relevo-md text-white">Entrar na partida</h1>
             </div>
           </div>
           <p className="text-sm text-terra-700 md:max-w-[32ch]">
-            Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
+            Peça o código de 4 a 8 letras que o professor está projetando na tela. Sua equipe já
+            tem uma propriedade esperando.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 md:flex-1">
-          <Button
-            type="button"
-            variant="principal"
-            size="grande"
-            onClick={() => router.push('/jogar')}
-          >
-            Continuar como {existing.playerName}
-            <ArrowRight size={18} aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="silencioso"
-            onClick={() => {
-              playerSession.clear();
-              setShowForm(true);
-            }}
-          >
-            Entrar com outro código
-          </Button>
-        </div>
-      </main>
-    );
-  }
+        <form className="flex flex-col gap-6 md:flex-1" onSubmit={handleSubmit} noValidate>
+          <Field
+            label="Código da partida"
+            name="codigo"
+            value={code}
+            onChange={(event) => handleCodeChange(event.target.value)}
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={8}
+            placeholder="EX: SAFRA1"
+            codigo
+            hint="Só letras e números, sem espaço."
+            disabled={submitting}
+          />
 
-  return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:flex-row md:items-center md:gap-10 md:py-16">
-      <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
-        <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
-          <div className="w-16 shrink-0">
-            <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Rotulo className="text-azul-300">Safra DF</Rotulo>
-            <h1 className="relevo-md text-white">Entrar na partida</h1>
-          </div>
-        </div>
-        <p className="text-sm text-terra-700 md:max-w-[32ch]">
-          Peça o código de 4 a 8 letras que o professor está projetando na tela. Sua equipe já tem
-          uma propriedade esperando.
-        </p>
+          <Field
+            label="Seu nome"
+            name="nome"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoComplete="name"
+            maxLength={40}
+            placeholder="Como o time deve te chamar"
+            disabled={submitting}
+          />
+
+          {error ? (
+            <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-alerta">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {error}
+            </p>
+          ) : null}
+
+          <Button type="submit" variant="principal" size="grande" disabled={submitting}>
+            {submitting ? (
+              <>
+                <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+                Entrando...
+              </>
+            ) : (
+              <>
+                Entrar
+                <ArrowRight size={18} aria-hidden="true" />
+              </>
+            )}
+          </Button>
+        </form>
       </div>
 
-      <form className="flex flex-col gap-6 md:flex-1" onSubmit={handleSubmit} noValidate>
-        <Field
-          label="Código da partida"
-          name="codigo"
-          value={code}
-          onChange={(event) => handleCodeChange(event.target.value)}
-          inputMode="text"
-          autoCapitalize="characters"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={8}
-          placeholder="EX: SAFRA1"
-          codigo
-          hint="Só letras e números, sem espaço."
-          disabled={submitting}
-        />
-
-        <Field
-          label="Seu nome"
-          name="nome"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoComplete="name"
-          maxLength={40}
-          placeholder="Como o time deve te chamar"
-          disabled={submitting}
-        />
-
-        {error ? (
-          <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-alerta">
-            <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-            {error}
-          </p>
-        ) : null}
-
-        <Button type="submit" variant="principal" size="grande" disabled={submitting}>
-          {submitting ? (
-            <>
-              <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-              Entrando...
-            </>
-          ) : (
-            <>
-              Entrar
-              <ArrowRight size={18} aria-hidden="true" />
-            </>
-          )}
-        </Button>
-      </form>
+      <p className="text-xs text-terra-500">
+        Sem cadastro: em menos de um minuto sua equipe já está esperando você na propriedade.
+      </p>
     </main>
   );
 }
