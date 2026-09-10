@@ -92,7 +92,7 @@ export function OpeningSequence({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-terra-900 px-7 py-10 sm:px-16"
+      className="fixed inset-0 z-50 flex flex-col items-start justify-center gap-5 bg-nevoa-50 px-7 py-10 sm:px-16"
       role="dialog"
       aria-modal="true"
       aria-label="Abertura da partida"

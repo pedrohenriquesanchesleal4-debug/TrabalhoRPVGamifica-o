@@ -316,6 +316,19 @@ export interface PublicPolicy {
   simulatedIn: string;
 }
 
+/**
+ * Atributo de destaque visual da propriedade: qual dos 4 indicadores essa
+ * propriedade "veste" como identidade própria (mapa do DF, faixa de
+ * propriedades e selo na cena). É conteúdo, não lógica: reaproveita a cor e o
+ * ícone que o indicador já tem em `components/ui/gauges.tsx`, então não
+ * introduz nenhuma cor nova fora da paleta fechada do contrato visual.
+ */
+export interface PropertyHighlight {
+  indicator: IndicatorKey;
+  /** Rótulo curto da identidade, ex: "Recursos hídricos" (nem sempre igual ao nome do indicador). */
+  label: string;
+}
+
 export interface PropertyProfile {
   key: string;
   name: string;
@@ -329,6 +342,8 @@ export interface PropertyProfile {
   weakness: string;
   /** Ajuste aplicado sobre o estado inicial padrão. */
   modifiers: Partial<TeamIndicators> & { traits?: Partial<TeamTraits> };
+  /** Identidade visual: qual indicador esta propriedade projeta como marca própria. */
+  highlight: PropertyHighlight;
 }
 
 // ---------------------------------------------------------------------------

@@ -245,7 +245,7 @@ function CreateGameScreen({
           </Button>
 
           {error ? (
-            <p role="alert" className="text-sm text-alerta">
+            <p role="alert" className="text-sm text-alerta-texto">
               {error}
             </p>
           ) : null}
@@ -336,7 +336,7 @@ function CreateGameScreen({
                 onChange={(event) => setSustainability(Number(event.target.value))}
               />
             </div>
-            <p className={`dado text-sm ${weightSum === 100 ? 'text-terra-500' : 'text-alerta'}`}>
+            <p className={`dado text-sm ${weightSum === 100 ? 'text-terra-500' : 'text-alerta-texto'}`}>
               Soma atual: {weightSum}{weightSum !== 100 ? ' · precisa somar exatamente 100' : ''}
             </p>
           </div>
@@ -548,13 +548,13 @@ function ControlPanel({
         <SectionHeading overline="Controle da partida" title="O que fazer agora" />
 
         {actionError ? (
-          <p role="alert" className="text-sm text-alerta">
+          <p role="alert" className="text-sm text-alerta-texto">
             {actionError}
           </p>
         ) : null}
 
         {incompleteTeams > 0 ? (
-          <p className="flex items-center gap-2 text-sm text-alerta">
+          <p className="flex items-center gap-2 text-sm text-alerta-texto">
             <AlertTriangle size={16} aria-hidden />
             {incompleteTeams === 1
               ? '1 equipe está com menos de 2 jogadores.'

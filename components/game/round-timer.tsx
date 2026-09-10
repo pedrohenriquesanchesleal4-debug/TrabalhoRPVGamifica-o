@@ -52,7 +52,7 @@ export function RoundTimer({
 
   return (
     <div
-      className={classes('relative flex items-center gap-2', urgent ? 'text-alerta' : 'text-terra-700')}
+      className={classes('relative flex items-center gap-2', urgent ? 'text-alerta-texto' : 'text-terra-700')}
       role="timer"
       aria-live="off"
     >
@@ -76,7 +76,7 @@ export function RoundTimer({
         <Clock size={size === 'destaque' ? 20 : 16} aria-hidden="true" />
       )}
       <span className={valueClass}>{formatClock(remaining)}</span>
-      {urgent ? <span className="rotulo text-alerta">Corre</span> : null}
+      {urgent ? <span className="rotulo text-alerta-texto">Corre</span> : null}
     </div>
   );
 }

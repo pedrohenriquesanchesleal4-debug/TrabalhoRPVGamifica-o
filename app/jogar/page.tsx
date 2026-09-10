@@ -474,7 +474,7 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
                   effect.delta > 0
                     ? 'text-sucesso'
                     : effect.delta < 0
-                      ? 'text-alerta'
+                      ? 'text-alerta-texto'
                       : 'text-terra-500',
                 )}
               >

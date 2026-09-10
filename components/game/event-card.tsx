@@ -140,7 +140,7 @@ export function EventCard({
                 {option.detail}
               </span>
               {!option.available && reason ? (
-                <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-alerta">
+                <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-alerta-texto">
                   <TriangleAlert size={14} aria-hidden="true" />
                   {reason}
                 </span>
@@ -157,7 +157,7 @@ export function EventCard({
             </p>
 
             {error ? (
-              <p role="alert" className="text-sm font-semibold text-alerta">
+              <p role="alert" className="text-sm font-semibold text-alerta-texto">
                 {error}
               </p>
             ) : null}

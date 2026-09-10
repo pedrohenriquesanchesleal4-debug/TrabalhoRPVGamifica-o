@@ -68,7 +68,7 @@ export default function EntrarPage() {
 
   if (!showForm && existing) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 md:justify-between px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-10">
           <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
             <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
@@ -117,7 +117,7 @@ export default function EntrarPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-between gap-8 px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 md:justify-between px-5 py-8 sm:px-6 sm:py-10 md:max-w-3xl md:py-16">
       <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-10">
         <div className="flex flex-col gap-5 md:w-2/5 md:shrink-0">
           <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5">
@@ -165,7 +165,7 @@ export default function EntrarPage() {
           />
 
           {error ? (
-            <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-alerta">
+            <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-alerta-texto">
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
               {error}
             </p>

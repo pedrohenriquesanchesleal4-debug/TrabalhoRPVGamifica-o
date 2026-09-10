@@ -1,16 +1,19 @@
+'use client';
+
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import {
+  CanalArco,
   CanalIcone,
-  CanalTrilha,
   GAUGE_LABEL,
   GAUGE_TERRACO,
+  useCountUp,
   type CanalSize,
   type IndicatorKind,
 } from './gauges';
 
 /**
  * Primitivas compartilhadas entre a tela do aluno (celular) e as telas do
- * professor (projetor). Direção visual V3 "Curva de Nível".
+ * professor (projetor). Direção visual V4 "Noite de Cerrado" (herda a física de degrau da V3).
  *
  * A regra estrutural da direção vive aqui: não existe card com borda nos
  * quatro lados, sombra difusa e raio uniforme. Existe DEGRAU, composto de
@@ -101,7 +104,7 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   principal: 'degrau banco pisavel terr-fundo-verde text-white',
   secundario: 'degrau banco pisavel terr-claro text-terra-900',
   silencioso: 'bg-transparent text-terra-700 hover:text-terra-900',
-  perigo: 'degrau banco pisavel terr-alerta text-alerta-800',
+  perigo: 'degrau banco pisavel terr-alerta text-terra-900',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
@@ -181,17 +184,17 @@ export function Field({
         aria-invalid={error ? true : undefined}
         className={classes(
           'min-h-14 rounded-[10px] border-0 bg-nevoa-100 px-4 text-terra-900',
-          'shadow-[inset_0_2px_0_0_rgba(16,36,29,0.22)]',
+          'shadow-[inset_0_2px_2px_0_rgba(0,0,0,0.45)]',
           'placeholder:text-terra-500/60 focus:outline-none',
-          'focus-visible:shadow-[inset_0_0_0_3px_var(--color-azul-600)]',
+          'focus-visible:shadow-[inset_0_0_0_3px_var(--color-financas)]',
           codigo ? 'dado text-3xl font-bold uppercase tracking-[0.3em]' : 'text-lg',
-          error && 'shadow-[inset_0_0_0_2px_var(--color-alerta)]',
+          error && 'shadow-[inset_0_0_0_2px_var(--color-alerta-texto)]',
           className,
         )}
       />
 
       {error ? (
-        <p id={`${inputId}-erro`} role="alert" className="text-sm font-bold text-alerta">
+        <p id={`${inputId}-erro`} role="alert" className="text-sm font-bold text-alerta-texto">
           {error}
         </p>
       ) : hint ? (
@@ -251,6 +254,18 @@ export function Pill({
  * sem depender de cor, o número aparece por extenso (leitura a seis metros e
  * leitor de tela) e a trilha só se move quando o valor muda de verdade.
  */
+/**
+ * Extrai um alvo numérico do texto de exibição, para o contador poder subir e
+ * descer em vez de trocar de número seco. Só reconhece dígitos puros (o caso
+ * de produção/tecnologia/sustentabilidade); "R$ 62.000" fica como está, o
+ * anel ao redor já mostra a variação sem precisar reformatar moeda quadro a
+ * quadro.
+ */
+function numeroPuro(display: string): number | null {
+  const limpo = display.trim();
+  return /^-?\d+$/.test(limpo) ? Number(limpo) : null;
+}
+
 export function Meter({
   kind,
   label,
@@ -261,7 +276,7 @@ export function Meter({
 }: {
   kind: IndicatorKind;
   label: string;
-  /** 0..100 para preencher a trilha. */
+  /** 0..100 para preencher o anel. */
   value: number;
   /** Texto do valor: pode ser "R$ 62.000" ou "58". */
   display: string;
@@ -270,11 +285,14 @@ export function Meter({
   size?: CanalSize;
 }) {
   const pct = Math.max(0, Math.min(100, value));
+  const alvoNumerico = numeroPuro(display);
+  const contador = useCountUp(alvoNumerico ?? 0);
+  const displayAnimado = alvoNumerico !== null ? String(Math.round(contador)) : display;
 
   const variacao =
     delta !== undefined && delta !== null && delta !== 0 ? (
       <span
-        className={classes('dado text-xs font-bold', delta > 0 ? 'text-sucesso' : 'text-alerta')}
+        className={classes('dado text-xs font-bold', delta > 0 ? 'text-sucesso' : 'text-alerta-texto')}
       >
         {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}
       </span>
@@ -283,61 +301,68 @@ export function Meter({
   if (size === 'compacto') {
     return (
       <span
-        className="inline-flex items-center gap-1.5"
+        className="inline-flex items-center gap-2"
         role="meter"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
       >
-        <CanalIcone kind={kind} size="compacto" />
-        <span className="dado text-sm font-bold text-terra-900">{display}</span>
+        <CanalArco kind={kind} value={pct} size="compacto">
+          <CanalIcone kind={kind} size="compacto" />
+        </CanalArco>
+        <span className="dado text-sm font-bold text-terra-900">{displayAnimado}</span>
       </span>
     );
   }
 
   /*
-    Na projeção o valor ganha linha própria em `dado-xl`. Lado a lado, uma
-    cifra longa como "R$ 76.000" em 64px atropela a coluna vizinha.
+    Na projeção o anel cresce (108px, traço de 10px): a proporção ocupada vira
+    FORMA, legível de relance a 6 metros, não só comprimento de barra. O
+    número mora ao lado em `dado-xl`, nunca dentro do anel (uma cifra longa
+    como "R$ 76.000" em 64px não cabe num círculo de 108px).
   */
   if (size === 'projecao') {
     return (
       <div
-        className="flex min-w-0 flex-col gap-2"
+        className="flex min-w-0 items-center gap-5"
         role="meter"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
       >
-        <div className="flex items-center gap-3">
+        <CanalArco kind={kind} value={pct} size="projecao">
           <CanalIcone kind={kind} size="projecao" />
+        </CanalArco>
+
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="rotulo">{label}</span>
+          <span className="dado-xl whitespace-nowrap text-terra-900">{displayAnimado}</span>
+          {variacao}
         </div>
-        <span className="dado-xl whitespace-nowrap text-terra-900">{display}</span>
-        <CanalTrilha kind={kind} value={pct} size="projecao" />
-        {variacao}
       </div>
     );
   }
 
   return (
     <div
-      className="flex min-w-0 flex-col gap-1.5"
+      className="flex min-w-0 items-center gap-3"
       role="meter"
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={`${label}: ${display}`}
     >
-      <div className="flex items-center gap-2">
+      <CanalArco kind={kind} value={pct} size="aluno">
         <CanalIcone kind={kind} size="aluno" />
-        <span className="rotulo min-w-0 flex-1 truncate">{label}</span>
-        <span className="dado-lg whitespace-nowrap text-terra-900">{display}</span>
-      </div>
+      </CanalArco>
 
-      <CanalTrilha kind={kind} value={pct} size="aluno" />
-      {variacao}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="rotulo min-w-0 truncate">{label}</span>
+        <span className="dado-lg whitespace-nowrap text-terra-900">{displayAnimado}</span>
+        {variacao}
+      </div>
     </div>
   );
 }

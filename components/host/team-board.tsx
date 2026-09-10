@@ -9,7 +9,7 @@ import type { HostTeamView } from '@/lib/game-service';
 import { PropertyScene } from '@/components/game/property-scene';
 
 /**
- * As três peças da direção "Curva de Nível" na projeção: a equipe em foco
+ * As três peças da direção "Noite de Cerrado" na projeção: a equipe em foco
  * vira `mirante` (cena inteira, indicadores em tamanho `projecao`), as
  * demais formam a "encosta" (uma linha `banco` cada, parede proporcional ao
  * rank) e o lobby/painel do professor usa um cartão `banco` denso e neutro.

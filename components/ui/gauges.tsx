@@ -1,7 +1,11 @@
+'use client';
+
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Cpu, Leaf, Sprout, Wallet, type LucideIcon } from 'lucide-react';
+import type { IndicatorKey } from '@/types/game';
 
 /*
-  Os quatro indicadores da direção "Curva de Nível".
+  Os quatro indicadores, herdados da V3 e re-tingidos para a paleta noturna da V4.
 
   Forma unificada: um CANAL, a valeta que corre no pé do terraço conduzindo
   água. Trilha escavada, preenchimento sólido na cor do indicador, ícone fixo
@@ -25,12 +29,28 @@ import { Cpu, Leaf, Sprout, Wallet, type LucideIcon } from 'lucide-react';
 
 export type IndicatorKind = 'financas' | 'producao' | 'tecnologia' | 'sustentabilidade';
 
-/** Ícone de cada indicador: o canal de leitura que não depende de cor. */
-const ICONE: Record<IndicatorKind, LucideIcon> = {
+/**
+ * Ícone de cada indicador: o canal de leitura que não depende de cor.
+ *
+ * Exportado (não só usado internamente) porque a identidade visual das 6
+ * propriedades (mapa do DF, faixa de propriedades, selo na cena) reaproveita
+ * exatamente este ícone e esta cor: zero glifo novo fora do sistema de
+ * indicadores já existente.
+ */
+export const GAUGE_ICON: Record<IndicatorKind, LucideIcon> = {
   financas: Wallet,
   producao: Sprout,
   tecnologia: Cpu,
   sustentabilidade: Leaf,
+};
+const ICONE = GAUGE_ICON;
+
+/** Converte a chave de indicador do domínio (`cash`, `production`...) na família de cor/ícone do canal. */
+export const INDICATOR_KEY_TO_KIND: Record<IndicatorKey, IndicatorKind> = {
+  cash: 'financas',
+  production: 'producao',
+  technology: 'tecnologia',
+  sustainability: 'sustentabilidade',
 };
 
 /** Rótulo canônico. Usado em toda superfície, sem variação. */
@@ -151,4 +171,152 @@ export function CanalIcone({
       className={[GAUGE_INK[kind], 'shrink-0', className ?? ''].join(' ')}
     />
   );
+}
+
+// ---------------------------------------------------------------------------
+// Arco: substitui a barra horizontal como forma primária dos 4 indicadores
+// ---------------------------------------------------------------------------
+
+/*
+  Anel parcial (donut), não barra. Mesmas três leituras redundantes de sempre
+  (ícone, comprimento do traço, número impresso), só que a proporção agora é
+  um ângulo em vez de um comprimento horizontal: em uma tela com 4
+  indicadores lado a lado, 4 anéis se diferenciam de relance por FORMA
+  ocupada (um quarto cheio lê diferente de três quartos cheios), enquanto 4
+  barras horizontais da mesma largura só se diferenciam pelo comprimento do
+  preenchimento, o que exige mais atenção deliberada do professor a 6 metros
+  de distância.
+
+  O traço nasce no topo (rotate -90) e cresce em sentido horário. Só
+  `stroke-dashoffset` transiciona (mesma disciplina da V3/V4: sem
+  `animation`, `transition` que só dispara quando o valor muda de verdade).
+*/
+
+interface ArcoDimensao {
+  diametro: number;
+  espessura: number;
+}
+
+const ARCO_DIMENSAO: Record<CanalSize, ArcoDimensao> = {
+  compacto: { diametro: 30, espessura: 4 },
+  aluno: { diametro: 58, espessura: 6 },
+  // Grosso e grande de propósito: o professor lê isto do fundo da sala.
+  projecao: { diametro: 108, espessura: 10 },
+};
+
+export function CanalArco({
+  kind,
+  value,
+  size = 'aluno',
+  className,
+  children,
+}: {
+  kind: IndicatorKind;
+  value: number;
+  size?: CanalSize;
+  className?: string;
+  /** Conteúdo centralizado dentro do anel (o ícone do indicador). */
+  children?: ReactNode;
+}) {
+  const pct = clamp(value);
+  const { diametro, espessura } = ARCO_DIMENSAO[size];
+  const raio = (diametro - espessura) / 2;
+  const centro = diametro / 2;
+  const perimetro = 2 * Math.PI * raio;
+  const offset = perimetro * (1 - pct / 100);
+
+  return (
+    <span
+      aria-hidden="true"
+      className={['relative inline-flex shrink-0 items-center justify-center', className ?? ''].join(' ')}
+      style={{ width: diametro, height: diametro }}
+    >
+      <svg width={diametro} height={diametro} viewBox={`0 0 ${diametro} ${diametro}`}>
+        <circle
+          cx={centro}
+          cy={centro}
+          r={raio}
+          fill="none"
+          stroke="var(--color-nevoa-200)"
+          strokeWidth={espessura}
+        />
+        <circle
+          cx={centro}
+          cy={centro}
+          r={raio}
+          fill="none"
+          stroke={`var(--color-${kind})`}
+          strokeWidth={espessura}
+          strokeLinecap="round"
+          strokeDasharray={perimetro}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${centro} ${centro})`}
+          style={{ transition: 'stroke-dashoffset 550ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+        />
+      </svg>
+      {children ? <span className="absolute inset-0 flex items-center justify-center">{children}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * Contador que sobe/desce até `target` em vez de trocar de número seco.
+ *
+ * Só anima quando o alvo muda de fato (não na primeira pintura, mesma regra
+ * do resto do sistema de movimento) e respeita `prefers-reduced-motion`
+ * lendo a media query diretamente: quando reduzido, o valor salta direto
+ * para o alvo, sem passo intermediário.
+ */
+export function useCountUp(target: number, durationMs = 550): number {
+  const [displayed, setDisplayed] = useState(target);
+  // `fromRef` nasce igual a `target`: no primeiro efeito, `from === target` é
+  // verdadeiro e a função sai sem tocar em estado, então não existe pintura
+  // extra na montagem, só quando o alvo muda de verdade depois.
+  const fromRef = useRef(target);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) return;
+
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduced) {
+      // Ainda assim agendado via rAF (não uma chamada síncrona solta no corpo
+      // do efeito): o valor salta direto para o alvo, sem passo intermediário.
+      fromRef.current = target;
+      rafRef.current = requestAnimationFrame(() => setDisplayed(target));
+      return () => {
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      };
+    }
+
+    const start = performance.now();
+
+    function passo(now: number) {
+      const decorrido = now - start;
+      const progresso = Math.min(1, decorrido / durationMs);
+      // Ease-out: acelera no início, assenta no fim, mesma curva do resto do motion system.
+      const facilitado = 1 - Math.pow(1 - progresso, 3);
+      const atual = from + (target - from) * facilitado;
+      setDisplayed(atual);
+
+      if (progresso < 1) {
+        rafRef.current = requestAnimationFrame(passo);
+      } else {
+        fromRef.current = target;
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(passo);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  return displayed;
 }

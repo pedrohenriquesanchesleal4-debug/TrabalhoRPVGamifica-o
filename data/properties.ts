@@ -21,6 +21,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Perto do consumidor: o frete é curto e a verdura chega fresca.',
     weakness: 'Área pequena demais para errar: sem espaço para desperdício.',
     modifiers: { production: 6, sustainability: -4 },
+    highlight: { indicator: 'production', label: 'Produção intensiva' },
   },
   {
     key: 'cerrado-vivo',
@@ -31,6 +32,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Solo e água em boas condições: a base produtiva é sólida.',
     weakness: 'Longe do centro: cada entrega custa tempo e combustível.',
     modifiers: { sustainability: 14, production: -6, cash: -4000 },
+    highlight: { indicator: 'sustainability', label: 'Sustentabilidade' },
   },
   {
     key: 'boa-esperanca',
@@ -41,6 +43,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Produto de valor alto: bem vendido, o morango paga a safra.',
     weakness: 'Cultura sensível: uma chuva fora de hora derruba a colheita.',
     modifiers: { production: 10, sustainability: -8 },
+    highlight: { indicator: 'cash', label: 'Alto valor de mercado' },
   },
   {
     key: 'riacho-verde',
@@ -51,6 +54,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Escala: a área permite volume que os vizinhos não alcançam.',
     weakness: 'Trator com 20 anos de uso: quebra sempre na hora errada.',
     modifiers: { production: 4, technology: -8, cash: 6000 },
+    highlight: { indicator: 'sustainability', label: 'Recursos hídricos' },
   },
   {
     key: 'nova-safra',
@@ -61,6 +65,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Família jovem e disposta a aprender coisa nova.',
     weakness: 'Nenhuma estrutura pronta: falta água encanada e galpão.',
     modifiers: { technology: -10, production: -8, cash: 8000 },
+    highlight: { indicator: 'technology', label: 'Tecnologia emergente' },
   },
   {
     key: 'planalto-familiar',
@@ -71,6 +76,7 @@ export const PROPERTIES: PropertyProfile[] = [
     strength: 'Renda que entra toda semana: o leite não espera a safra.',
     weakness: 'Depende de frio: se o equipamento falha, o prejuízo é no dia.',
     modifiers: { technology: 6, sustainability: -6, cash: -2000 },
+    highlight: { indicator: 'production', label: 'Operação diária' },
   },
 ];
 

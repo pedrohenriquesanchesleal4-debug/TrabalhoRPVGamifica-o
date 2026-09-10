@@ -7,6 +7,7 @@ import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { RankingTable } from '@/components/host/ranking-table';
+import { IndicatorComparison } from '@/components/host/indicator-comparison';
 import { DiagnosticBars } from '@/components/host/diagnostic-bars';
 import { POLICY_DISCLAIMER } from '@/data/policies';
 import type { HostView } from '@/lib/game-service';
@@ -20,7 +21,7 @@ import type { HostView } from '@/lib/game-service';
  * teórica.
  */
 
-const BLOCK_COUNT = 3;
+const BLOCK_COUNT = 4;
 
 export default function ResultadoPage() {
   const params = useParams<{ gameId: string }>();
@@ -143,9 +144,21 @@ export default function ResultadoPage() {
       ) : null}
 
       {block === 1 ? (
-        <section className="flex flex-col gap-8" aria-live="polite">
+        <section className="flex flex-col gap-6" aria-live="polite">
           <SectionHeading
             overline="Bloco 2"
+            title="Quem se destacou em quê"
+            description="O índice composto tem um peso por eixo, mas cada eixo conta a própria história: a equipe com o melhor caixa não é sempre a equipe com a melhor sustentabilidade."
+          />
+
+          <IndicatorComparison scores={view.scores} propertyByTeam={propertyByTeam} />
+        </section>
+      ) : null}
+
+      {block === 2 ? (
+        <section className="flex flex-col gap-8" aria-live="polite">
+          <SectionHeading
+            overline="Bloco 3"
             title="Mas o que realmente aprendemos?"
             description="O que a turma fez, agregado, sem apontar equipe certa ou errada."
           />
@@ -172,7 +185,7 @@ export default function ResultadoPage() {
         </section>
       ) : null}
 
-      {block === 2 ? (
+      {block === 3 ? (
         <section className="flex flex-1 items-center justify-center py-16">
           <Degrau nivel="mirante" familia="azul" className="flex flex-col items-center gap-6 p-10 text-center">
             <Rotulo className="text-azul-800">Para pensar</Rotulo>

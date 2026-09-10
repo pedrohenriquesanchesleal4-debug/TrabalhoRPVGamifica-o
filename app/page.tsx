@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ArrowRight, GraduationCap, Sprout } from 'lucide-react';
 import { Rotulo } from '@/components/ui/primitives';
 import { PropertyScene } from '@/components/game/property-scene';
+import { DfMap } from '@/components/game/df-map';
+import { GAUGE_ICON, GAUGE_INK, INDICATOR_KEY_TO_KIND } from '@/components/ui/gauges';
 import { PROPERTIES } from '@/data/properties';
 
 /**
@@ -58,19 +60,52 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2.5 lg:mt-8">
-        {PROPERTIES.map((property) => (
-          <div
-            key={property.key}
-            className="degrau banco terr-neutro flex items-center gap-2.5 py-2 pl-2 pr-3"
-          >
-            <div className="w-8 shrink-0">
-              <PropertyScene compact propertyKey={property.key} production={50} technology={40} sustainability={50} />
-            </div>
-            <span className="rotulo whitespace-nowrap">{property.name}</span>
+      <section className="degrau terraco terr-claro mt-6 flex flex-col gap-6 p-6 sm:p-8 lg:mt-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-center">
+          <div className="lg:col-span-2">
+            <DfMap className="mx-auto max-w-xs lg:max-w-none" />
           </div>
-        ))}
-      </div>
+
+          <div className="flex flex-col gap-4 lg:col-span-3">
+            <Rotulo>6 propriedades. 1 território.</Rotulo>
+            <p className="max-w-prose text-sm text-terra-700">
+              Cada equipe entra numa parcela diferente do mesmo Distrito Federal, com uma
+              identidade própria: passe o mouse ou navegue por tab pelos pontos do mapa para ver
+              qual delas fica com você.
+            </p>
+
+            <ul className="flex flex-col gap-2">
+              {PROPERTIES.map((property) => {
+                const kind = INDICATOR_KEY_TO_KIND[property.highlight.indicator];
+                const Icon = GAUGE_ICON[kind];
+                return (
+                  <li
+                    key={property.key}
+                    className="degrau banco terr-neutro flex items-center gap-3 py-2 pl-2.5 pr-3"
+                  >
+                    <div className="w-9 shrink-0">
+                      <PropertyScene
+                        compact
+                        propertyKey={property.key}
+                        production={50}
+                        technology={40}
+                        sustainability={50}
+                      />
+                    </div>
+                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-terra-900">
+                      {property.name}
+                    </span>
+                    <span className={`flex items-center gap-1.5 text-xs ${GAUGE_INK[kind]}`}>
+                      <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
+                      <span className="whitespace-nowrap">{property.highlight.label}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      </section>
 
       <p className="mt-6 max-w-prose text-xs text-terra-500 lg:mt-8">
         Valores e propriedades são fictícios, inspirados em núcleos rurais reais do Distrito

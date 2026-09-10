@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { PROPERTY_BY_KEY } from '@/data/properties';
+import { GAUGE_ICON, INDICATOR_KEY_TO_KIND } from '@/components/ui/gauges';
 
 /**
- * SAFRA DF · parcela vista de cima, curvas de nível (direção V3).
+ * SAFRA DF · parcela vista de cima, curvas de nível (herdada da V3, agora sob luz noturna na V4).
  *
  * Substitui o corte lateral de solo da direção anterior ("Boletim de Safra").
  * A cena agora é a propriedade vista de cima, em perspectiva levemente
@@ -234,6 +235,11 @@ export function PropertyScene({
   const key = (propertyKey in IDENTITY_LABEL ? propertyKey : 'sitio-horizonte') as PropertyKey;
   const ariaLabel = construirAriaLabel(propertyKey, p, t, s);
 
+  const highlight = PROPERTY_BY_KEY[propertyKey]?.highlight;
+  const highlightKind = highlight ? INDICATOR_KEY_TO_KIND[highlight.indicator] : null;
+  const HighlightIcon = highlightKind ? GAUGE_ICON[highlightKind] : null;
+  const highlightColorToken = highlightKind ?? 'terra-700';
+
   // Anel de plantio: fileiras sobem em degraus de +2 a cada faixa de 20 pontos de produção, teto 12.
   const plantioTier = Math.floor(p / 20);
   const cropCount = clamp(2 + plantioTier * 2, 2, CROP_TETO);
@@ -331,6 +337,14 @@ export function PropertyScene({
       <g transform={`translate(${CORE_CX - 14},100) scale(1.27)`}>
         <IdentityGlyph propertyKey={key} />
       </g>
+      {HighlightIcon ? (
+        // Selo do atributo de destaque: marca-d'água discreta no canto da sede, mesma
+        // cor do indicador em toda a interface, opacidade baixa para não competir com
+        // o glifo de identidade nem os ícones de tecnologia acumulados.
+        <g transform="translate(107,84)" opacity="0.32" style={{ color: `var(--color-${highlightColorToken})` }}>
+          <HighlightIcon size={11} strokeWidth={2.4} />
+        </g>
+      ) : null}
       <text x={CORE_CX} y={134} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="6" fill="var(--color-terra-700)">
         {IDENTITY_LABEL[key]}
       </text>

@@ -1,88 +1,85 @@
 @import 'tailwindcss';
 
 /*
-  SAFRA DF · direção visual V3 "Curva de Nível".
-  Especificação completa em docs/DIRECAO-VISUAL-V3.md.
+  SAFRA DF · direção visual V4 "Noite de Cerrado".
+  Especificação completa em docs/DIRECAO-VISUAL-V4.md.
 
-  A identidade nasce do terraceamento em curva de nível: a técnica real que o
-  produtor do Cerrado usa para conter erosão e reter água, degraus de terra
-  que seguem o relevo.
+  V4 herda de V3 a física do terraceamento (prato + parede sólida, hierarquia
+  por altitude, raio de canto que fecha conforme a altitude sobe) porque essa
+  estrutura nunca foi o problema das duas direções rejeitadas. O que muda é a
+  superfície inteira: a partida agora acontece de noite, terra escura e areia
+  iluminada por fogueira, dourado e verde como brasa acesa sobre o breu, não
+  mais um painel claro de manhã de verão. Os NOMES de token (`nevoa`, `terra`,
+  `verde`, `azul`) continuam os mesmos para não obrigar reescrever nenhuma
+  tela: só o valor por trás de cada um vira noite.
 
-  Cada superfície da interface é um desses degraus: um PRATO colorido apoiado
-  sobre uma PAREDE sólida da mesma família de cor. A parede é box-shadow com
-  blur zero, deslocada só para baixo. Sem vidro, sem borrão, sem sombra suave
-  de card, sem transparência decorativa.
-
-  Três regras que sustentam a direção:
-
-  1. Hierarquia é altitude. Uma tela usa no máximo UM degrau de nível 3
-     (`mirante`). É isso que torna impossível voltar ao grid de seis blocos
-     iguais que fez as duas direções anteriores parecerem genéricas.
-
-  2. O raio de canto DIMINUI conforme a altitude sobe. Degrau alto é compacto
-     e reto (3px); degrau baixo é largo e relaxado (10px). Substitui o
-     `rounded-2xl` uniforme por uma regra que muda com a hierarquia.
-
-  3. Cor não é enfeite. Verde e azul cobrem área grande de tela, não só texto
-     e ícone. O tom "600" é para superfície e UI; só o tom "700" carrega texto
-     de corpo pequeno, porque é o que passa AA.
-
-  Tudo é SVG e CSS. Zero imagem, zero vídeo, zero WebGL, zero biblioteca de
-  animação. Movimento só em `transform` e `opacity`, que é o que roda liso em
-  celular popular.
+  Continua tudo em SVG e CSS. Zero imagem, zero vídeo, zero WebGL, zero
+  biblioteca de animação. Movimento só em `transform` e `opacity`, que é o que
+  roda liso em celular popular.
 */
 
 @theme {
-  /* Névoa: o fundo. Verde tão dessaturado que lê como neutro, sem ser cinza. */
-  --color-nevoa-50: #eef6f4;
-  --color-nevoa-100: #dcefe9;
-  --color-nevoa-200: #c7e3db;
+  /*
+    Névoa: agora a noite, não a manhã. `50` é o breu do fundo de página; `100`
+    e `200` sobem em degraus curtos de marrom-carvão para servir de prato
+    neutro e trilha, sempre mais claros que o fundo, nunca cinza puro.
+  */
+  --color-nevoa-50: #110d09;
+  --color-nevoa-100: #1c150e;
+  --color-nevoa-200: #2b2116;
 
-  /* Terra: o texto. Verde profundo puxado para o neutro, nunca #000. */
-  --color-terra-900: #10241d;
-  --color-terra-700: #35493f;
-  --color-terra-500: #5c7268;
+  /* Terra: agora o texto, areia clara sobre a noite. Nunca #fff puro. */
+  --color-terra-900: #f3e9d6;
+  --color-terra-700: #cbb896;
+  --color-terra-500: #94815f;
 
-  /* Verde: produção, ação, crescimento. */
-  --color-verde-300: #8fd9ae;
-  --color-verde-600: #1f7a4d;
-  --color-verde-700: #155c3a;
-  --color-verde-800: #145536;
+  /* Verde: produção, ação, crescimento. Verde de folha sob luz de fogueira. */
+  --color-verde-300: #bfe2ac;
+  --color-verde-600: #5c9a52;
+  --color-verde-700: #8ecb7f;
+  --color-verde-800: #142912;
 
-  /* Azul: tecnologia, água, informação. */
-  --color-azul-300: #8fcaf0;
-  --color-azul-600: #1c6fa8;
-  --color-azul-700: #12507d;
-  --color-azul-800: #124a72;
+  /* Azul: tecnologia, água, informação. Petróleo, não céu. */
+  --color-azul-300: #a6d9dd;
+  --color-azul-600: #3e8f9a;
+  --color-azul-700: #7fc7cf;
+  --color-azul-800: #0f272a;
 
   /*
     Indicadores. Quatro matizes afastados no círculo cromático, porque dois
     verdes vizinhos se confundem em daltonismo e a seis metros de distância.
     A forma (ícone) e o número impresso são a diferenciação primária; a cor é
-    o terceiro canal, nunca o único.
+    o terceiro canal, nunca o único. Finanças ganha o dourado que dá nome à
+    direção: o único acento quente e precioso do sistema, usado com reserva.
   */
-  --color-financas: #b6791a;
-  --color-financas-texto: #8a5a14;
-  --color-financas-800: #6b4310;
+  --color-financas: #c9963c;
+  --color-financas-texto: #e3bd6d;
+  --color-financas-800: #3c2a10;
 
-  --color-producao: #1f7a4d;
-  --color-producao-800: #145536;
+  --color-producao: #5c9a52;
+  --color-producao-800: #142912;
 
-  --color-tecnologia: #1c6fa8;
-  --color-tecnologia-800: #124a72;
+  --color-tecnologia: #3e8f9a;
+  --color-tecnologia-800: #0f272a;
 
-  --color-sustentabilidade: #0e7d72;
-  --color-sustentabilidade-800: #0a5f57;
+  --color-sustentabilidade: #3f8f74;
+  --color-sustentabilidade-800: #0f2a20;
 
-  --color-alerta: #b23a1f;
-  --color-alerta-800: #7d2712;
-  --color-sucesso: #1f7a4d;
+  /*
+    Alerta: um tom para preencher parede escura com texto branco em cima, e um
+    tom mais claro (`alerta-texto`) só para texto de corpo direto sobre o
+    fundo escuro, porque o primeiro não passa AA como texto pequeno na noite.
+  */
+  --color-alerta: #b8431f;
+  --color-alerta-texto: #e08257;
+  --color-alerta-800: #3c1a0c;
+  --color-sucesso: #5c9a52;
 
-  /* Space Grotesk: instrumento de campo, não reportagem. */
-  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
-  /* Manrope: humanista de x-height alta, lê em 0.875rem no celular. */
+  /* Newsreader: serifada editorial forte, o instrumento que faltava nas três direções só-sans anteriores. */
+  --font-display: var(--font-editorial), ui-serif, Georgia, serif;
+  /* Manrope: humanista de x-height alta, lê bem em 0.875rem no celular. Segue da V3: nunca foi o problema. */
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  /* JetBrains Mono: todo número. Ligadura desligada. */
+  /* JetBrains Mono: todo número. Ligadura desligada. Segue da V3. */
   --font-mono: var(--font-jetbrains), ui-monospace, 'Courier New', monospace;
 
   --animate-emergir: emergir 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -140,22 +137,37 @@
     font-family: var(--font-sans);
     font-weight: 500;
     /*
-      Curva de nível no fundo: duas linhas de contorno larguíssimas e de
-      contraste mínimo, que dão relevo ao vazio sem virar textura barulhenta.
-      Custo zero, nenhuma requisição.
+      Três camadas, todas custo zero e nenhuma requisição:
+
+      1. Duas "fogueiras" (radial-gradient) de dourado e verde bem discretas,
+         simulando luz baixa vinda dos cantos, não um clarão central.
+      2. Um grão finíssimo (SVG feTurbulence embutido em data URI) para tirar
+         a chapadez de um fundo escuro liso: textura tátil, não decoração.
+      3. Linhas de nível bem afastadas (repeating-radial-gradient) ecoando o
+         relevo topográfico do Cerrado ao fundo da tela inteira, quase
+         subliminares.
     */
     background-image:
       radial-gradient(
-        120% 60% at 50% -10%,
-        color-mix(in srgb, var(--color-verde-600) 7%, transparent),
-        transparent 70%
+        70% 45% at 12% -6%,
+        color-mix(in srgb, var(--color-financas) 9%, transparent),
+        transparent 65%
       ),
       radial-gradient(
-        90% 50% at 100% 105%,
-        color-mix(in srgb, var(--color-azul-600) 6%, transparent),
-        transparent 70%
-      );
-    background-attachment: fixed;
+        80% 55% at 100% 108%,
+        color-mix(in srgb, var(--color-verde-600) 8%, transparent),
+        transparent 68%
+      ),
+      repeating-radial-gradient(
+        circle at 50% 30%,
+        transparent 0,
+        transparent 130px,
+        color-mix(in srgb, var(--color-terra-500) 5%, transparent) 131px,
+        transparent 133px
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    background-attachment: fixed, fixed, fixed, fixed;
+    background-size: auto, auto, auto, 180px 180px;
   }
 
   h1,
@@ -168,7 +180,7 @@
 
   /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
   :focus-visible {
-    outline: 3px solid var(--color-azul-600);
+    outline: 3px solid var(--color-financas);
     outline-offset: 2px;
   }
 
@@ -198,37 +210,41 @@
     Escala tipográfica. Salto real entre degraus: o nome da equipe em foco na
     projeção não pode ter o mesmo tamanho de um rótulo ao lado. Todo tamanho é
     clamp, então o celular recebe a base e o projetor recebe o topo.
+
+    A serifada (Newsreader) precisa de menos compressão de tracking que a
+    geométrica da V3: os valores negativos aqui são mais suaves de propósito,
+    porque tracking apertado em serifada some a curva da letra.
   */
   .relevo-xl {
     font-family: var(--font-display);
-    font-weight: 800;
+    font-weight: 700;
     font-size: clamp(2.5rem, 6.5vw, 7rem);
-    line-height: 0.92;
-    letter-spacing: -0.03em;
+    line-height: 0.98;
+    letter-spacing: -0.012em;
   }
 
   .relevo-lg {
     font-family: var(--font-display);
     font-weight: 700;
     font-size: clamp(1.75rem, 4vw, 3.25rem);
-    line-height: 0.98;
-    letter-spacing: -0.022em;
+    line-height: 1.04;
+    letter-spacing: -0.008em;
   }
 
   .relevo-md {
     font-family: var(--font-display);
     font-weight: 700;
     font-size: clamp(1.375rem, 2.4vw, 1.875rem);
-    line-height: 1.08;
-    letter-spacing: -0.015em;
+    line-height: 1.14;
+    letter-spacing: -0.006em;
   }
 
   .relevo-sm {
     font-family: var(--font-display);
     font-weight: 700;
     font-size: 1.125rem;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
+    line-height: 1.24;
+    letter-spacing: -0.004em;
   }
 
   .rotulo {
@@ -316,60 +332,64 @@
     border-radius: 3px;
   }
 
-  /* Famílias de cor do terraço. A parede é sempre o tom 800 da própria família. */
+  /*
+    Famílias de cor do terraço. A parede é sempre o tom mais escuro da própria
+    família, simulando a face do degrau em sombra. Na noite, "escuro" some
+    quase no breu do fundo: é o que dá o efeito de brasa suspensa no negrume.
+  */
   .terr-neutro {
     --prato: var(--color-nevoa-100);
-    --paredao: var(--color-verde-800);
-    --linha-nivel: color-mix(in srgb, #fff 55%, transparent);
+    --paredao: color-mix(in srgb, var(--color-nevoa-50) 70%, black);
+    --linha-nivel: color-mix(in srgb, var(--color-financas) 22%, transparent);
   }
 
   .terr-claro {
-    --prato: var(--color-nevoa-50);
-    --paredao: var(--color-verde-800);
-    --linha-nivel: color-mix(in srgb, #fff 65%, transparent);
+    --prato: var(--color-nevoa-200);
+    --paredao: color-mix(in srgb, var(--color-nevoa-50) 70%, black);
+    --linha-nivel: color-mix(in srgb, var(--color-terra-900) 12%, transparent);
   }
 
   .terr-verde {
-    --prato: var(--color-verde-300);
+    --prato: color-mix(in srgb, var(--color-verde-600) 30%, var(--color-nevoa-100));
     --paredao: var(--color-verde-800);
-    --linha-nivel: color-mix(in srgb, #fff 45%, transparent);
+    --linha-nivel: color-mix(in srgb, var(--color-verde-300) 40%, transparent);
   }
 
   .terr-azul {
-    --prato: var(--color-azul-300);
+    --prato: color-mix(in srgb, var(--color-azul-600) 30%, var(--color-nevoa-100));
     --paredao: var(--color-azul-800);
-    --linha-nivel: color-mix(in srgb, #fff 45%, transparent);
+    --linha-nivel: color-mix(in srgb, var(--color-azul-300) 40%, transparent);
   }
 
   .terr-financas {
-    --prato: color-mix(in srgb, var(--color-financas) 26%, #fff);
+    --prato: color-mix(in srgb, var(--color-financas) 26%, var(--color-nevoa-100));
     --paredao: var(--color-financas-800);
-    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+    --linha-nivel: color-mix(in srgb, var(--color-financas-texto) 40%, transparent);
   }
 
   .terr-sustentabilidade {
-    --prato: color-mix(in srgb, var(--color-sustentabilidade) 24%, #fff);
+    --prato: color-mix(in srgb, var(--color-sustentabilidade) 26%, var(--color-nevoa-100));
     --paredao: var(--color-sustentabilidade-800);
-    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+    --linha-nivel: color-mix(in srgb, var(--color-verde-300) 35%, transparent);
   }
 
   .terr-alerta {
-    --prato: color-mix(in srgb, var(--color-alerta) 16%, #fff);
+    --prato: color-mix(in srgb, var(--color-alerta) 20%, var(--color-nevoa-100));
     --paredao: var(--color-alerta-800);
-    --linha-nivel: color-mix(in srgb, #fff 50%, transparent);
+    --linha-nivel: color-mix(in srgb, var(--color-alerta-texto) 35%, transparent);
   }
 
-  /* Prato escuro: cabeçalho de mirante, onde o texto vai em branco. */
+  /* Prato escuro e saturado: cabeçalho de mirante, onde o texto vai em branco/areia. */
   .terr-fundo-verde {
     --prato: var(--color-verde-800);
-    --paredao: var(--color-terra-900);
-    --linha-nivel: color-mix(in srgb, var(--color-verde-300) 30%, transparent);
+    --paredao: color-mix(in srgb, var(--color-nevoa-50) 60%, black);
+    --linha-nivel: color-mix(in srgb, var(--color-verde-300) 28%, transparent);
   }
 
   .terr-fundo-azul {
     --prato: var(--color-azul-800);
-    --paredao: var(--color-terra-900);
-    --linha-nivel: color-mix(in srgb, var(--color-azul-300) 30%, transparent);
+    --paredao: color-mix(in srgb, var(--color-nevoa-50) 60%, black);
+    --linha-nivel: color-mix(in srgb, var(--color-azul-300) 28%, transparent);
   }
 
   /*
