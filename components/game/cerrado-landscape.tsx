@@ -56,7 +56,7 @@ function Bando() {
         <path
           d="M0 0 q 5 -8 11 -1 q 6 -7 12 1 M0 14 q 5 -8 11 -1 q 6 -7 12 1"
           fill="none"
-          stroke="var(--color-terra-500)"
+          stroke="var(--cor-cena-po)"
           strokeOpacity="0.55"
           strokeWidth="2"
           strokeLinecap="round"
@@ -67,7 +67,7 @@ function Bando() {
         <path
           d="M0 0 q 4 -6 9 -1 q 5 -6 10 1"
           fill="none"
-          stroke="var(--color-terra-500)"
+          stroke="var(--cor-cena-po)"
           strokeOpacity="0.45"
           strokeWidth="1.8"
           strokeLinecap="round"
@@ -89,7 +89,7 @@ function Touceira({ x, y, s = 1, delay = '0s' }: { x: number; y: number; s?: num
       <path
         d="M0 16 q 7 -14 14 1 q 7 -13 14 1"
         fill="none"
-        stroke="var(--color-verde-700)"
+        stroke="var(--cor-cena-capim)"
         strokeOpacity="0.5"
         strokeWidth="2.4"
         strokeLinecap="round"
@@ -111,9 +111,9 @@ export function CerradoLandscape({ className }: { className?: string }) {
         <defs>
           {/* Céu de 06:20: ainda noturno no zênite, quente no horizonte. */}
           <linearGradient id="ceu-v6" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" style={{ stopColor: 'var(--color-nevoa-50)' }} />
-            <stop offset="58%" style={{ stopColor: 'var(--color-nevoa-50)' }} />
-            <stop offset="82%" style={{ stopColor: 'var(--color-verde-800)', stopOpacity: '0.55' }} />
+            <stop offset="0%" style={{ stopColor: 'var(--cor-cena-topo)' }} />
+            <stop offset="58%" style={{ stopColor: 'var(--cor-cena-topo)' }} />
+            <stop offset="82%" style={{ stopColor: 'var(--cor-cena-fundo)', stopOpacity: '0.55' }} />
             <stop offset="100%" style={{ stopColor: 'var(--color-amanhecer)', stopOpacity: '0.3' }} />
           </linearGradient>
           {/* Glória do sol: brilho radial largo atrás do horizonte, respira em 9s. */}
@@ -146,31 +146,31 @@ export function CerradoLandscape({ className }: { className?: string }) {
             r={luz.r}
             className="luz-pisca animate-cintilar"
             style={{ animationDelay: luz.delay }}
-            fill="var(--color-financas-texto)"
+fill="var(--cor-tinta-panel-dourado)"
             opacity="0.5"
           />
         ))}
 
         {/* Nuvens à deriva (46s, transform-only). */}
         <g className="nuvem-painel animate-nuvem" style={{ animationDelay: '-9s' }}>
-          <ellipse cx="250" cy="128" rx="132" ry="15" fill="var(--color-terra-500)" opacity="0.14" />
-          <ellipse cx="196" cy="143" rx="78" ry="11" fill="var(--color-terra-500)" opacity="0.1" />
+          <ellipse cx="250" cy="128" rx="132" ry="15" fill="var(--cor-cena-po)" opacity="0.14" />
+          <ellipse cx="196" cy="143" rx="78" ry="11" fill="var(--cor-cena-po)" opacity="0.1" />
         </g>
         <g className="nuvem-painel animate-nuvem" style={{ animationDelay: '-31s' }}>
-          <ellipse cx="940" cy="96" rx="158" ry="17" fill="var(--color-terra-500)" opacity="0.12" />
-          <ellipse cx="1000" cy="110" rx="88" ry="12" fill="var(--color-terra-500)" opacity="0.09" />
+          <ellipse cx="940" cy="96" rx="158" ry="17" fill="var(--cor-cena-po)" opacity="0.12" />
+          <ellipse cx="1000" cy="110" rx="88" ry="12" fill="var(--cor-cena-po)" opacity="0.09" />
         </g>
 
         {/* Serra distante. */}
         <path
           d="M0 520 L170 470 L352 506 L556 458 L760 501 L982 450 L1184 497 L1440 455 L1440 760 L0 760 Z"
-          fill="var(--color-verde-800)"
+          fill="var(--cor-cena-fundo)"
           opacity="0.55"
         />
         {/* Serra próxima. */}
         <path
           d="M0 566 L240 512 L452 552 L690 498 L930 556 L1180 508 L1440 556 L1440 760 L0 760 Z"
-          fill="var(--color-nevoa-100)"
+          fill="var(--cor-cena-serra)"
           opacity="0.92"
         />
 
@@ -179,7 +179,7 @@ export function CerradoLandscape({ className }: { className?: string }) {
         <circle cx="1042" cy="452" r="26" fill="var(--color-financas)" opacity="0.6" />
 
         {/* Copas de ipê em silhueta, sobre a serra próxima. */}
-        <g fill="var(--color-nevoa-100)" opacity="0.95">
+        <g fill="var(--cor-cena-serra)" opacity="0.95">
           <path d="M158 508 q -14 -30 2 -48 q 18 -16 30 4 q 16 -8 22 8 q -8 26 -30 36 Z M172 496 l 3 26" />
           <path d="M418 520 q -16 -34 -2 -56 q 20 -20 34 6 q 18 -10 25 10 q -8 32 -34 40 Z M436 504 l 4 30" />
           <path d="M686 512 q -12 -28 4 -46 q 16 -14 28 4 q 14 -8 22 8 q -6 24 -28 34 Z M700 500 l 3 26" />
@@ -198,7 +198,7 @@ export function CerradoLandscape({ className }: { className?: string }) {
             y1={linha.y0}
             x2={linha.x1}
             y2={linha.y1}
-            stroke="var(--color-verde-700)"
+            stroke="var(--cor-cena-capim)"
             strokeOpacity="0.14"
             strokeWidth="2.6"
           />
@@ -208,7 +208,7 @@ export function CerradoLandscape({ className }: { className?: string }) {
         <path
           d="M760 760 C 790 668, 910 596, 1052 542"
           fill="none"
-          stroke="var(--color-nevoa-200)"
+          stroke="var(--cor-cena-estrada)"
           strokeOpacity="0.5"
           strokeWidth="13"
         />
@@ -225,14 +225,14 @@ export function CerradoLandscape({ className }: { className?: string }) {
         {/* Sede da fazenda: casa com janela acesa e silo. */}
         <g>
           {/* Silo. */}
-          <rect x="1076" y="480" width="17" height="38" fill="var(--color-nevoa-100)" stroke="var(--color-nevoa-200)" strokeWidth="1.2" />
-          <path d="M1072 482 L1084.5 462 L1097 482 Z" fill="var(--color-verde-800)" />
+          <rect x="1076" y="480" width="17" height="38" fill="var(--cor-cena-serra)" stroke="var(--cor-cena-estrada)" strokeWidth="1.2" />
+          <path d="M1072 482 L1084.5 462 L1097 482 Z" fill="var(--cor-cena-fundo)" />
           {/* Casa. */}
-          <rect x="1026" y="500" width="48" height="26" fill="var(--color-nevoa-100)" stroke="var(--color-nevoa-200)" strokeWidth="1.2" />
-          <path d="M1022 502 L1050 484 L1078 502 Z" fill="var(--color-verde-800)" />
+          <rect x="1026" y="500" width="48" height="26" fill="var(--cor-cena-serra)" stroke="var(--cor-cena-estrada)" strokeWidth="1.2" />
+          <path d="M1022 502 L1050 484 L1078 502 Z" fill="var(--cor-cena-fundo)" />
           {/* Janelas acesas: os olhos da fazenda. */}
-          <rect x="1036" y="508" width="7" height="7" className="luz-pisca animate-cintilar" fill="var(--color-financas-texto)" />
-          <rect x="1052" y="508" width="7" height="7" className="luz-pisca animate-cintilar" style={{ animationDelay: '-1.6s' }} fill="var(--color-financas-texto)" />
+          <rect x="1036" y="508" width="7" height="7" className="luz-pisca animate-cintilar" fill="var(--cor-tinta-panel-dourado)" />
+          <rect x="1052" y="508" width="7" height="7" className="luz-pisca animate-cintilar" style={{ animationDelay: '-1.6s' }} fill="var(--cor-tinta-panel-dourado)" />
         </g>
 
         {/* Capim do primeiro plano: balanço na base, defasado. */}

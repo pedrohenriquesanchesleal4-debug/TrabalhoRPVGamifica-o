@@ -47,3 +47,32 @@ Fundação (globals, landscape, re-skins) feita pelo orquestrador; frentes de p�
 **Alternativas consideradas (2):** manter reduce rígido (rejeitada: o usuário/cliente explicitamente quer ver movimento e o SO dele liga reduce global sem ele saber); remover todo o tratamento reduce (rejeitada: acessibilidade é requisito).
 
 **Consequência:** movimento visível em qualquer ambiente (reduce vira "câmera lenta", não estático); raios consistentes e intencionais, fora do padrão "rounded-2xl uniforme" porque seguem a hierarquia de altitude. Gate: typecheck+lint+94 testes+build verdes.
+## 2026-09-11 - D-07: Tema claro por troca de tokens + âncora de cena noturna + landing "falta algo"
+
+**Contexto:** usuário pediu "possível alterar o tema e precisa ser visível a letra — o escuro como está não pode impedir de ler" + "falta algo nessa landing".
+
+**Decisões:**
+1. **Tema claro = redefinição de VALOR, não de classe.** Bloco `:root[data-tema="claro"]` no fim do CSS (un-layered, vence o `@theme` layered) troca só os tokens que invertem: `nevoa-50/100/200` (breu -> creme), `terra-900/700/500` (areia -> marrom escuro), tons de acento 300/700 e `financas-texto`/`sustentabilidade-texto`/`alerta-texto`/`sucesso`. Zero chamada de componente tocada: `text-terra-900` continua certo nos dois temas, porque o BACKGROUND sobre o qual ele senta é o mesmo token que inverte junto.
+2. **Âncora noturna: cena vira `--cor-cena-*` FIXA.** A paisagem do amanhecer troca todos os refs para 11 vars `--cor-cena-*` (topo/fundo/horizonte/serra/serra-longe/estrada/po/capim) que NÃO invertem: o céu de 06:20 permanece nos dois temas. Overlays de leitura (home hero, `CENARIO_OVERLAY` do entrar) também congelam no breu via `--cor-cena-topo`. Texto sobre cena usa `.sobre-cena`/`-suave`/`-dourado` fixos.
+3. **Três famílias de tinta**: adaptáveis `--cor-tinta-*` (GAUGE_INK, seguem o tema: claras no escuro, escuras no claro), fixas `--cor-tinta-panel*` (texto sobre consoles `terr-fundo-*` — sempre claro, 5 variantes incl. dourado/verde/azul) e `--cor-tinta-escuro` (texto do CTA dourado). `terr-verde/azul/financas/...` misturam acento 600 com `nevoa-100`: como AMBOS invertem, o prato tingido claro + tinta escura sobem juntos — contraste preservado sem override.
+4. **Toggle** (`components/ui/theme-toggle.tsx`): store externa mínima + `useSyncExternalStore` (lint do React Compiler proíbe setState em effect), `localStorage[safra-tema]`, script inline anti-FOUC no layout. Presente só em home/entrar/admin — jogo (`jogar`) e projeção (`host/*`) ficam fora do tema do aluno.
+5. **Landing "falta algo"**: fita ticker CSS (`ticker-rola`, translateX(-50%) com conteúdo duplicado, 34s / 64s sob reduce) sob o hero + banda "COMO FUNCIONA" assimétrica (3 degraus com deslocamento vertical `lg:mt-6/12`, coluna 1.15fr — não é grade de cards iguais).
+
+**Alternativas consideradas:** `prefers-color-scheme` automático (rejeitado: surpresa na sala de aula; toggle explícito + persistência), dark-mode via classe Tailwind (rejeitado: tokens por var já resolvem), cena CLARA no tema claro (rejeitado: destrói a identidade do amanhecer; a cena é a âncora), duplicar paleta por página (rejeitado: quebraria 0 compromisso de manutenção).
+
+**Consequência:** contraste medido por script (creme x texto 13.58, console x panel 12.46, pratos tingidos claros 4.5+) com 1 ajuste (#7a4d0b em financas-texto, 4.15 -> 4.6+); CSS compilado auditado (cena 1, tinta-panel 19, ticker 2, data-tema 3). Gate: typecheck+lint+94 testes+build verdes.
+
+
+## 2026-09-11 · D-08: Roteiro de debate pós-partida com IA (Fase 1, sem RAG)
+
+**Contexto:** professor quer, ao fim do jogo, direção do que falar na roda de conversa com a turma. Orçamento: Gemini plano gratuito (RPM e tokens limitados). Proibido: estratégia ótima, julgar equipe, substituir o professor, persistir conversa de aluno (LGPD), lotar a IA.
+
+**Decisão:** uma chamada por partida, teacher-facing, no Bloco 5 do resultado. Payload = snapshot JSON compacto (<7k chars) construído do HostView BÁSICO (4 indicadores finais, histórico R1-R5 por equipe com rótulo+tags, perfil, prêmios, diagnóstico, ganchos, conexões de política real) — SEM RAG de documentos: fatos estruturados do jogo já resolvem 80% do caso de uso; documentos viram Fase 2 com citação curatorial.
+
+**Alternativas consideradas:**
+1. RAG completo agora (pgvector + corpus de políticas) — rejeitada: custo/tokens desproporcional ao MVP; citação sem curadoria arrisca alucinação.
+2. Gerar no cliente (chave no navegador) — rejeitada: vazaria a chave.
+3. Sem cache (toda abertura regenera) — rejeitada: estoura RPM/tokens no plano grátis; tabela debate_prep custa zero.
+4. Chat interativo com o modelo — rejeitada: multiplica chamadas por aluno.
+
+**Consequência:** cache em debate_prep (1 chamada/partida mesmo com cliques duplos — singleflight em memória), timeout 25s AbortController, sem retry em 429 (cota é o problema, não rede), retry único só rede/5xx, maxOutputTokens 1500 porque o **gemini-3.6-flash consome tokens de saída no "pensamento" antes do texto visível** (medido: 469 de thinking numa resposta de 41; com 50 de teto a saída vinha VAZIA). Modelo obrigatório: gemini-3.6-flash — chaves novas recebem 404 em gemini-2.5-flash (validado ao vivo). Saída em markdown enxuto renderizado por MarkdownLite (sem dependência). Migration: supabase/migrations/0001_debate_prep.sql (copiar no Supabase). Teste puro do snapshot em 	ests/gemini.test.ts. Gate: ` npm run verify ` verde (16 rotas).

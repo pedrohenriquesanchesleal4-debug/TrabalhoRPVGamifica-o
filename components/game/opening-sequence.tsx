@@ -82,7 +82,7 @@ export function OpeningSequence({
   const layers: { text: string; className: string; style?: React.CSSProperties }[] = [
     {
       text: 'BRASÍLIA · 06:20',
-      className: 'rotulo text-verde-300',
+      className: 'rotulo text-(--cor-tinta-panel-verde)',
     },
     {
       text: 'Uma nova safra começa.',
@@ -90,11 +90,11 @@ export function OpeningSequence({
     },
     {
       text: `Vocês têm ${formatMoney(budget)}.`,
-      className: 'dado-lg text-financas-texto',
+      className: 'dado-lg text-(--cor-tinta-panel-dourado)',
     },
     {
       text: propertyLine,
-      className: 'ml-2 max-w-sm text-base text-terra-700 border-l-2 border-verde-800 pl-3',
+      className: 'ml-2 max-w-sm text-base text-(--cor-tinta-panel-amena) border-l-2 border-verde-800 pl-3',
     },
   ];
 

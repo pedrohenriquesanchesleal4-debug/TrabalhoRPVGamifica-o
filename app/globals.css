@@ -129,6 +129,45 @@
   --raio-banco: 10px;
   --raio-terraco: 12px;
   --raio-mirante: 14px;
+
+  /*
+    Cena do amanhecer — tokens FIXOS, nunca invertidos no tema claro. A
+    paisagem é âncora visual noturna nos dois temas; o claro só troca as
+    superfícies (degraus, fundo) e as tintas, não o céu de 06:20.
+  */
+  --cor-cena-topo: #0d0f0b;
+  --cor-cena-fundo: #1e2a12;
+  --cor-cena-horizonte: #d9843f;
+  --cor-cena-serra: #161a13;
+  --cor-cena-serra-longe: #1e2a12;
+  --cor-cena-estrada: #22281d;
+  --cor-cena-po: #9a8f76;
+  --cor-cena-capim: #b0cd7f;
+
+  /*
+    Tintas adaptáveis — seguem o tema: claras sobre o fundo escuro, escuras
+    sobre o fundo claro. Usadas por `GAUGE_INK` e por rótulos de acento.
+  */
+  --cor-tinta-financas: #f2c968;
+  --cor-tinta-producao: #b0cd7f;
+  --cor-tinta-tecnologia: #96c5d3;
+  --cor-tinta-sustentabilidade: #96cdab;
+
+  /*
+    Tinta sobre painel escuro FIXO (`terr-fundo-*`, consoles e cabeçalhos):
+    sempre clara, nos dois temas. E o preto do texto sobre o dourado do CTA.
+  */
+  --cor-tinta-panel: #f1e9d8;
+  --cor-tinta-panel-amena: #c4b89e;
+  --cor-tinta-escuro: #0d0f0b;
+
+  /*
+    Acentos de texto sobre painel escuro FIXO: os tons claros de cada matiz,
+    congelados para os dois temas (o console `terr-fundo-*` não inverte).
+  */
+  --cor-tinta-panel-dourado: #f2c968;
+  --cor-tinta-panel-verde: #d3e3a8;
+  --cor-tinta-panel-azul: #bfe0e6;
 }
 
 /* Movimento 1 · emergência do painel. Entrada de módulo novo. */
@@ -418,6 +457,11 @@
       animation-duration: 6.8s !important;
       animation-iteration-count: infinite !important;
       opacity: 0.85 !important;
+    }
+
+    .ticker-rola {
+      animation-duration: 64s !important;
+      animation-iteration-count: infinite !important;
     }
 
     /*
@@ -711,7 +755,7 @@
     background-image: linear-gradient(
       180deg,
       #f7edd7 0%,
-      var(--color-financas-texto) 46%,
+      var(--cor-tinta-panel-dourado) 46%,
       var(--color-financas) 78%,
       var(--color-amanhecer) 100%
     );
@@ -726,7 +770,7 @@
     background: linear-gradient(
       to right,
       transparent,
-      var(--color-financas-texto) 22%,
+      var(--cor-tinta-panel-dourado) 22%,
       var(--color-financas) 50%,
       var(--color-amanhecer) 78%,
       transparent
@@ -761,5 +805,91 @@
       animation-timeline: scroll();
       animation-range: 0px 88vh;
     }
+  }
+}
+
+/*
+  ---------------------------------------------------------------------
+  Ticker do hero · fita de dados da safra que corre sob o herói.
+  Laço de ambiência (transform-only, `translateX(-50%)` com conteúdo
+  duplicado em duas faixas idênticas — loop sem emenda). A redução de
+  movimento desacelera para 64s (camada base) — continua vivo, devagar.
+  ---------------------------------------------------------------------
+*/
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-rola {
+  animation: ticker 34s linear infinite;
+  will-change: transform;
+}
+
+/*
+  Texto sobre a cena do amanhecer. A paisagem é fixa (noturna nos dois
+  temas); estes tokens nunca invertem. `-suave` é a variante amena
+  (subtítulos e descrições), o base é o texto estrutural.
+*/
+.sobre-cena {
+  color: var(--cor-tinta-panel);
+}
+
+.sobre-cena-suave {
+  color: var(--cor-tinta-panel-amena);
+}
+
+/*
+  ---------------------------------------------------------------------
+  TEMA CLARO · `<html data-tema="claro">`.
+
+  A paisagem (`--cor-cena-*`), os painéis escuros fixos (`terr-fundo-*`,
+  `--cor-tinta-panel*`) e o dourado de superfície (`financas`) NÃO
+  invertem: o amanhecer de 06:20 e os consoles continuam noturnos, e o
+  creme do cerrado troca só as superfícies de leitura e as tintas.
+
+  Coerência de contraste: `terr-verde/azul/financas/...` misturam o acento
+  com `nevoa-100` — que aqui vira creme — e o texto de acento (300/verde
+  etc.) também inverte para o tom escuro. Prato e tinta sobem juntos.
+  ---------------------------------------------------------------------
+*/
+:root[data-tema='claro'] {
+  color-scheme: light;
+
+  /* Superfícies: a noite vira creme de cerrado, a areia escurece. */
+  --color-nevoa-50: #f5f1e6;
+  --color-nevoa-100: #ece6d8;
+  --color-nevoa-200: #d6ceba;
+  --color-terra-900: #2c2415;
+  --color-terra-700: #4f452c;
+  --color-terra-500: #5f5536;
+
+  /* Acentos: tom escuro de cada matiz para texto/ícone sobre o creme. */
+  --color-verde-300: #3f5a16;
+  --color-verde-700: #4a6820;
+  --color-azul-300: #24586a;
+  --color-azul-700: #2a5d70;
+  --color-financas-texto: #7a4d0b;
+  --color-sustentabilidade-texto: #2f6e4a;
+  --color-alerta-texto: #8a3d14;
+  --color-sucesso: #3f5a16;
+
+  /* Tintas adaptáveis: escuras sobre o fundo claro. */
+  --cor-tinta-financas: #7a4d0b;
+  --cor-tinta-producao: #3f5a16;
+  --cor-tinta-tecnologia: #24586a;
+  --cor-tinta-sustentabilidade: #2f6e4a;
+
+  /* Consoles escuros no tema claro: a moldura também re-ancora no breu. */
+  .terr-fundo-verde {
+    --paredao: #050604;
+  }
+
+  .terr-fundo-azul {
+    --paredao: #050604;
   }
 }

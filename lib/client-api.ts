@@ -116,6 +116,27 @@ export function fetchProjection(gameId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Professor · roteiro de debate (pós-jogo)
+// ---------------------------------------------------------------------------
+
+export interface DebatePrepResponse {
+  roteiro: string;
+  modelo: string;
+  doCache: boolean;
+}
+
+/**
+ * Gera (ou relê do cache) o roteiro de debate da partida encerrada.
+ * A 1ª chamada consome a cota de IA da partida; as seguintes vêm do banco.
+ */
+export function fetchDebateRoteiro(gameId: string) {
+  return request<DebatePrepResponse>(`/api/host/${gameId}/debate`, {
+    method: 'POST',
+    cache: 'no-store',
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Aluno
 // ---------------------------------------------------------------------------
 

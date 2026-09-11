@@ -42,8 +42,8 @@ function highlightTone(propertyKey: string): { kind: IndicatorKind; terr: string
 
 /** Fundo: a paisagem fica, o texto lê — escurece a base e o lado do conteúdo. */
 const CENARIO_OVERLAY = [
-  'linear-gradient(to top, var(--color-nevoa-50) 20%, color-mix(in srgb, var(--color-nevoa-50) 55%, transparent) 44%, transparent 66%)',
-  'radial-gradient(90% 64% at 12% 98%, var(--color-nevoa-50) 8%, transparent 60%)',
+  'linear-gradient(to top, var(--cor-cena-topo) 20%, color-mix(in srgb, var(--cor-cena-topo) 55%, transparent) 44%, transparent 66%)',
+  'radial-gradient(90% 64% at 12% 98%, var(--cor-cena-topo) 8%, transparent 60%)',
 ].join(', ');
 
 export default function EntrarPage() {
@@ -172,11 +172,11 @@ export default function EntrarPage() {
                   <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Rotulo className="text-azul-300">Safra DF</Rotulo>
+                  <Rotulo className="text-(--cor-tinta-panel-azul)">Safra DF</Rotulo>
                   <h1 className="relevo-md text-white">Continuar como {existing.playerName}</h1>
                 </div>
               </div>
-              <p className="text-sm text-terra-700 md:max-w-[32ch]">
+              <p className="sobre-cena-suave text-sm md:max-w-[32ch]">
                 Você já está na equipe {existing.teamName}, partida {existing.gameCode}.
               </p>
             </div>
@@ -204,7 +204,7 @@ export default function EntrarPage() {
             </div>
           </div>
 
-          <p className="text-xs text-terra-500">
+          <p className="sobre-cena-suave text-xs">
             Sem senha e sem e-mail: só o código da turma e o seu nome ficam guardados neste
             aparelho.
           </p>
@@ -224,7 +224,7 @@ export default function EntrarPage() {
             <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 motion-safe:animate-emergir" style={{ animationDelay: '80ms' }}>
-            <Rotulo>Safra DF · Entrada do aluno</Rotulo>
+            <Rotulo className="text-(--cor-tinta-panel-dourado)">Safra DF · Entrada do aluno</Rotulo>
             <div className="filete-amanhecer w-full" />
           </div>
         </div>

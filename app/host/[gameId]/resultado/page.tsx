@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, ArrowRight, Landmark, Lightbulb, Sprout } from 'lucide-react';
-import { fetchProjection, RequestError } from '@/lib/client-api';
+import { AlertTriangle, ArrowLeft, ArrowRight, Landmark, Lightbulb, Sparkles, Sprout } from 'lucide-react';
+import { fetchDebateRoteiro, fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
+import { MarkdownLite } from '@/components/ui/markdown-lite';
 import { RankingTable } from '@/components/host/ranking-table';
 import { IndicatorComparison } from '@/components/host/indicator-comparison';
 import { DiagnosticBars } from '@/components/host/diagnostic-bars';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { POLICY_DISCLAIMER } from '@/data/policies';
 import type { HostView } from '@/lib/game-service';
+import type { DebatePrepResponse } from '@/lib/client-api';
 
 /**
  * Resultado e debriefing, em cinco blocos navegáveis na mesma página.
@@ -34,6 +36,29 @@ export default function ResultadoPage() {
   const [view, setView] = useState<HostView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [block, setBlock] = useState(0);
+
+  // Roteiro de debate: 1 chamada de IA por partida (cache no servidor), então
+  // reabrir a tela ou clicar de novo nunca regenera nem gasta a cota.
+  const [debate, setDebate] = useState<DebatePrepResponse | null>(null);
+  const [debateLoading, setDebateLoading] = useState(false);
+  const [debateError, setDebateError] = useState<string | null>(null);
+
+  const prepararDebate = useCallback(async () => {
+    if (!gameId || debateLoading) return;
+    setDebateLoading(true);
+    setDebateError(null);
+    try {
+      setDebate(await fetchDebateRoteiro(gameId));
+    } catch (err) {
+      setDebateError(
+        err instanceof RequestError
+          ? err.message
+          : 'Não foi possível preparar o roteiro agora. Tente de novo.',
+      );
+    } finally {
+      setDebateLoading(false);
+    }
+  }, [gameId, debateLoading]);
 
   const load = useCallback(async () => {
     if (!gameId) return;
@@ -287,6 +312,49 @@ export default function ResultadoPage() {
               Proponha esta pergunta à turma. Não existe resposta única: o objetivo é que cada equipe
               argumente a partir da experiência de gerenciar sua propriedade durante as cinco rodadas.
             </p>
+
+            {/* Roteiro de debate gerado por IA: apoio para o professor mediar a
+                roda de conversa com fatos reais da partida. */}
+            <div className="flex w-full max-w-3xl flex-col gap-4">
+              {debate === null ? (
+                <div className="degrau terraco terr-verde flex flex-col items-center gap-4 p-6 text-center">
+                  <Rotulo className="text-verde-300">Apoio para a mediação</Rotulo>
+                  <p className="max-w-xl text-base leading-[1.6] text-terra-900">
+                    O jogo guardou tudo o que a turma decidiu. Com um clique, a IA monta um roteiro
+                    de fala de abertura, pontos para sustentar e perguntas para a sala — ancorado
+                    nos fatos desta partida, para você conduzir o debate sem improvisar.
+                  </p>
+                  <Button
+                    variant="principal"
+                    size="grande"
+                    onClick={prepararDebate}
+                    disabled={debateLoading}
+                  >
+                    <Sparkles size={18} aria-hidden />
+                    {debateLoading ? 'Preparando roteiro...' : 'Preparar roteiro de debate'}
+                  </Button>
+                  {debateError ? (
+                    <p className="flex items-start gap-2 text-left text-sm text-terra-700" role="alert">
+                      <AlertTriangle className="mt-0.5 shrink-0 text-alerta" size={16} aria-hidden />
+                      <span>{debateError}</span>
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-terra-700">
+                    Uma única chamada de IA por partida: reabrir esta tela nunca regenera.
+                  </p>
+                </div>
+              ) : (
+                <div className="degrau terraco terr-verde flex flex-col gap-5 p-6 text-left">
+                  <div className="flex flex-col gap-2">
+                    <Rotulo className="text-verde-300">Roteiro do professor</Rotulo>
+                    <p className="text-xs text-terra-700">
+                      Gerado por {debate.modelo} com os dados desta partida · usado uma única vez.
+                    </p>
+                  </div>
+                  <MarkdownLite text={debate.roteiro} />
+                </div>
+              )}
+            </div>
           </section>
         ) : null}
       </div>

@@ -418,13 +418,13 @@ function LobbyScreen({ view }: { view: PlayerView }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="degrau mirante terr-fundo-verde animate-emergir flex flex-col gap-2 p-5">
-        <Rotulo className="text-verde-300">Sua propriedade</Rotulo>
+        <Rotulo className="text-(--cor-tinta-panel-verde)">Sua propriedade</Rotulo>
         <h2 className="relevo-md text-white">{property?.name ?? view.team.name}</h2>
         {property ? (
           <>
-            <p className="text-sm text-verde-300">{property.region}</p>
+            <p className="text-sm text-(--cor-tinta-panel-verde)">{property.region}</p>
             <p className="text-base leading-[1.6] text-white">{property.tagline}</p>
-            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-terra-700">
+            <dl className="mt-1 flex flex-col gap-1.5 text-sm text-(--cor-tinta-panel-amena)">
               <div className="flex flex-wrap gap-1.5">
                 <dt className="font-semibold text-white">Força:</dt>
                 <dd>{property.strength}</dd>
@@ -541,12 +541,12 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
     <div className="flex flex-col gap-4" aria-live="polite">
       {/* Contagem regressiva 3-2-1: entrada sequencial, contagem única. */}
       <div className="flex flex-col items-center gap-2 py-4">
-        <p className="rotulo text-financas-texto">A DECISÃO FOI TOMADA</p>
+        <p className="rotulo text-(--cor-tinta-panel-dourado)">A DECISÃO FOI TOMADA</p>
         <div className="flex items-center gap-4">
           {[3, 2, 1].map((n, i) => (
             <span
               key={n}
-              className="dado-xl text-terra-900 animate-emergir"
+              className="dado-xl text-(--cor-tinta-panel) animate-emergir"
               style={{ animationDelay: `${i * 420}ms` }}
             >
               {n}
@@ -558,7 +558,7 @@ function ResolutionScreen({ view }: { view: PlayerView }) {
 
       {/* Resultado em mirante: o veredito da rodada. */}
       <div className="degrau mirante terr-fundo-azul animate-emergir flex flex-col gap-2 p-5">
-        <Rotulo className="text-azul-300">O que aconteceu</Rotulo>
+        <Rotulo className="text-(--cor-tinta-panel-azul)">O que aconteceu</Rotulo>
         <p className="relevo-md text-white">{resolution.outcome}</p>
       </div>
 
@@ -627,7 +627,7 @@ function FinishedScreen({ view }: { view: PlayerView }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="degrau mirante terr-fundo-verde animate-emergir flex flex-col gap-2 p-5">
-        <Rotulo className="text-verde-300">Partida encerrada</Rotulo>
+        <Rotulo className="text-(--cor-tinta-panel-verde)">Partida encerrada</Rotulo>
         <p className="relevo-md text-white">
           A safra da equipe {view.team.name} terminou por aqui.
         </p>

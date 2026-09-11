@@ -112,7 +112,7 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
     `bg-financas` vence a cor de fundo do degrau porque utilities vêm depois
     de components na cascata.
   */
-  destaque: 'degrau banco pisavel bg-financas text-nevoa-50',
+  destaque: 'degrau banco pisavel bg-financas text-(--cor-tinta-escuro)',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {

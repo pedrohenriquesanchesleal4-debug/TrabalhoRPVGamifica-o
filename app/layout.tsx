@@ -69,7 +69,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="pt-BR"
       className={`${industrial.variable} ${manrope.variable} ${jetbrains.variable}`}
     >
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        {/*
+          Tema antes do primeiro paint: lê `localStorage[safra-tema]` e aplica
+          `data-tema` no <html> já no HTML servido, sem FOUC. Aplicar no escopo
+          do try — um navegador com storage bloqueado não pode quebrar a página.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('safra-tema');if(t==='claro'){document.documentElement.setAttribute('data-tema','claro');}}catch(e){}})();`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

@@ -28,6 +28,7 @@ import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/component
 import { DenseTeamCard } from '@/components/host/team-board';
 import { PropertyScene } from '@/components/game/property-scene';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { DEFAULT_CONFIG, ROUND_META, TOTAL_ROUNDS } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
 
@@ -210,11 +211,12 @@ function CreateGameScreen({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10 lg:py-16">
+    <main className="relative mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10 lg:py-16">
+      <ThemeToggle className="absolute right-5 top-5 z-[3] sm:right-8 sm:top-8" />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-8">
         <section className="degrau mirante terr-fundo-verde flex flex-col gap-6 px-8 py-10 lg:col-span-3 lg:flex-row lg:items-center lg:gap-10 lg:py-14">
           <div className="flex flex-col gap-3 lg:flex-1 motion-safe:animate-emergir">
-            <Rotulo className="text-verde-300">SAFRA DF · Painel do professor</Rotulo>
+            <Rotulo className="text-(--cor-tinta-panel-verde)">SAFRA DF · Painel do professor</Rotulo>
             <h1 className="relevo-lg text-white">Criar uma nova partida</h1>
             <p className="max-w-[46ch] text-white/90">
               A turma entra pelo celular com um código. Você controla o ritmo das cinco rodadas por
@@ -492,7 +494,9 @@ function ControlPanel({
   const incompleteTeams = view.teams.filter((team) => team.players.length < 2).length;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10">
+    <main className="relative mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10">
+      {/* Alternador de tema: topo da tela, sobre o cabeçalho/console. */}
+      <ThemeToggle className="absolute right-5 top-5 z-[3] sm:right-8 sm:top-8" />
       {/* Paisagem discreta atrás do header: identidade sem competir com dados. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-64 opacity-10">
         <CerradoLandscape />
@@ -503,9 +507,9 @@ function ControlPanel({
           <Rotulo>SAFRA DF · Painel do professor</Rotulo>
           <div className="flex items-baseline gap-4">
             <Rotulo>Código</Rotulo>
-            <span data-testid="game-code" className="dado-xl uppercase tracking-[0.1em] text-terra-900">
-              {code}
-            </span>
+<span data-testid="game-code" className="dado-xl uppercase tracking-[0.1em] text-(--cor-tinta-panel)">
+                {code}
+              </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone={game.status === 'running' ? 'ativo' : game.status === 'paused' ? 'alerta' : 'neutro'}>

@@ -129,3 +129,43 @@ Camada adicionada após a entrega da V6 ("gostei, mas quero mais animação"). T
 ## Verificação
 
 `npm run verify` = typecheck ✅ · lint ✅ · 94 testes ✅ · build ✅ (15 rotas, 4 estáticas + 11 dinâmicas). Auditoria anti-slop: zero ocorrências de `rounded-2xl`, `blur-*`, `backdrop-filter`, gradientes roxo/violeta, `bg-gradient-to-*`, fonte Inter.
+---
+
+## Tema claro & landing V6.3 (2026-09-11)
+
+O usuário pediu troca de tema com leitura garantida e "algo a mais" na landing. Arquitetura: o visual mantém a **âncora noturna** (céu de 06:20) nos dois temas; o claro troca apenas superfícies de leitura e tintas.
+
+### Modelo de tokens
+
+| Família | Sobe para o tema claro | Exemplos |
+|---|---|---|
+| Superfícies | `nevoa-50/100/200` -> creme de cerrado (#f5f1e6/#ece6d8/#d6ceba); `terra-900/700/500` -> marrom (#2c2415/#4f452c/#5f5536) | fundo de página, painéis `terr-neutro`/`terr-claro`, corpo, rótulos |
+| Acentos de texto/ícone | `verde-300/700`, `azul-300/700`, `financas-texto` (#7a4d0b), `sustentabilidade-texto`, `alerta-texto`, `sucesso` -> tons escuros | textos de opção, ícones, rótulos de indicador |
+| Tintas adaptáveis | `--cor-tinta-*` (financas/producao/tecnologia/sustentabilidade) -> escuras | `GAUGE_INK` (ícones de indicador e canais) |
+| **NÃO invertem** | `--cor-cena-*` (paisagem), `--cor-tinta-panel`/`-amena`/`-dourado`/`-verde`/`-azul` e `-escuro` (console e CTA), `white`, todos `*-600`/`*-800`, `financas`, `amanhecer` | paisagem, consoles `terr-fundo-*`, CTA dourado, moldura de painéis |
+
+Prato tingido (`terr-verde/azul/financas/sustentabilidade/alerta`) mistura acento 600 com `nevoa-100`: como AMBOS invertem, o prato claro + tinta escura sobem juntos e o contraste se mantém sem override. Só os consoles `terr-fundo-*` precisaram de moldura fixa no claro (`--paredao: #050604`).
+
+### Contraste medido (script, WCAG)
+
+| Par | Tema claro | Tema escuro |
+|---|---|---|
+| creme #f5f1e6 × texto #2c2415 | 13.58 | — |
+| painel #ece6d8 × corpo #4f452c | 7.60 | — |
+| painel × rótulo #5f5536 | 5.94 | — |
+| terr-verde claro #cbcfb0 × #3f5a16 | 4.88 | — |
+| terr-azul claro #bec7c3 × #24586a | 4.53 | — |
+| terr-financas claro #ead6af × #7a4d0b | 4.6 | — |
+| console verde #1e2a12 × panel #f1e9d8 | 12.46 | 12.46 |
+| console azul #12252c × azul-panel #bfe0e6 | 11.32 | 11.32 |
+| CTA dourado #e5a93c × #0d0f0b | 9.24 | — |
+| cena #0d0f0b × dourado-panel #f2c968 | 12.23 | 12.23 |
+
+### Alternador
+
+`components/ui/theme-toggle.tsx`: store externa mínima + `useSyncExternalStore` (com `getServerSnapshot` — obrigatório no Next), `localStorage[safra-tema]`, script inline anti-FOUC no layout. Presente em home, entrar e admin (jogo e projeção ficam de fora).
+
+### Landing "a mais"
+
+1. **Ticker da safra** sob o hero: fita de dados CSS (`ticker-rola`, translateX(-50%), conteúdo duplicado 2x, 34s / 64s sob reduced-motion, aria-hidden).
+2. **Banda "COMO FUNCIONA"**: 3 degraus assimétricos (coluna 1.15fr + offsets verticais `lg:mt-6/12`) — um código → cinco rodadas → a consequência volta. Não é grade de cards.

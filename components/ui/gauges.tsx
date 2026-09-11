@@ -76,10 +76,10 @@ const PREENCHIMENTO: Record<IndicatorKind, string> = {
 
 /** Cor de ícone: mesma família do preenchimento, tamanho de UI. */
 export const GAUGE_INK: Record<IndicatorKind, string> = {
-  financas: 'text-financas-texto',
-  producao: 'text-verde-700',
-  tecnologia: 'text-azul-700',
-  sustentabilidade: 'text-sustentabilidade-texto',
+  financas: 'text-(--cor-tinta-financas)',
+  producao: 'text-(--cor-tinta-producao)',
+  tecnologia: 'text-(--cor-tinta-tecnologia)',
+  sustentabilidade: 'text-(--cor-tinta-sustentabilidade)',
 };
 
 /** Família de terraço correspondente, para tingir um degrau do indicador. */
