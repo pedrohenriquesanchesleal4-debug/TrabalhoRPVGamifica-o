@@ -93,3 +93,15 @@ pm run embed:corpus (cliente HTTP local, 20 linhas).
 
 **Consequência:** 15 embeddings fixos (uma vez, plano grátis cobre) = custo total do RAG; por aluno, zero; por partida, 1 chamada de geração + 1 de embedding (só na 1ª abertura). Gate 
 pm run verify verde (17 rotas, 101 testes). Lição: **sempre testar model+shape ao vivo antes de fixar schema/constants** (3.6-flash viaja pensando; embedding-001 = 3072; 004 deprecado).
+
+
+## 2026-09-11 · D-10: Deploy produção (Vercel) — Fases 1+2 da IA no ar
+
+**Decisão:** subir via CLI Vercel (60.0.x) com projeto já linkado (.vercel/project.json), login interativo do dono da conta. Envs: normalizadas do .env.local — as 4 novas (GEMINI_API_KEY, GEMINI_MODEL, GEMINI_EMBEDDING_MODEL, EMBED_ADMIN_KEY) foram adicionadas como SECRET em production/preview/development; as 3 do Supabase re-adicionadas em produção (formato novo sb_publishable_/sb_secret_). Deploy ercel --prod → Build Completed em 10s, produção aliased em https://safra-df.vercel.app. Corpus populado contra produção via 
+pm run embed:corpus → 200 {ok:true, documentos:14} (custo único: 15 embeddings).
+
+**Validação pós-deploy:** root 200; POST /api/admin/corpus/embed sem chave → 401 (guard vivo); projeção/debate com UUID falso → erro estruturado JSON (envs do Supabase carregando).
+
+**Risco residual registrado:** getProjectionView usa .single() — UUID inexistente vira server_error (500) em vez de 404 (mensagem "Cannot coerce the result to a single JSON object"). Pré-existente (helper da projeção, fase anterior), fora do escopo da IA. Fix de 1 linha se desejado: .single() → .maybeSingle() e tratar !data como not_found. Deixado como item aberto.
+
+**Lição operacional:** ercel env add (CLI 6x) lê o VALOR via stdin e o 2º argumento posicional é o AMBIENTE (1 por chamada) — passar valor como arg gera "Invalid environment: <valor>" e vaza o segredo no log. Loop com pipe é o padrão correto.

@@ -165,3 +165,8 @@ pm run embed:corpus); por partida continua 1 geração + 1 embedding, só na pri
 A migration 0002 original falhava no Supabase com ERROR: 54000: column cannot have more than 2000 dimensions for hnsw index — o gemini-embedding-001 entrega 3072 dims por padrão, mas o HNSW do pgvector indexa no máximo 2000. Corrigido ao vivo: o modelo aceita outputDimensionality, e 768 foi confirmado na chave do projeto. A migration 0002 foi reescrita para 768 dims (HNSW volta a funcionar) e ficou idempotente/defensiva: se você rodou a versão 3072 e quebrou no meio, rode 0002 de novo (apaga o estado parcial e recria). Código (lib/corpus.ts, .env.example, .env.local) alinhado: outputDimensionality: 768 em todo embedding. Gate 
 pm run verify verde; validar no Supabase e, se o corpus ainda estiver vazio, 
 pm run embed:corpus.
+
+
+## Adendo 3 (2026-09-11) · Deploy concluído
+
+Produção no ar: https://safra-df.vercel.app (deploy via CLI, envs normalizadas, 17 rotas no build). Corpus vetorial populado em produção (14 fichas, 768 dims). Pós-deploy validado: root 200, rota admin 401 sem chave, erros estruturados JSON nas rotas de partida. Falta apenas testar uma geração real de roteiro com uma partida encerrada de verdade. Item aberto não bloqueante: .single() na projeção devolve 500 em UUID inexistente (fix opcional de 1 linha para 404).

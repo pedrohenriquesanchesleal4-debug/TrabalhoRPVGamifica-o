@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const env = readFileSync(resolve('.env.local'), 'utf8');
-const get = (name: string) => {
+const get = (name) => {
   const line = env.split('\n').find((l) => l.startsWith(`${name}=`));
   return line ? line.slice(name.length + 1).trim() : null;
 };
