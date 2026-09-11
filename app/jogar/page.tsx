@@ -24,14 +24,30 @@ import {
   TOTAL_ROUNDS,
   phaseForRound,
 } from '@/types/game';
-import { Button, Rotulo } from '@/components/ui/primitives';
+import { Button, Meter, Pill, Rotulo, formatMoney } from '@/components/ui/primitives';
 import { IndicatorPanel } from '@/components/game/indicator-panel';
 import { TeamRoster } from '@/components/game/team-roster';
 import { EventCard } from '@/components/game/event-card';
 import { RoundTimer } from '@/components/game/round-timer';
 import { OpeningSequence } from '@/components/game/opening-sequence';
 import { PropertyScene } from '@/components/game/property-scene';
+import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { PROPERTY_BY_KEY } from '@/data/properties';
+import { financeIndex } from '@/game/engine';
+
+/**
+ * SAFRA DF · Tela do aluno — direção V6 "Amanhecer do Cerrado".
+ *
+ * Central de Operações ao amanhecer: a fazenda é o centro visual, painéis de
+ * dado em torno. Momentos cinematográficos: abertura (opening), "DECISÃO
+ * REGISTRADA" (mirante dourado), contagem 3-2-1 (entrada sequencial).
+ *
+ * Mobile-first (360-430px): decisão em 2 toques, alvos ≥44px, sem scroll
+ * horizontal obrigatório.
+ *
+ * Toda a lógica de jogo, contratos de servidor e fluxo de eventos é
+ * PRESERVADA. O que muda é apenas a camada visual.
+ */
 
 const HEARTBEAT_MS = 45_000;
 
@@ -47,11 +63,6 @@ function currentRoundMeta(view: PlayerView) {
 
 export default function JogarPage() {
   const router = useRouter();
-  // A sessão mora no localStorage, que não existe durante a renderização no
-  // servidor. Lida direto num useState inicial, ela divergiria entre o HTML
-  // do servidor (sempre sem sessão) e a primeira renderização do cliente
-  // (com sessão real), causando hydration mismatch. Por isso começa nula nos
-  // dois lados e só é lida de fato depois de montar.
   const [session, setSession] = useState<PlayerSessionData | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -96,9 +107,6 @@ export default function JogarPage() {
     }
   }, [session, router]);
 
-  // A carga inicial roda dentro de uma função assíncrona local: nenhum setState
-  // acontece de forma sincrona no corpo do efeito, e o guarda de cancelamento
-  // evita atualizar a tela depois de sair dela.
   useEffect(() => {
     if (!hydrated) return undefined;
 
@@ -153,8 +161,6 @@ export default function JogarPage() {
     openingCheckedRef.current = true;
     const key = `safra-df:abertura:${session.token}`;
 
-    // A leitura do localStorage e a decisão de mostrar a abertura ficam numa
-    // função assíncrona local, pelo mesmo motivo do efeito acima.
     void (async () => {
       try {
         if (!window.localStorage.getItem(key)) {
@@ -179,22 +185,30 @@ export default function JogarPage() {
   if (!session) return null;
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:px-6">
-      {showOpening && view ? (
-        <OpeningSequence
-          budget={view.team.state.cash}
-          property={PROPERTY_BY_KEY[view.team.propertyKey] ?? null}
-          onDone={() => setShowOpening(false)}
-        />
-      ) : null}
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:px-6">
+      {/* Paisagem ao fundo: opacidade baixa, só nos primeiros 1/3, não compete com decisão. */}
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-20">
+        <CerradoLandscape />
+      </div>
 
-      {loading ? (
-        <LoadingScreen />
-      ) : loadError ? (
-        <ErrorScreen message={loadError} onRetry={refresh} />
-      ) : view ? (
-        <GameBody view={view} onConfirm={handleConfirm} />
-      ) : null}
+      {/* Conteúdo acima da paisagem. */}
+      <div className="relative z-10 flex flex-1 flex-col gap-5">
+        {showOpening && view ? (
+          <OpeningSequence
+            budget={view.team.state.cash}
+            property={PROPERTY_BY_KEY[view.team.propertyKey] ?? null}
+            onDone={() => setShowOpening(false)}
+          />
+        ) : null}
+
+        {loading ? (
+          <LoadingScreen />
+        ) : loadError ? (
+          <ErrorScreen message={loadError} onRetry={refresh} />
+        ) : view ? (
+          <GameBody view={view} onConfirm={handleConfirm} />
+        ) : null}
+      </div>
     </main>
   );
 }
@@ -230,38 +244,106 @@ function GameBody({
 }) {
   const property = PROPERTY_BY_KEY[view.team.propertyKey];
   const decisionOpen = Boolean(view.event) && !view.decision && view.game.status === 'running';
+  const roundMeta = currentRoundMeta(view);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <header
-        className={classes(
-          'flex flex-col gap-4',
-          decisionOpen && 'md:grid md:grid-cols-[60%_40%] md:gap-6',
-        )}
-      >
-        <div className="flex items-center gap-2 text-terra-700">
-          <Sprout size={20} className="shrink-0 text-verde-700" aria-hidden="true" />
-          <span className="relevo-sm text-terra-900">{view.team.name}</span>
+      {/* Cabeçalho compacto: propriedade à esquerda, rodada + timer à direita. */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sprout size={18} className="shrink-0 text-verde-700" aria-hidden="true" />
+          <div className="flex min-w-0 flex-col">
+            <span className="relevo-sm text-terra-900 truncate">{view.team.name}</span>
+            {property ? (
+              <Rotulo className="truncate">{property.region}</Rotulo>
+            ) : null}
+          </div>
         </div>
 
-        <IndicatorPanel
-          indicators={view.team.state}
-          lastEffects={view.lastResolution?.effects ?? null}
-          variant="compact"
-        />
+        <div className="flex items-center gap-3 shrink-0">
+          <Pill tone={decisionOpen ? 'ativo' : 'neutro'}>
+            RODADA {view.game.currentRound}/{TOTAL_ROUNDS}
+          </Pill>
+          {view.game.status === 'running' ? (
+            <RoundTimer
+              endsAt={view.game.roundEndsAt}
+              active={view.game.roundStatus === 'active'}
+              size="compacto"
+            />
+          ) : null}
+        </div>
       </header>
 
+      {/* Cena principal: a fazenda é o centro. Painel terraco claro. */}
       {property ? (
-        <PropertyScene
-          propertyKey={property.key}
-          production={view.team.state.production}
-          technology={view.team.state.technology}
-          sustainability={view.team.state.sustainability}
-          compact
-        />
+        <div className="degrau terraco terr-claro p-3 sm:p-4 animate-emergir">
+          <PropertyScene
+            propertyKey={property.key}
+            production={view.team.state.production}
+            technology={view.team.state.technology}
+            sustainability={view.team.state.sustainability}
+          />
+        </div>
       ) : null}
 
-      <StatusBody view={view} onConfirm={onConfirm} />
+      {/* Indicadores: 4 colunas em bancos, rótulos curtos. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+        <IndicadorBanco
+          kind="financas"
+          label="FINANÇAS"
+          value={financeIndex(view.team.state.cash)}
+          display={formatMoney(view.team.state.cash)}
+          delta={view.lastResolution?.effects?.find((e) => e.indicator === 'cash')?.delta}
+        />
+        <IndicadorBanco
+          kind="producao"
+          label="PRODUÇÃO"
+          value={view.team.state.production}
+          display={String(Math.round(view.team.state.production))}
+          delta={view.lastResolution?.effects?.find((e) => e.indicator === 'production')?.delta}
+        />
+        <IndicadorBanco
+          kind="tecnologia"
+          label="TECNOLOGIA"
+          value={view.team.state.technology}
+          display={String(Math.round(view.team.state.technology))}
+          delta={view.lastResolution?.effects?.find((e) => e.indicator === 'technology')?.delta}
+        />
+        <IndicadorBanco
+          kind="sustentabilidade"
+          label="SUSTENT."
+          value={view.team.state.sustainability}
+          display={String(Math.round(view.team.state.sustainability))}
+          delta={view.lastResolution?.effects?.find((e) => e.indicator === 'sustainability')?.delta}
+        />
+      </div>
+
+      <StatusBody view={view} onConfirm={onConfirm} roundMeta={roundMeta} />
+    </div>
+  );
+}
+
+/**
+ * Indicador isolado em `banco`: canal + valor em coluna, sem o wrapper de
+ * `Meter` que vem com o `IndicatorPanel`. Mantém a mesma acessibilidade
+ * (role="meter", aria-valuenow/label).
+ */
+function IndicadorBanco({
+  kind,
+  label,
+  value,
+  display,
+  delta,
+}: {
+  kind: 'financas' | 'producao' | 'tecnologia' | 'sustentabilidade';
+  label: string;
+  value: number;
+  display: string;
+  delta?: number | null;
+}) {
+  return (
+    <div className="degrau banco terr-claro flex flex-col items-center gap-1.5 p-3 text-center">
+      <Meter kind={kind} label={label} value={value} display={display} delta={delta} size="compacto" />
     </div>
   );
 }
@@ -269,9 +351,11 @@ function GameBody({
 function StatusBody({
   view,
   onConfirm,
+  roundMeta,
 }: {
   view: PlayerView;
   onConfirm: (optionKey: string) => Promise<void>;
+  roundMeta: { index: number; title: string; subtitle: string };
 }) {
   if (view.game.status === 'finished') {
     return <FinishedScreen view={view} />;
@@ -294,9 +378,9 @@ function StatusBody({
   }
 
   if (view.event && !view.decision) {
-    const roundMeta = currentRoundMeta(view);
     return (
       <div className="flex flex-col gap-4">
+        {/* Timer em destaque quando decisão está aberta. */}
         <div className="flex justify-end">
           <RoundTimer
             endsAt={view.game.roundEndsAt}
@@ -304,11 +388,10 @@ function StatusBody({
             size="destaque"
           />
         </div>
+
         {/*
-          A `key` pela carta da rodada é o que zera a seleção pendente quando o
-          evento muda: em vez de um efeito limpando estado, o React descarta a
-          carta antiga e monta a nova já limpa. É a forma recomendada de
-          resetar estado quando a identidade do dado muda.
+          A `key` pela carta da rodada zera a seleção pendente quando o
+          evento muda: o React descarta a carta antiga e monta a nova limpa.
         */}
         <EventCard
           key={`${view.game.currentRound}:${view.event.key}`}
@@ -318,7 +401,7 @@ function StatusBody({
             options: view.event.options,
             roleHint: view.event.roleHint,
           }}
-          roundLabel={`Rodada ${view.game.currentRound} de ${TOTAL_ROUNDS} · ${roundMeta.title}`}
+          roundLabel={`RODADA ${view.game.currentRound} · ${roundMeta.title}`}
           roleLabel={ROLE_LABEL[view.player.role]}
           onConfirm={onConfirm}
         />
@@ -401,6 +484,13 @@ function PausedScreen({ view }: { view: PlayerView }) {
   );
 }
 
+/**
+ * Tela "DECISÃO REGISTRADA" — momento de destaque na sessão.
+ *
+ * `mirante terr-financas`: painel dourado, o único mirante da tela de decisão.
+ * Texto claro (`verde-300`) sobre painel tingido (lição V5: variante escura
+ * falha contraste). `.travado` + `animate-emergir` no corpo.
+ */
 function LockedScreen({ view }: { view: PlayerView }) {
   return (
     <div className="flex flex-col gap-4">
@@ -408,11 +498,12 @@ function LockedScreen({ view }: { view: PlayerView }) {
         <RoundTimer endsAt={view.game.roundEndsAt} active size="destaque" />
       </div>
 
-      <div className="degrau terraco terr-verde animate-emergir relative flex flex-col gap-2 p-4">
-        <CircleCheck size={22} className="absolute right-4 top-4 text-verde-300" aria-hidden="true" />
-        <Rotulo className="text-verde-300">Registrada</Rotulo>
-        <p className="relevo-sm pr-8 text-verde-300">{view.decision?.optionLabel}</p>
-        <p className="text-sm text-verde-300">
+      <div className="degrau mirante terr-financas animate-emergir relative flex flex-col gap-3 p-5">
+        <CircleCheck size={22} className="absolute right-4 top-4 text-financas-texto" aria-hidden="true" />
+        <Rotulo className="text-financas-texto">DECISÃO REGISTRADA</Rotulo>
+        <p className="relevo-sm pr-8 text-financas-texto">{view.decision?.optionLabel}</p>
+        <div aria-hidden="true" className="filete-amanhecer" />
+        <p className="text-sm text-terra-700">
           A equipe já decidiu e não é possível mudar nesta rodada. Enquanto o tempo corre, vejam o
           que os colegas ainda estão fazendo.
         </p>
@@ -436,17 +527,36 @@ const INDICATOR_KEY_LABEL: Record<string, string> = {
   sustainability: INDICATOR_LABEL.sustainability,
 };
 
+/**
+ * Tela de resolução da rodada.
+ *
+ * "A DECISÃO FOI TOMADA." + contagem 3-2-1 em `.dado-xl` entrando por
+ * `animate-emergir` sequencial com delays. Contagem única, não laço.
+ */
 function ResolutionScreen({ view }: { view: PlayerView }) {
   const resolution = view.lastResolution;
   if (!resolution) return null;
 
   return (
     <div className="flex flex-col gap-4" aria-live="polite">
-      {/*
-        `resolution.outcome` (vindo da engine) já nomeia a opção escolhida:
-        "A equipe escolheu: {opção}.". Não repetimos a frase aqui, apenas
-        damos a ela o peso do único mirante desta tela.
-      */}
+      {/* Contagem regressiva 3-2-1: entrada sequencial, contagem única. */}
+      <div className="flex flex-col items-center gap-2 py-4">
+        <p className="rotulo text-financas-texto">A DECISÃO FOI TOMADA</p>
+        <div className="flex items-center gap-4">
+          {[3, 2, 1].map((n, i) => (
+            <span
+              key={n}
+              className="dado-xl text-terra-900 animate-emergir"
+              style={{ animationDelay: `${i * 420}ms` }}
+            >
+              {n}
+            </span>
+          ))}
+        </div>
+        <div aria-hidden="true" className="filete-amanhecer mt-1 w-32" />
+      </div>
+
+      {/* Resultado em mirante: o veredito da rodada. */}
       <div className="degrau mirante terr-fundo-azul animate-emergir flex flex-col gap-2 p-5">
         <Rotulo className="text-azul-300">O que aconteceu</Rotulo>
         <p className="relevo-md text-white">{resolution.outcome}</p>

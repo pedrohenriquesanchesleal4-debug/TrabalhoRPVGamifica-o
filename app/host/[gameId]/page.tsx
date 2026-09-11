@@ -7,6 +7,7 @@ import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel, useRoundTimer, formatClock } from '@/hooks/use-game-channel';
 import { Pill, Rotulo } from '@/components/ui/primitives';
 import { FocusTeamBoard, TeamRow, DenseTeamCard, useFlipRows } from '@/components/host/team-board';
+import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { ROUND_META, TOTAL_ROUNDS, type GameStatus } from '@/types/game';
 import type { HostView, HostTeamView } from '@/lib/game-service';
 
@@ -25,6 +26,10 @@ import type { HostView, HostTeamView } from '@/lib/game-service';
  * índice composto entre duas cargas consecutivas da projeção (ou seja, entre
  * antes e depois de uma rodada ser resolvida): nenhum endpoint novo, nenhum
  * dado que a API já não devolvesse.
+ *
+ * V6 "Amanhecer do Cerrado": paisagem atmosférica ao fundo em baixa opacidade,
+ * timer com `animate-nascente` pulsando nas últimas 30s, código gigante no lobby,
+ * foco em `mirante`, encosta em `terr-*`.
  */
 
 const STATUS_LABEL: Record<GameStatus, string> = {
@@ -221,133 +226,150 @@ export default function HostProjectionPage() {
   const revealDecision = game.roundStatus !== 'active';
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-10 px-10 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-6 pt-4">
-        <div className="flex flex-col gap-1">
-          <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
-          {phase ? (
-            <h1 className="relevo-lg text-terra-900">
-              Rodada {phase.index} de {TOTAL_ROUNDS} · {phase.title}
-            </h1>
-          ) : (
-            <h1 className="relevo-lg text-terra-900">{STATUS_LABEL[game.status]}</h1>
-          )}
-          {phase ? <p className="text-lg text-terra-700">{phase.subtitle}</p> : null}
-        </div>
+    <main className="relative mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-10 px-10 py-8 overflow-hidden">
+      {/* Paisagem atmosférica ao fundo: amanhecer sutil, sem competir com dados. */}
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-10">
+        <CerradoLandscape />
+      </div>
+      <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/60" />
 
-        <div className="flex flex-wrap items-center gap-6">
-          <Pill tone={game.status === 'paused' ? 'alerta' : 'neutro'} className="text-sm">
-            {STATUS_LABEL[game.status]}
-          </Pill>
+      {/* Conteúdo sobre a paisagem. */}
+      <div className="relative z-[2] flex flex-col gap-10">
+        <header className="flex flex-wrap items-center justify-between gap-6 pt-4 animate-emergir">
+          <div className="flex flex-col gap-1">
+            <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
+            {phase ? (
+              <h1 className="relevo-lg text-terra-900">
+                Rodada {phase.index} de {TOTAL_ROUNDS} · {phase.title}
+              </h1>
+            ) : (
+              <h1 className="relevo-lg text-terra-900">{STATUS_LABEL[game.status]}</h1>
+            )}
+            {phase ? <p className="text-lg text-terra-700">{phase.subtitle}</p> : null}
+          </div>
 
-          {game.roundStatus === 'active' ? (
-            <div className="relative flex items-center gap-3">
-              {isEnding ? (
-                <span aria-hidden="true" className="absolute -left-2 -top-2 h-9 w-9">
-                  <span className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta" />
-                  <span
-                    className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta"
-                    style={{ animationDelay: '600ms' }}
-                  />
-                </span>
-              ) : null}
-              <Timer className={isEnding ? 'text-alerta' : 'text-terra-700'} size={30} aria-hidden />
-              <span
-                className={isEnding ? 'dado-xl text-alerta' : 'dado-xl text-terra-900'}
-                aria-live="polite"
-              >
-                {formatClock(remaining)}
-              </span>
-            </div>
-          ) : (
-            <Pill tone="pronto" className="text-sm">
-              Rodada resolvida
+          <div className="flex flex-wrap items-center gap-6">
+            <Pill tone={game.status === 'paused' ? 'alerta' : 'neutro'} className="text-sm">
+              {STATUS_LABEL[game.status]}
             </Pill>
-          )}
 
-          <Pill tone="neutro" className="text-sm">
-            <Users size={14} aria-hidden />
-            {view.decidedTeams} de {view.teams.length} equipes decidiram
-          </Pill>
-        </div>
-      </header>
+            {game.roundStatus === 'active' ? (
+              <div className="relative flex items-center gap-3">
+                {isEnding ? (
+                  <span aria-hidden="true" className="absolute -left-2 -top-2 h-9 w-9">
+                    <span className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta" />
+                    <span
+                      className="nascente-anel absolute inset-0 animate-nascente rounded-full border-2 border-alerta"
+                      style={{ animationDelay: '600ms' }}
+                    />
+                  </span>
+                ) : null}
+                <Timer className={isEnding ? 'text-alerta' : 'text-terra-700'} size={30} aria-hidden />
+                <span
+                  className={isEnding ? 'dado-xl text-alerta' : 'dado-xl text-terra-900'}
+                  aria-live="polite"
+                >
+                  {formatClock(remaining)}
+                </span>
+              </div>
+            ) : (
+              <Pill tone="pronto" className="text-sm">
+                Rodada resolvida
+              </Pill>
+            )}
 
-      {focusEntry ? (
-        <section aria-live="polite">
-          <FocusTeamBoard
-            team={focusEntry.team}
-            initialBudget={game.config.initialBudget}
-            revealDecision={revealDecision}
-          />
-        </section>
-      ) : null}
+            <Pill tone="neutro" className="text-sm">
+              <Users size={14} aria-hidden />
+              {view.decidedTeams} de {view.teams.length} equipes decidiram
+            </Pill>
+          </div>
+        </header>
 
-      {classificados.length > 0 ? (
-        <section className="flex flex-col gap-3" aria-live="polite">
-          <Rotulo>
-            <span className="inline-flex items-center gap-1.5">
-              <Trophy size={12} aria-hidden />
-              Classificados
-            </span>
-          </Rotulo>
-          <ol className="flex flex-col gap-3">
-            {classificados.map(({ team, position }, index) => (
-              <TeamRow
-                key={team.id}
-                ref={setRowRef(team.id)}
-                team={team}
-                position={position}
-                wallPx={WALL_BY_ENCOSTA_INDEX[index] ?? 5}
-                initialBudget={game.config.initialBudget}
-                revealDecision={revealDecision}
-              />
-            ))}
-          </ol>
-        </section>
-      ) : null}
+        {focusEntry ? (
+          <section aria-live="polite" className="animate-emergir" style={{ animationDelay: '100ms' }}>
+            <FocusTeamBoard
+              team={focusEntry.team}
+              initialBudget={game.config.initialBudget}
+              revealDecision={revealDecision}
+            />
+          </section>
+        ) : null}
 
-      <footer className="mt-auto flex items-center justify-center gap-3 border-t-2 border-nevoa-200 py-4">
-        <span className="text-sm text-terra-500">Chegou atrasado? O código da partida é</span>
-        <span className="dado text-3xl font-bold uppercase tracking-[0.25em] text-terra-900">
-          {game.code}
-        </span>
-      </footer>
+        {classificados.length > 0 ? (
+          <section className="flex flex-col gap-3 animate-emergir" style={{ animationDelay: '200ms' }} aria-live="polite">
+            <Rotulo>
+              <span className="inline-flex items-center gap-1.5">
+                <Trophy size={12} aria-hidden />
+                Classificados
+              </span>
+            </Rotulo>
+            <ol className="flex flex-col gap-3">
+              {classificados.map(({ team, position }, index) => (
+                <TeamRow
+                  key={team.id}
+                  ref={setRowRef(team.id)}
+                  team={team}
+                  position={position}
+                  wallPx={WALL_BY_ENCOSTA_INDEX[index] ?? 5}
+                  initialBudget={game.config.initialBudget}
+                  revealDecision={revealDecision}
+                />
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        <footer className="mt-auto flex items-center justify-center gap-3 border-t-2 border-nevoa-200 py-4">
+          <span className="text-sm text-terra-500">Chegou atrasado? O código da partida é</span>
+          <span className="dado text-3xl font-bold uppercase tracking-[0.25em] text-terra-900">
+            {game.code}
+          </span>
+        </footer>
+      </div>
     </main>
   );
 }
 
 function LobbyScreen({ view }: { view: HostView }) {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-10 px-6 py-12 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
-        <p className="text-lg text-terra-700">Acesse, digite o código e seu nome</p>
-        <span
-          className="dado-xl text-terra-900"
-          style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '0.08em' }}
-        >
-          {view.game.code}
-        </span>
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-10 px-6 py-12 text-center overflow-hidden">
+      {/* Paisagem de fundo: momento de expectativa. */}
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-15">
+        <CerradoLandscape />
       </div>
+      <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/50" />
 
-      <div className="h-1 w-full max-w-3xl rounded-full bg-nevoa-200" />
-
-      <div className="flex w-full max-w-3xl flex-col gap-4">
-        <Rotulo>
-          <span className="inline-flex items-center justify-center gap-1.5">
-            <Users size={14} aria-hidden />
-            {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
+      <div className="relative z-[2] flex flex-col items-center gap-10">
+        <div className="flex flex-col items-center gap-3 animate-emergir">
+          <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>
+          <p className="text-lg text-terra-700">Acesse, digite o código e seu nome</p>
+          <span
+            className="dado-xl text-terra-900"
+            style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '0.08em' }}
+          >
+            {view.game.code}
           </span>
-        </Rotulo>
-        <div className="flex flex-col gap-3 text-left">
-          {view.teams.map((team) => (
-            <DenseTeamCard
-              key={team.id}
-              team={team}
-              initialBudget={view.game.config.initialBudget}
-              revealDecision={false}
-            />
-          ))}
+        </div>
+
+        <div className="filete-amanhecer w-full max-w-3xl animate-emergir" style={{ animationDelay: '100ms' }} />
+
+        <div className="flex w-full max-w-3xl flex-col gap-4 animate-emergir" style={{ animationDelay: '200ms' }}>
+          <Rotulo>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <Users size={14} aria-hidden />
+              {view.playerCount} jogadores entraram · {view.teams.length} equipes se formando
+            </span>
+          </Rotulo>
+          <div className="flex flex-col gap-3 text-left">
+            {view.teams.map((team) => (
+              <DenseTeamCard
+                key={team.id}
+                team={team}
+                initialBudget={view.game.config.initialBudget}
+                revealDecision={false}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </main>

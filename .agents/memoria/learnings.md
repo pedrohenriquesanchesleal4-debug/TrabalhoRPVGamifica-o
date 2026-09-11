@@ -1,0 +1,12 @@
+# Learnings
+
+- Física de painel (sombra sólida deslocada para baixo, raio que fecha com altitude, blur zero) é o ativo estrutural das V3→V6: nunca trocar por card/borda/sombra difusa.
+- Trocar VALOR de token em vez de NOME preserva call sites: a paleta pode mudar inteira sem tocar em componente que só usa `text-terra-900`/`bg-nevoa-100`.
+- Movimento de UI que "brilha" sem custo: laço lento de luz (opacity) + filete dourado + gradiente de título estático + 1-2 momentos de contagem única. O barato é lindo; o caro (JS animado) é proibido aqui.
+- `transform: translateX()` com unidades `vw` dentro de SVG atravessa a janela real do navegador: ideal para pássaros/nuvens que cruzam o hero independente do viewBox.
+- Em `prefers-reduced-motion`, animação com `iteration-count: 1` + duração ~0 congela no PRIMEIRO quadro: laços precisam de estado estático explícito por classe (`.bando { display:none }`, `.nuvem-painel { opacity:.4 }`, etc.).
+- Graus de clima em `h1..h3` herdados do Tailwind/Next podem variar por versão: conferir com lint do projeto, não presumir.
+- Decompor redesign por FRENTE de página com 1 agente por frente (home / entrada / partida / professor) entregou diffs paralelos sem conflito: coordenação por contrato de fundação (tokens + classes + componente de paisagem com API fixa), não por pastas compartilhadas.
+- Paisagem SVG de fundo com overlay escuro (`bg-nevoa-50/40` ou gradiente) é o padrão de legibilidade em hero full-bleed: texto nunca senta direto sobre cena.
+- CTA primário ouro + fundo `nevoa-50` = ~9.2:1; todas as duplas de texto da paleta V6 passam AA ou AAA (tabela em docs/DIRECAO-VISUAL-V6.md) — a "cor de destaque" não é capricho, é contraste calculado.
+- `npm run verify` (typecheck + lint + vitest + next build) após merge de 4 agentes passou de primeira: subagentes rodaram typecheck/lint próprios antes de devolver, e o contrato de tokens por VALOR (nomes fixos) impediu conflito de classes entre frentes.

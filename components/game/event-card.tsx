@@ -1,28 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, MessageCircleWarning, TriangleAlert } from 'lucide-react';
+import { Check, Lock, MessageCircleWarning, TriangleAlert } from 'lucide-react';
 import { Button, Rotulo, formatMoney } from '@/components/ui/primitives';
 import type { StoredOption } from '@/lib/game-service';
 
 /**
- * Matéria do evento e lista de opções.
+ * SAFRA DF · Carta de ocorrência — direção V6 "Amanhecer do Cerrado".
  *
- * A carta é um `terraco` neutro: rótulo da rodada, manchete e narrativa. A
- * dica exclusiva de função vira um `banco` aninhado tingido em `financas`,
- * porque é informação assimétrica, não erro.
+ * A carta é um `terraco` que varia pela severidade do evento:
+ * `terr-alerta` para alertas, `terr-verde` para oportunidades, `terr-neutro`
+ * para o padrão. A narrativa tem prioridade visual; custo e efeitos são
+ * colunas de dado discretas.
  *
- * As opções NÃO ficam dentro da carta: cada uma é o próprio `banco` tocável,
- * em sequência vertical. Ao tocar, a opção vira a decisão ativa e sobe para
- * `mirante`, o único degrau de altitude 3 desta tela: é o que dá à decisão
- * pendente o peso visual que ela tem de fato, sem empatar com o resto da
- * lista. A confirmação é sempre em dois toques: tocar seleciona, um segundo
- * botão "Confirmar decisão" fecha, o que evita que um toque acidental trave o
- * time numa opção antes de conversar.
+ * As opções ficam abaixo da carta em `banco pisavel`, com seleção clara
+ * (cor de moldura + ícone de confirmação, acessível via `aria-pressed`).
+ * A confirmação é sempre em dois toques: selecionar + confirmar.
  *
- * A partir de 768px a carta e a lista de opções migram para duas colunas
- * (narrativa 60% à esquerda, opções 40% à direita, coluna de opções fixa por
- * `position: sticky`); no celular seguem empilhadas.
+ * A partir de 768px a carta e as opções migram para duas colunas (narrativa
+ * 60% à esquerda, opções 40% à direita, sticky); no celular empilham.
+ *
+ * Zero laço infinito. `.travado` no clique de confirmação (movimento seco
+ * de encaixe, 220ms, via globals.css).
  */
 
 const REASON_LABEL: Record<string, string> = {
@@ -41,6 +40,25 @@ export interface EventCardData {
   roleHint: string | null;
 }
 
+/**
+ * Família de cor do painel da carta, derivada da severidade do evento.
+ * Alertas de alta severidade → `terr-alerta`; oportunidades positivas →
+ * `terr-verde`; neutro → `terr-neutro`.
+ *
+ * A severidade é decidida por heurística local baseada no título: se o
+ * título contém palavras-chave de alerta, a carta puxa para ferrugem.
+ */
+function familiesFromEvent(title: string): { terr: string; label: string; labelText: string } {
+  const lower = title.toLowerCase();
+  if (lower.includes('alerta') || lower.includes('crise') || lower.includes('seca') || lower.includes('praga') || lower.includes('perda')) {
+    return { terr: 'terr-alerta', label: 'OCORRÊNCIA · ALERTA', labelText: 'text-alerta-texto' };
+  }
+  if (lower.includes('oportunidade') || lower.includes('parceria') || lower.includes('capacitação') || lower.includes('apoio')) {
+    return { terr: 'terr-verde', label: 'OCORRÊNCIA · OPORTUNIDADE', labelText: 'text-verde-300' };
+  }
+  return { terr: 'terr-neutro', label: 'OCORRÊNCIA', labelText: 'text-terra-500' };
+}
+
 export function EventCard({
   event,
   roundLabel,
@@ -56,10 +74,8 @@ export function EventCard({
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Dispara a animação `.travado` (movimento seco de encaixe, ver
-  // `@keyframes trava` em globals.css) no instante do clique, não depois da
-  // resposta do servidor: é o feedback físico de "a trava mecânica fechou",
-  // e ele precisa acontecer no toque, não esperar o round-trip de rede.
+  // Dispara a animação `.travado` no instante do clique, não depois da
+  // resposta do servidor: feedback físico de "a trava mecânica fechou".
   const [locking, setLocking] = useState(false);
 
   function pick(optionKey: string, available: boolean) {
@@ -82,12 +98,23 @@ export function EventCard({
     }
   }
 
+  const severity = familiesFromEvent(event.title);
+
   return (
     <div className="flex flex-col gap-5 md:grid md:grid-cols-[60%_40%] md:items-start md:gap-6">
-      <div className="degrau terraco terr-neutro animate-emergir flex flex-col gap-3 p-4">
-        <Rotulo>{roundLabel}</Rotulo>
+      {/* Carta da ocorrência: narrativa primeiro, efeitos depois. */}
+      <div className={classes('degrau terraco animate-emergir flex flex-col gap-3 p-4', severity.terr)}>
+        <div className="flex items-center gap-3">
+          <Rotulo className={severity.labelText}>{severity.label}</Rotulo>
+          <span className="rotulo text-terra-500">{roundLabel}</span>
+        </div>
+
         <h2 className="relevo-md text-terra-900">{event.title}</h2>
+
         <p className="text-base leading-[1.6] text-terra-900">{event.narrative}</p>
+
+        {/* Filete de separação: narrativa → opções/dica. */}
+        <div aria-hidden="true" className="h-px bg-terra-500/20" />
 
         {event.roleHint ? (
           <div className="degrau banco terr-financas flex gap-3 p-3.5">
@@ -107,7 +134,10 @@ export function EventCard({
         ) : null}
       </div>
 
+      {/* Coluna de opções: selection radio, confirmação. */}
       <div className="flex flex-col gap-3 md:sticky md:top-4">
+        <span className="rotulo text-terra-500">ESCOLHA UMA OPÇÃO</span>
+
         {event.options.map((option) => {
           const isSelected = selected === option.key;
           const reason = option.reason ? REASON_LABEL[option.reason] ?? option.reason : null;
@@ -126,18 +156,28 @@ export function EventCard({
               )}
             >
               <span className="flex items-center justify-between gap-3">
-                <span
-                  className={classes(
-                    'text-base font-semibold',
-                    // `terr-azul` é uma mistura clara-mas-ainda-escura (30% de
-                    // acento sobre painel escuro): texto precisa do tom CLARO
-                    // (`azul-300`, "destaque sobre parede escura"), não do
-                    // `azul-800` (quase tão escuro quanto o próprio painel,
-                    // que era o bug de contraste real da V4).
-                    isSelected ? 'text-azul-300' : 'text-terra-900',
+                <span className="flex items-center gap-2">
+                  {isSelected ? (
+                    <span
+                      aria-hidden="true"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-azul-300 text-azul-800"
+                    >
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 rounded-full border-2 border-terra-500/40"
+                    />
                   )}
-                >
-                  {option.label}
+                  <span
+                    className={classes(
+                      'text-base font-semibold',
+                      isSelected ? 'text-azul-300' : 'text-terra-900',
+                    )}
+                  >
+                    {option.label}
+                  </span>
                 </span>
                 <span
                   className={classes(
@@ -185,13 +225,13 @@ export function EventCard({
               </Button>
               <Button
                 type="button"
-                variant="principal"
+                variant="destaque"
                 size="grande"
                 onClick={confirm}
                 disabled={submitting}
                 className={classes('flex-1', locking && 'travado')}
               >
-                {submitting ? 'Confirmando...' : 'Confirmar decisão'}
+                {submitting ? 'CONFIRMANDO...' : 'CONFIRMAR DECISÃO'}
               </Button>
             </div>
           </div>

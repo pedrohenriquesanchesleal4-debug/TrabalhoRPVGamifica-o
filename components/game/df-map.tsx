@@ -22,9 +22,13 @@ const KIND_COLOR_VAR: Record<IndicatorKind, string> = {
  * poligonal de poucos nós, no espírito do resto da direção visual), e cada
  * propriedade é um ponto fixo dentro dele.
  *
+ * Na V6 o território lê como massa de cerrado ao amanhecer (verde-escuro
+ * quente em vez de aço), com um brilho dourado velado por trás: o mapa é a
+ * janela do jogo, não um diagrama.
+ *
  * Cada ponto usa a MESMA cor e o MESMO ícone que o indicador de destaque
  * daquela propriedade já tem no sistema de canais (`components/ui/gauges`):
- * zero cor nova fora da paleta fechada da direção "Noite de Cerrado".
+ * zero cor nova fora da paleta fechada da direção V6.
  *
  * Hover e foco de teclado revelam o nome em destaque e disparam um pulso
  * (reaproveita o keyframe `nascente`, já definido em `app/globals.css` para o
@@ -80,20 +84,30 @@ export function DfMap({ className }: { className?: string }) {
         focusable="false"
         className="absolute inset-0 h-full w-full"
       >
+        <defs>
+          {/* Brilho de 06:20 velado sob o território. */}
+          <radialGradient id="df-brilho" cx="0.5" cy="0.45" r="0.62">
+            <stop offset="0%" style={{ stopColor: 'var(--color-amanhecer)', stopOpacity: '0.2' }} />
+            <stop offset="100%" style={{ stopColor: 'var(--color-amanhecer)', stopOpacity: '0' }} />
+          </radialGradient>
+        </defs>
+        <rect width={VIEW_W} height={VIEW_H} fill="url(#df-brilho)" />
+        {/* Massa de cerrado: o território do jogo, não uma folha de aço. */}
         <path
           d={OUTLINE_PATH}
-          fill="var(--color-nevoa-100)"
-          stroke="var(--color-terra-700)"
-          strokeWidth="2"
+          fill="var(--color-verde-800)"
+          stroke="var(--color-verde-700)"
+          strokeOpacity="0.7"
+          strokeWidth="2.4"
           strokeLinejoin="round"
         />
         <path
           d={OUTLINE_PATH}
           fill="none"
-          stroke="var(--color-financas)"
-          strokeOpacity="0.25"
+          stroke="var(--color-terra-900)"
+          strokeOpacity="0.22"
           strokeWidth="1"
-          strokeDasharray="1 7"
+          strokeDasharray="1 9"
           strokeLinecap="round"
         />
       </svg>

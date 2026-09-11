@@ -22,6 +22,9 @@ import type { HostView } from '@/lib/game-service';
  * um `banco` com o canal reaproveitado, e por último o histórico por equipe
  * em coluna única, nunca em grade: seis caixas iguais lado a lado é
  * exatamente a geometria que esta direção proíbe.
+ *
+ * V6 "Amanhecer do Cerrado": console de controle com entrada cinemática,
+ * mirante como pergunta-gancho, sem paisagem competindo com a leitura.
  */
 export default function DiagnosticoPage() {
   const params = useParams<{ gameId: string }>();
@@ -95,32 +98,44 @@ export default function DiagnosticoPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10">
-      <Rotulo>SAFRA DF · Diagnóstico da turma</Rotulo>
+      {/* Cabeçalho do console: identidade + título. */}
+      <header className="flex flex-col gap-2 animate-emergir">
+        <Rotulo>SAFRA DF · Diagnóstico da turma</Rotulo>
+        <h1 className="relevo-lg text-terra-900">O que a turma fez</h1>
+        <div className="filete-amanhecer mt-1 w-24" />
+      </header>
 
+      {/* Pergunta-gancho: mirante em destaque, entrada com atraso. */}
       {openingHook ? (
-        <Degrau nivel="mirante" familia="azul" className="flex flex-col gap-3 p-6 sm:p-8">
-          <Rotulo className="text-azul-300">Pergunta para abrir o debate</Rotulo>
-          <h1 className="relevo-lg text-terra-900">{openingHook}</h1>
-        </Degrau>
+        <div className="animate-emergir" style={{ animationDelay: '100ms' }}>
+          <Degrau nivel="mirante" familia="azul" className="flex flex-col gap-3 p-6 sm:p-8">
+            <Rotulo className="text-azul-300">Pergunta para abrir o debate</Rotulo>
+            <h2 className="relevo-lg text-terra-900">{openingHook}</h2>
+          </Degrau>
+        </div>
       ) : (
-        <Degrau nivel="mirante" familia="claro" className="flex items-center gap-3 p-6">
-          <AlertTriangle className="shrink-0 text-terra-500" size={22} aria-hidden />
-          <p className="text-terra-700">
-            Ainda não há decisões suficientes registradas para gerar um gancho de debate. O
-            diagnóstico ganha corpo à medida que as equipes jogam as rodadas.
-          </p>
-        </Degrau>
+        <div className="animate-emergir" style={{ animationDelay: '100ms' }}>
+          <Degrau nivel="mirante" familia="claro" className="flex items-center gap-3 p-6">
+            <AlertTriangle className="shrink-0 text-terra-500" size={22} aria-hidden />
+            <p className="text-terra-700">
+              Ainda não há decisões suficientes registradas para gerar um gancho de debate. O
+              diagnóstico ganha corpo à medida que as equipes jogam as rodadas.
+            </p>
+          </Degrau>
+        </div>
       )}
 
+      {/* Barras de diagnóstico: contagem por comportamento agregado. */}
       {hasDecisions ? (
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 animate-emergir" style={{ animationDelay: '200ms' }}>
           <SectionHeading overline="O que a turma decidiu" title="Contagem por comportamento" />
           <DiagnosticBars entries={view.diagnostics} />
         </section>
       ) : null}
 
+      {/* Ganchos adicionais: lista simples, sem cards. */}
       {view.teachingHooks.length > 1 ? (
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 animate-emergir" style={{ animationDelay: '300ms' }}>
           <SectionHeading overline="Mais ganchos para o debate" title="Outras perguntas prontas" />
           <ul className="flex flex-col gap-4">
             {view.teachingHooks.slice(1).map((hook, index) => (
@@ -133,7 +148,8 @@ export default function DiagnosticoPage() {
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-4">
+      {/* Histórico por equipe: coluna única, nunca grade. */}
+      <section className="flex flex-col gap-4 animate-emergir" style={{ animationDelay: '400ms' }}>
         <SectionHeading
           overline="Por equipe"
           title="Histórico de decisões, rodada a rodada"
@@ -186,7 +202,7 @@ export default function DiagnosticoPage() {
       </section>
 
       {showPolicyDisclaimer ? (
-        <p className="border-t-2 border-nevoa-200 pt-4 text-xs text-terra-500">
+        <p className="border-t-2 border-nevoa-200 pt-4 text-xs text-terra-500 animate-emergir" style={{ animationDelay: '500ms' }}>
           {POLICY_DISCLAIMER}
         </p>
       ) : null}

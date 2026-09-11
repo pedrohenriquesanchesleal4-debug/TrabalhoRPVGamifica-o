@@ -1,103 +1,132 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, GraduationCap, Sprout } from 'lucide-react';
-import { Rotulo } from '@/components/ui/primitives';
-import { PropertyScene } from '@/components/game/property-scene';
+import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { DfMap } from '@/components/game/df-map';
+import { Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { GAUGE_ICON, GAUGE_INK, INDICATOR_KEY_TO_KIND } from '@/components/ui/gauges';
 import { PROPERTIES } from '@/data/properties';
 
 /**
- * Capa do jogo.
+ * Home V6 — "Amanhecer do Cerrado".
  *
- * Não é cartão centralizado num vazio: é um mirante (a única altitude 3 desta
- * tela) com a manchete e a cena da propriedade lado a lado, seguido de duas
- * portas assimétricas ("sou aluno" maior, "sou professor" menor e deslocada)
- * e uma faixa com as seis propriedades jogáveis, para que a variedade do jogo
- * já apareça antes de qualquer clique.
+ * Redesign cinematográfico: hero com paisagem SVG full-bleed, título em
+ * gradiente dourado, manifesto editorial, mapa do DF com as 6 propriedades
+ * e chamada final. Sem card genérico, sem glassmorphism, sem imagem nova.
  */
-
 export default function HomePage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-12 lg:py-16">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-6">
-        <section className="degrau mirante terr-fundo-verde flex flex-col gap-8 px-6 py-10 sm:px-10 sm:py-14 lg:col-span-3 lg:flex-row lg:items-center lg:gap-10 lg:py-16">
-          <div className="flex flex-col gap-4 lg:flex-1">
-            <Rotulo className="text-verde-300">Atividade diagnóstica · 15 a 20 minutos</Rotulo>
-            <h1 className="relevo-xl text-white">Safra DF</h1>
-            <p className="max-w-[46ch] text-base leading-relaxed text-white/90">
-              Cada equipe assume uma propriedade rural do Distrito Federal e administra um
-              orçamento limitado ao longo de cinco rodadas. Ninguém enxerga o jogo inteiro
-              sozinho: a decisão só fecha quando o grupo conversa em voz alta.
+    <main className="w-full">
+      {/* ----------------------------------------------------------------
+          1 · HERO CINEMATOGRÁFICO
+          Paisagem SVG como fundo, texto editorial assimétrico à esquerda.
+          ~92dvh no mobile (min-h-[92dvh]), respiração sem empurrar conteúdo.
+          ---------------------------------------------------------------- */}
+      <section className="relative min-h-[92dvh] overflow-hidden">
+        {/* Cenário: full-bleed, por trás de tudo */}
+        <CerradoLandscape className="z-0" />
+
+        {/* Overlay escuro sutil para garantir leitura do texto */}
+        <div className="pointer-events-none absolute inset-0 z-[1] bg-nevoa-50/40" />
+
+        {/* Conteúdo: posicionado sobre o cenário */}
+        <div className="relative z-[2] flex min-h-[92dvh] flex-col justify-end px-5 pb-12 pt-24 sm:px-8 sm:pb-16 sm:pt-28 lg:mx-auto lg:max-w-6xl lg:px-8">
+          <div className="flex max-w-xl flex-col gap-5 lg:max-w-2xl">
+            <Rotulo className="text-financas-texto">
+              BRASÍLIA · DISTRITO FEDERAL · 06:20
+            </Rotulo>
+
+            <h1 className="titulo-amanhecer text-7xl font-bold uppercase leading-[0.88] tracking-[0.004em] sm:text-8xl lg:text-[7rem]">
+              SAFRA<br />
+              DF
+            </h1>
+
+            <div className="filete-amanhecer w-full max-w-xs" />
+
+            <p className="max-w-[38ch] text-base leading-relaxed text-terra-700 sm:text-lg">
+              Uma propriedade. Recursos limitados. Cinco decisões que alimentam.
             </p>
-          </div>
-          <div className="mx-auto w-36 shrink-0 sm:w-44 lg:w-48 xl:w-56">
-            <PropertyScene propertyKey="riacho-verde" production={62} technology={48} sustainability={58} />
-          </div>
-        </section>
 
-        <div className="flex flex-col gap-4 lg:col-span-2 lg:justify-center">
-          <Link
-            href="/entrar"
-            className="degrau terraco pisavel terr-verde flex min-h-20 flex-col justify-center gap-1 px-6 py-5 text-terra-900 sm:min-h-24"
-          >
-            <span className="rotulo text-verde-300">Sou aluno</span>
-            <span className="relevo-sm flex items-center gap-2">
-              <Sprout size={20} aria-hidden="true" />
-              Entrar na partida
-              <ArrowRight size={18} aria-hidden="true" className="ml-auto" />
-            </span>
-          </Link>
-
-          <Link
-            href="/admin"
-            className="degrau banco pisavel terr-claro ml-6 flex min-h-16 items-center gap-3 px-5 text-terra-900 sm:ml-10"
-          >
-            <GraduationCap size={18} aria-hidden="true" />
-            <span className="text-sm font-bold">Sou professor: criar partida</span>
-          </Link>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <Link
+                href="/entrar"
+                className="degrau banco pisavel bg-financas text-nevoa-50 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em]"
+              >
+                ENTRAR NA PARTIDA
+              </Link>
+              <Link
+                href="/admin"
+                className="degrau banco pisavel terr-claro text-terra-900 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em]"
+              >
+                CRIAR PARTIDA
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <section className="degrau terraco terr-claro mt-6 flex flex-col gap-6 p-6 sm:p-8 lg:mt-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-center">
-          <div className="lg:col-span-2">
+      {/* ----------------------------------------------------------------
+          2 · FAIXA MANIFESTO / RAZÃO DE EXISTIR
+          Cerrado como problema real, jogo como simulação de decisão.
+          ---------------------------------------------------------------- */}
+      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+        <div className="degrau terraco terr-neutro flex flex-col gap-5 p-6 sm:p-8">
+          <p className="max-w-[54ch] text-sm leading-relaxed text-terra-700">
+            O Cerrado abriga a maior biodiversidade da América Latina — e cerca de
+            metade de suas áreas naturais já foram desmatadas para dar lugar à
+            agricultura. No Distrito Federal, a pressão é direta: loteamento irregular,
+            baixa disponibilidade hídrica e mão de obra familiar que opera com
+            recursos mínimos.
+          </p>
+          <p className="max-w-[54ch] text-sm leading-relaxed text-terra-700">
+            <span className="relevo-sm text-terra-900">Safra DF</span> não é um jogo
+            sobre dinheiro: é uma simulação de decisão sob escassez, onde cada equipe
+            gerencia uma propriedade real do DF durante cinco rodadas. A Reflexão
+            coletiva em sala de aula é o produto final — não a nota.
+          </p>
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------------
+          3 · MAPA DO DF + 6 PROPRIEDADES
+          Assimétrico: mapa à esquerda em desktop, coluna à direita com
+          as 6 propriedades usando Rotulo + nome + região + foco.
+          ---------------------------------------------------------------- */}
+      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+        <div className="degrau terraco terr-claro flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-start lg:gap-10">
+          {/* Mapa */}
+          <div className="shrink-0 lg:w-[45%]">
             <DfMap className="mx-auto max-w-xs lg:max-w-none" />
           </div>
 
-          <div className="flex flex-col gap-4 lg:col-span-3">
-            <Rotulo>6 propriedades. 1 território.</Rotulo>
-            <p className="max-w-prose text-sm text-terra-700">
-              Cada equipe entra numa parcela diferente do mesmo Distrito Federal, com uma
-              identidade própria: passe o mouse ou navegue por tab pelos pontos do mapa para ver
-              qual delas fica com você.
-            </p>
+          {/* Lista das propriedades */}
+          <div className="flex flex-1 flex-col gap-5">
+            <SectionHeading
+              overline="6 propriedades · 1 território"
+              title="Onde você vai plantar?"
+              description="Cada equipe entra numa parcela diferente do mesmo Distrito Federal, com uma identidade própria."
+            />
 
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {PROPERTIES.map((property) => {
                 const kind = INDICATOR_KEY_TO_KIND[property.highlight.indicator];
                 const Icon = GAUGE_ICON[kind];
                 return (
                   <li
                     key={property.key}
-                    className="degrau banco terr-neutro flex items-center gap-3 py-2 pl-2.5 pr-3"
+                    className="degrau banco terr-neutro flex flex-col gap-1 p-3.5 sm:flex-row sm:items-center sm:gap-3"
                   >
-                    <div className="w-9 shrink-0">
-                      <PropertyScene
-                        compact
-                        propertyKey={property.key}
-                        production={50}
-                        technology={40}
-                        sustainability={50}
-                      />
-                    </div>
-                    <span className="min-w-0 flex-1 truncate text-sm font-bold text-terra-900">
-                      {property.name}
+                    <span className={`flex items-center gap-2 ${GAUGE_INK[kind]}`}>
+                      <Icon size={16} strokeWidth={2.4} aria-hidden="true" />
+                      <span className="text-sm font-bold text-terra-900">
+                        {property.name}
+                      </span>
                     </span>
-                    <span className={`flex items-center gap-1.5 text-xs ${GAUGE_INK[kind]}`}>
-                      <Icon size={14} strokeWidth={2.4} aria-hidden="true" />
-                      <span className="whitespace-nowrap">{property.highlight.label}</span>
+                    <span className="rotulo text-terra-500">
+                      {property.region}
+                    </span>
+                    <span className="ml-auto text-xs text-terra-700">
+                      {property.highlight.label}
                     </span>
                   </li>
                 );
@@ -107,9 +136,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      <p className="mt-6 max-w-prose text-xs text-terra-500 lg:mt-8">
-        Valores e propriedades são fictícios, inspirados em núcleos rurais reais do Distrito
-        Federal. As decisões alimentam o debate em sala depois, não uma nota.
+      {/* ----------------------------------------------------------------
+          4 · CHAMADA FINAL
+          Frase seca + CTA dourado repetido + link do professor.
+          ---------------------------------------------------------------- */}
+      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+        <div className="degrau terraco terr-fundo-verde flex flex-col items-center gap-5 p-6 text-center sm:p-10">
+          <p className="relevo-lg text-white">
+            A primeira decisão é entrar.
+          </p>
+
+          <Link
+            href="/entrar"
+            className="degrau banco pisavel bg-financas text-nevoa-50 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em]"
+          >
+            ENTRAR NA PARTIDA
+          </Link>
+
+          <Link
+            href="/admin"
+            className="rotulo text-verde-300 hover:text-verde-300/80"
+          >
+            Sou professor · criar partida
+          </Link>
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------------
+          RODAPÉ LEGAL
+          ---------------------------------------------------------------- */}
+      <p className="mx-auto max-w-6xl px-5 pb-10 pt-2 text-xs text-terra-500 sm:px-8">
+        Valores e propriedades são fictícios, inspirados em núcleos rurais
+        reais do Distrito Federal. As decisões alimentam o debate em sala
+        depois, não uma nota.
       </p>
     </main>
   );

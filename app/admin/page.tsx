@@ -27,6 +27,7 @@ import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DenseTeamCard } from '@/components/host/team-board';
 import { PropertyScene } from '@/components/game/property-scene';
+import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { DEFAULT_CONFIG, ROUND_META, TOTAL_ROUNDS } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
 
@@ -38,6 +39,9 @@ import type { HostView } from '@/lib/game-service';
  * a maioria das aulas usa o padrão). Com partida, tudo gira em torno do
  * código para projetar e de quatro ou cinco botões de controle, cada um
  * explicando por texto por que está desabilitado quando está.
+ *
+ * V6 "Amanhecer do Cerrado": command center com paisagem discreta atrás do
+ * header, botões em projecao para leitura em telão, hierarquia visual clara.
  */
 
 type Phase = 'checking' | 'no_session' | 'ready' | 'session_invalid';
@@ -489,7 +493,12 @@ function ControlPanel({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-6 border-t-2 border-nevoa-200 pt-4 sm:flex-row sm:items-start sm:justify-between">
+      {/* Paisagem discreta atrás do header: identidade sem competir com dados. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-64 opacity-10">
+        <CerradoLandscape />
+      </div>
+
+      <header className="relative z-10 flex flex-col gap-6 border-t-2 border-nevoa-200 pt-4 sm:flex-row sm:items-start sm:justify-between animate-emergir">
         <div className="flex flex-col gap-2">
           <Rotulo>SAFRA DF · Painel do professor</Rotulo>
           <div className="flex items-baseline gap-4">
@@ -544,7 +553,7 @@ function ControlPanel({
         </div>
       </header>
 
-      <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-4 p-6">
+      <Degrau nivel="terraco" familia="neutro" className="relative z-10 flex flex-col gap-4 p-6">
         <SectionHeading overline="Controle da partida" title="O que fazer agora" />
 
         {actionError ? (
@@ -569,6 +578,7 @@ function ControlPanel({
             label={game.currentRound === 0 ? 'Iniciar rodada 1' : `Abrir rodada ${game.currentRound + 1}`}
             icon={<Play size={18} aria-hidden />}
             variant="principal"
+            size="projecao"
             state={actionStates?.start_round}
             pending={pending === 'start_round'}
             onClick={() => void run('start_round')}
@@ -577,6 +587,7 @@ function ControlPanel({
             label="Resolver rodada"
             icon={<RefreshCcw size={18} aria-hidden />}
             variant="principal"
+            size="projecao"
             state={actionStates?.resolve_round}
             pending={pending === 'resolve_round'}
             onClick={() => void run('resolve_round')}
@@ -681,7 +692,7 @@ function ControlPanel({
       </Degrau>
 
       {lastOutcomes && lastOutcomes.length > 0 ? (
-        <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-4 p-6">
+        <Degrau nivel="terraco" familia="neutro" className="relative z-10 flex flex-col gap-4 p-6">
           <SectionHeading
             overline="Última rodada resolvida"
             title="O que aconteceu com cada equipe"
@@ -715,7 +726,7 @@ function ControlPanel({
         </Degrau>
       ) : null}
 
-      <section className="flex flex-col gap-4">
+      <section className="relative z-10 flex flex-col gap-4 animate-emergir" style={{ animationDelay: '300ms' }}>
         <SectionHeading
           overline="Equipes"
           title={`${view.teams.length} equipes se formando`}
@@ -747,6 +758,7 @@ function ActionButton({
   label,
   icon,
   variant,
+  size,
   state,
   pending,
   onClick,
@@ -754,6 +766,7 @@ function ActionButton({
   label: string;
   icon: ReactNode;
   variant: 'principal' | 'secundario';
+  size?: 'grande' | 'projecao';
   state?: DisabledReason;
   pending: boolean;
   onClick: () => void;
@@ -764,7 +777,7 @@ function ActionButton({
     <div className="flex flex-col gap-1.5">
       <Button
         variant={variant}
-        size="grande"
+        size={size ?? 'grande'}
         onClick={onClick}
         disabled={disabled}
         title={state?.reason ?? undefined}

@@ -13,7 +13,8 @@ import {
 
 /**
  * Primitivas compartilhadas entre a tela do aluno (celular) e as telas do
- * professor (projetor). Direção visual V4 "Noite de Cerrado" (herda a física de degrau da V3).
+ * professor (projetor). Direção visual V6 "Amanhecer do Cerrado" (herda a
+ * física de degrau da V3, preservada pelas V4/V5).
  *
  * A regra estrutural da direção vive aqui: não existe card com borda nos
  * quatro lados, sombra difusa e raio uniforme. Existe DEGRAU, composto de
@@ -96,15 +97,22 @@ export function Rotulo({ children, className }: { children: ReactNode; className
 // Botão
 // ---------------------------------------------------------------------------
 
-type ButtonVariant = 'principal' | 'secundario' | 'silencioso' | 'perigo';
+type ButtonVariant = 'principal' | 'secundario' | 'silencioso' | 'perigo' | 'destaque';
 type ButtonSize = 'normal' | 'grande' | 'projecao';
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // Prato verde escuro com texto branco: 8.8:1, passa AAA.
+  // Prato verde escuro com texto branco: segue AAA.
   principal: 'degrau banco pisavel terr-fundo-verde text-white',
   secundario: 'degrau banco pisavel terr-claro text-terra-900',
   silencioso: 'bg-transparent text-terra-700 hover:text-terra-900',
   perigo: 'degrau banco pisavel terr-alerta text-terra-900',
+  /*
+    Destaque dourado: FATO de CTA primário da V6 (ENTRAR NA PARTIDA, iniciar
+    partida). Dourado da safra com texto em breu: ~9:1, passa AAA. A classe
+    `bg-financas` vence a cor de fundo do degrau porque utilities vêm depois
+    de components na cascata.
+  */
+  destaque: 'degrau banco pisavel bg-financas text-nevoa-50',
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {

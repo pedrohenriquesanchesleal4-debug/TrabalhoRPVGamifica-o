@@ -3,7 +3,7 @@ import { PROPERTY_BY_KEY } from '@/data/properties';
 import { GAUGE_ICON, INDICATOR_KEY_TO_KIND } from '@/components/ui/gauges';
 
 /**
- * SAFRA DF · parcela vista de cima, curvas de nível (herdada da V3, agora sob luz noturna na V4).
+ * SAFRA DF · parcela vista de cima, curvas de nível (direção V6 "Amanhecer do Cerrado").
  *
  * Substitui o corte lateral de solo da direção anterior ("Boletim de Safra").
  * A cena agora é a propriedade vista de cima, em perspectiva levemente
@@ -294,7 +294,31 @@ export function PropertyScene({
     >
       <defs>
         <TechDefs idPrefix={`${uid}-ico`} />
+        {/* Luz ambiente da V6: a parcela respira num breu levemente quente, não num vazio chapado. */}
+        <radialGradient id={`${uid}-breu`} cx="0.5" cy="0.42" r="0.85">
+          <stop offset="0%" style={{ stopColor: 'var(--color-nevoa-100)' }} />
+          <stop offset="72%" style={{ stopColor: 'var(--color-nevoa-50)', stopOpacity: '0.9' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--color-nevoa-50)' }} />
+        </radialGradient>
+        {/* Afago da produção alta: brilho dourado atrás da sede quando a safra está boa. */}
+        <radialGradient id={`${uid}-colheita`} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0.34' }} />
+          <stop offset="70%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0.1' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0' }} />
+        </radialGradient>
       </defs>
+
+      {/* Fundo: breu com luz de 06:20, atrás de tudo. */}
+      <rect width={VIEW} height={VIEW} fill={`url(#${uid}-breu)`} />
+      {/* Colheita em andamento: só acende em produção alta, transição única (nunca laço). */}
+      <circle
+        cx={CORE_CX}
+        cy={104}
+        r={90}
+        fill={`url(#${uid}-colheita)`}
+        opacity={p >= 80 ? 1 : 0}
+        style={{ transition: 'opacity 700ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+      />
 
       {/* Anel externo · vegetação nativa: contorno + textura pontilhada ligada à sustentabilidade. */}
       <path d={trapezoid(OUTER)} fill="var(--color-verde-300)" fillOpacity="0.28" stroke="var(--color-verde-700)" strokeWidth="1.5" />
@@ -320,6 +344,14 @@ export function PropertyScene({
       </g>
 
       {/* Canal de água: atravessa os anéis, espessura transiciona entre crise e situação saudável. */}
+      <path
+        d="M100 20 C 60 50, 140 70, 90 100 C 50 125, 120 150, 100 190"
+        fill="none"
+        stroke="var(--color-terra-900)"
+        strokeOpacity="0.12"
+        strokeWidth={canalStrokeWidth + 2.4}
+        strokeLinecap="round"
+      />
       <path
         d="M100 20 C 60 50, 140 70, 90 100 C 50 125, 120 150, 100 190"
         fill="none"

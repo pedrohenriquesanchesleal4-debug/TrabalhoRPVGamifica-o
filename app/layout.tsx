@@ -55,7 +55,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1a1a17',
+  // Breu de terra-noite da V6 (amanhecer do Cerrado).
+  themeColor: '#0d0f0b',
   width: 'device-width',
   initialScale: 1,
   // O aluno joga no celular com uma mão: zoom liberado é acessibilidade.
