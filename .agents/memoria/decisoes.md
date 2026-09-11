@@ -76,3 +76,20 @@ Fundação (globals, landscape, re-skins) feita pelo orquestrador; frentes de p�
 4. Chat interativo com o modelo — rejeitada: multiplica chamadas por aluno.
 
 **Consequência:** cache em debate_prep (1 chamada/partida mesmo com cliques duplos — singleflight em memória), timeout 25s AbortController, sem retry em 429 (cota é o problema, não rede), retry único só rede/5xx, maxOutputTokens 1500 porque o **gemini-3.6-flash consome tokens de saída no "pensamento" antes do texto visível** (medido: 469 de thinking numa resposta de 41; com 50 de teto a saída vinha VAZIA). Modelo obrigatório: gemini-3.6-flash — chaves novas recebem 404 em gemini-2.5-flash (validado ao vivo). Saída em markdown enxuto renderizado por MarkdownLite (sem dependência). Migration: supabase/migrations/0001_debate_prep.sql (copiar no Supabase). Teste puro do snapshot em 	ests/gemini.test.ts. Gate: ` npm run verify ` verde (16 rotas).
+
+
+## 2026-09-11 · D-09: RAG Fase 2 — corpus vetorial com citação por fonte (pgvector)
+
+**Contexto:** roteiro (D-08) citava políticas só via policyConnections (o que a turma fez → programa). Professor pediu "fazer tudo": citar políticas/tecnologias reais COM fonte no roteiro, sem lotar a IA.
+
+**Decisão:** RAG híbrido frugal. Corpus = 14 fichas (6 políticas + 8 tecnologias) derivadas LITERALMENTE de data/policies.ts e data/technologies.ts — texto zero novo, número zero inventado, fonte por ficha (declarada pelo app). Embedding único em gemini-embedding-001 (3072 dims, medido ao vivo: 	ext-embedding-004 está indisponível para chaves novas). Runtime: 1 embedding da partida + match_corpus() (pgvector HNSW, 3 fichas, sem chamada de IA extra) → seção "## Materiais de apoio" no prompt com nome + Fonte; modelo cita (Fonte: ...) por ponto. Falha de embedding/busca DEGRADA para roteiro sem material (generation nunca trava). Migration 0002 cria corpus_politicas + coluna material_usado em debate_prep + função match_corpus.
+
+**Alternativas consideradas:**
+1. RAG por keyword (sem vetor) — rejeitada: qualidade de recuperação inferior ao embedding para fraseado livre do snapshot.
+2. Embedding por aluno/toda abertura — rejeitada: multiplica chamadas; cache já cobre regeneração (roteiro cacheado NUNCA re-embeda).
+3. text-embedding-004 (768 dims, mais barato) — rejeitada POR TESTE AO VIVO: 404 em chaves novas. **Erro pego na migration:** HNSW do pgvector não indexa acima de 2000 dims; default 3072 do gemini-embedding-001 quebrava o índice (54000) — resolvido com outputDimensionality 768, que cabe tranquilo no HNSW.
+4. Script Node com loader TS p/ embed — rejeitada: drift de fonte; preferido rota admin POST /api/admin/corpus/embed (importa o TS nativo) + EMBED_ADMIN_KEY Bearer + 
+pm run embed:corpus (cliente HTTP local, 20 linhas).
+
+**Consequência:** 15 embeddings fixos (uma vez, plano grátis cobre) = custo total do RAG; por aluno, zero; por partida, 1 chamada de geração + 1 de embedding (só na 1ª abertura). Gate 
+pm run verify verde (17 rotas, 101 testes). Lição: **sempre testar model+shape ao vivo antes de fixar schema/constants** (3.6-flash viaja pensando; embedding-001 = 3072; 004 deprecado).

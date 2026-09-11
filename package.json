@@ -13,6 +13,7 @@
     "simulate": "tsx scripts/simulate.ts",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "smoke": "node --env-file=.env.local scripts/smoke-live.mjs",
+    "embed:corpus": "node scripts/embed-corpus.mjs",
     "browser-check": "node scripts/browser-check.mjs"
   },
   "dependencies": {

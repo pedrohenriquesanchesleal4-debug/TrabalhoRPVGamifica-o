@@ -1,5 +1,6 @@
 import { ApiError } from '@/lib/http';
 import { adminClient } from '@/lib/supabase';
+import { montarMaterialDeApoio } from '@/lib/corpus';
 import type { HostView } from '@/lib/game-service';
 import {
   AWARD_META,
@@ -36,9 +37,11 @@ export interface DebatePrep {
   modelo: string;
   /** true quando a resposta veio do cache (não gastou chamada de IA). */
   doCache: boolean;
+  /** true quando o roteiro veio com fichas citáveis (RAG Fase 2). */
+  materialUsado: boolean;
 }
 
-type RoteiroSalvo = { roteiro: string; modelo: string };
+type RoteiroSalvo = { roteiro: string; modelo: string; materialUsado: boolean };
 
 // ---------------------------------------------------------------------------
 // Instrução de sistema: pequena, estática, toda a política pedagógica aqui.
@@ -50,7 +53,7 @@ Com base APENAS nos dados reais da partida fornecidos, escreva um roteiro para o
 1. Não invente números, nomes, programas ou eventos: cite somente fatos presentes nos dados.
 2. Nunca diga que uma equipe está certa ou errada, e nunca declare "estratégia ótima". Trate as escolhas como trade-offs legítimos.
 3. Português do Brasil, linguagem oral de mediação, dirigindo-se ao professor ("você"). Tom acolhedor, nunca punitivo, nunca irônico.
-4. Políticas públicas e tecnologias reais só podem ser citadas se aparecerem em "politicasPublicas" do snapshot (o nome real vem junto). Fora isso, use sempre "programa público" genérico.
+4. Políticas públicas e tecnologias reais só podem ser citadas se aparecerem em "politicasPublicas" do snapshot ou na seção "## Materiais de apoio" (o nome real e a Fonte vêm junto). Fora isso, use sempre "programa público" genérico.
 5. Cada ponto deve ancorar em pelo menos um fato concreto da partida (um indicador final, uma escolha repetida, um evento, um contraste entre equipes).
 6. Markdown permitido apenas: # título, ## subtítulo, - listas, 1. listas numeradas e **negrito** para destacar o fato. Nada além disso.
 
@@ -68,7 +71,9 @@ Formato exato de saída, com exatamente estes 4 blocos, nesta ordem:
 
 ## Perguntas para a sala
 1. <pergunta direta que qualquer equipe consiga responder pela própria experiência>
-2. <pergunta direta que force comparar estratégias diferentes>`;
+2. <pergunta direta que force comparar estratégias diferentes>
+
+7. Quando citar um programa ou técnica da seção "## Materiais de apoio", acrescente a Fonte exatamente como fornecida, no formato: (Fonte: <fonte>). Cite apenas nomes presentes na seção.`;
 
 // ---------------------------------------------------------------------------
 // Snapshot compacto da partida (tudo que o roteiro pode citar, sem ruído).
@@ -266,7 +271,7 @@ export async function generateDebateRoteiro(
   const client = adminClient();
 
   const cached = await client.from('debate_prep')
-    .select('roteiro, modelo')
+    .select('roteiro, modelo, material_usado')
     .eq('game_id', gameId)
     .maybeSingle();
 
@@ -275,7 +280,12 @@ export async function generateDebateRoteiro(
     throw new ApiError('server_error', 'Falha ao consultar o roteiro salvo.');
   }
   if (cached.data?.roteiro) {
-    return { roteiro: cached.data.roteiro, modelo: cached.data.modelo, doCache: true };
+    return {
+      roteiro: cached.data.roteiro,
+      modelo: cached.data.modelo,
+      doCache: true,
+      materialUsado: cached.data.material_usado ?? false,
+    };
   }
 
   let promise = IN_FLIGHT.get(gameId);
@@ -284,8 +294,8 @@ export async function generateDebateRoteiro(
     IN_FLIGHT.set(gameId, promise);
   }
 
-  const { roteiro, modelo } = await promise;
-  return { roteiro, modelo, doCache: false };
+  const { roteiro, modelo, materialUsado } = await promise;
+  return { roteiro, modelo, doCache: false, materialUsado };
 }
 
 async function generateAndSave(
@@ -293,12 +303,19 @@ async function generateAndSave(
   view: HostView,
 ): Promise<RoteiroSalvo> {
   const snapshot = buildDebateSnapshot(view);
-  const roteiro = await callGeminiWithRetry(snapshot);
+
+  // RAG: incorpora a partida, busca 3 fichas citáveis. Falha degrada para o
+  // roteiro sem material de apoio — a geração nunca trava por causa disso.
+  const material = await montarMaterialDeApoio(snapshot).catch(() => '');
+  const roteiro = await callGeminiWithRetry(material ? `${snapshot}\n\n${material}` : snapshot);
   const modelo = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
   const saved = await adminClient()
     .from('debate_prep')
-    .upsert({ game_id: gameId, roteiro, modelo }, { onConflict: 'game_id' });
+    .upsert(
+      { game_id: gameId, roteiro, modelo, material_usado: material !== '' },
+      { onConflict: 'game_id' },
+    );
 
   if (saved.error) {
     console.error('[safra-df] falha ao salvar roteiro:', saved.error.message);
@@ -308,7 +325,7 @@ async function generateAndSave(
     );
   }
 
-  return { roteiro, modelo };
+  return { roteiro, modelo, materialUsado: material !== '' };
 }
 
 /** Visibilidade para testes: nada aqui precisa da rede. */

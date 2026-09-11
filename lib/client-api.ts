@@ -123,6 +123,8 @@ export interface DebatePrepResponse {
   roteiro: string;
   modelo: string;
   doCache: boolean;
+  /** true quando o roteiro veio com fichas citáveis de políticas/tecnologias. */
+  materialUsado: boolean;
 }
 
 /**

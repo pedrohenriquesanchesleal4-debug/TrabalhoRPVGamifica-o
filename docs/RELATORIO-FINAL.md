@@ -152,3 +152,16 @@ O jogo ensina a pergunta (escassez, água, risco). A IA com RAG bem curada ensin
 Depois do relatório, o professor pediu e recebeu a Fase 1 do plano de IA: botão **"Preparar roteiro de debate"** no Bloco 5 do resultado (/host/[gid]/resultado). Uma chamada ao Gemini por partida, ancorada nos fatos reais da partida (indicadores finais, histórico de decisões por equipe, perfil, prêmios, diagnóstico, ganchos e conexões de política pública). Saída: fala de abertura, 3-5 pontos para sustentar, uma provocação e 2 perguntas para a sala — para o professor, em PT-BR, sem julgar equipes nem declarar estratégia ótima.
 
 Limites de cota respeitados: cache em tabela debate_prep (reabrir a tela nunca regenera), guarda de clique duplo (singleflight), timeout 25s, sem retry em 429, retry único só para rede/5xx, snapshot JSON <7k caracteres. Modelo: gemini-3.6-flash (o 2.5-flash responde 404 para chaves novas — testado ao vivo). Para ativar: executar supabase/migrations/0001_debate_prep.sql no Supabase e definir GEMINI_API_KEY + GEMINI_MODEL no servidor (Vercel).
+
+
+## Adendo 2 (2026-09-11) · Fase 2 de IA entregue: RAG com citação por fonte
+
+Corpus vetorial de 14 fichas (6 políticas públicas + 8 tecnologias), derivadas dos dados já existentes do app (zero número inventado, fonte por ficha). Fluxo: partida → embedding (gemini-embedding-001, 3072 dims, medido ao vivo) → busca pgvector HNSW das 3 fichas mais próximas → prompt ganha "Materiais de apoio" com nome + Fonte → roteiro cita (Fonte: ...) nos pontos. Custo: 15 embeddings FIXOS (uma vez, via 
+pm run embed:corpus); por partida continua 1 geração + 1 embedding, só na primeira abertura (cache). Falha de busca degrada para roteiro sem citação, nunca trava a aula.
+
+
+## Correção (2026-09-11) · 3072 → 768 dims no corpus
+
+A migration 0002 original falhava no Supabase com ERROR: 54000: column cannot have more than 2000 dimensions for hnsw index — o gemini-embedding-001 entrega 3072 dims por padrão, mas o HNSW do pgvector indexa no máximo 2000. Corrigido ao vivo: o modelo aceita outputDimensionality, e 768 foi confirmado na chave do projeto. A migration 0002 foi reescrita para 768 dims (HNSW volta a funcionar) e ficou idempotente/defensiva: se você rodou a versão 3072 e quebrou no meio, rode 0002 de novo (apaga o estado parcial e recria). Código (lib/corpus.ts, .env.example, .env.local) alinhado: outputDimensionality: 768 em todo embedding. Gate 
+pm run verify verde; validar no Supabase e, se o corpus ainda estiver vazio, 
+pm run embed:corpus.

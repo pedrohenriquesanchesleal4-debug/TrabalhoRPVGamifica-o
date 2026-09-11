@@ -349,6 +349,9 @@ export default function ResultadoPage() {
                     <Rotulo className="text-verde-300">Roteiro do professor</Rotulo>
                     <p className="text-xs text-terra-700">
                       Gerado por {debate.modelo} com os dados desta partida · usado uma única vez.
+                      {debate.materialUsado
+                        ? ' · políticas públicas citadas com fonte (RAG).'
+                        : ''}
                     </p>
                   </div>
                   <MarkdownLite text={debate.roteiro} />
