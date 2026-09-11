@@ -179,6 +179,37 @@
 }
 
 /*
+  Movimento 11 · surgir. Revelação dirigida por scroll (`.revelar`): o módulo
+  nasce da terra conforme entra na viewport. Mesma curva de `emergir`, mais
+  distância — a dobra é um horizonte, e o conteúdo sobe dele. Disparo único,
+  transform/opacity apenas.
+*/
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+  Movimento 12 · cena em parallax (`.paralaxe-cena`). A paisagem do hero desce
+  8vh e cresce 6% conforme o scroll deixa o topo: profundidade de câmera sobre
+  uma cena estática, sem layout, sem paint além da composição.
+*/
+@keyframes cena-paralaxe {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: translateY(8vh) scale(1.06);
+  }
+}
+
+/*
   Movimento 8 · respiro do amanhecer. A luz do sol atrás do horizonte vive
   devagar: opacidade de um brilho radial subindo e descendo em 9s. Só
   `opacity`, custo zero de paint. Uso: hero e abertura.
@@ -361,6 +392,22 @@
 
     .luz-pisca {
       opacity: 0.85 !important;
+    }
+
+    /*
+      V6.1 · scroll-driven colapsado: o global acima (duração ~0, iteração 1)
+      congelaria a revelação no primeiro quadro (opacity 0). Estado terminal
+      explícito: conteúdo sempre visível, cena sem deslocamento.
+    */
+    .revelar {
+      opacity: 1 !important;
+      transform: none !important;
+      animation: none !important;
+    }
+
+    .paralaxe-cena {
+      transform: none !important;
+      animation: none !important;
     }
   }
 }
@@ -657,5 +704,35 @@
       var(--color-amanhecer) 78%,
       transparent
     );
+  }
+
+  /*
+    Camada V6.1 · movimento dirigido por scroll (CSS nativo, zero JS).
+
+    `.revelar` — módulo abaixo da dobra surge ao entrar na viewport
+    (`animation-timeline: view()`). Guarda `@supports`: navegador sem
+    scroll-timeline mostra o conteúdo estático, sem esconder nada. O estado
+    final é o default; a animação só existe onde suportada.
+
+    `.paralaxe-cena` — a paisagem do hero desce e cresce levemente conforme o
+    scroll sai do topo, dando profundidade sem mover um pixel de layout.
+    Aplicar no wrapper da cena (transform em camada própria, GPU).
+
+    Regras da casa: transform/opacity apenas; nunca em painel de dado; o
+    global `prefers-reduced-motion` devolve ambos ao estado terminal (ver
+    camada base). LCP intocado: nada acima da dobra usa `.revelar`.
+  */
+  @supports (animation-timeline: view()) {
+    .revelar {
+      animation: surgir 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 55%;
+    }
+
+    .paralaxe-cena {
+      animation: cena-paralaxe linear both;
+      animation-timeline: scroll();
+      animation-range: 0px 88vh;
+    }
   }
 }

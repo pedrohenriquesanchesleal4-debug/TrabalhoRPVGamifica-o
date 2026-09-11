@@ -133,7 +133,12 @@ export function OpeningSequence({
 
         <div
           aria-hidden="true"
-          className="filete-amanhecer mt-1 w-48"
+          className={
+            reducedMotion
+              ? 'filete-amanhecer mt-1 w-48'
+              : 'filete-amanhecer mt-1 w-48 animate-emergir'
+          }
+          style={reducedMotion ? undefined : { animationDelay: '3000ms' }}
         />
 
         <button

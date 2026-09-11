@@ -19,7 +19,7 @@ A V5 era um painel de silo: correta, legível, mas fria e estática. A V6 manté
 | Fundo base | `#0a0e13` (azul-noite frio) | `#0d0f0b` (noite de terra, quente) |
 | Textura | Blueprint / grade técnica | Brilho de amanhecer, serra velada, grão de filme |
 | Clima de cor | Cinza-azulado | Terra + dourado (ouro reservado a destaque/foco) |
-| Keyframes | 4 (`emergir`, `nascente`, `copa`, `trava`) | 9 (+ `amanhecer`, `voo`, `balanco`, `nuvem`, `cintilar` — apenas paisagem) |
+| Keyframes | 4 (`emergir`, `nascente`, `copa`, `trava`) | 11 (+ `amanhecer`, `voo`, `balanco`, `nuvem`, `cintilar` — apenas paisagem; + `surgir` e `cena-paralaxe` — V6.1 scroll) |
 | Componente herói | — | `cerrado-landscape` (SVG full-bleed reutilizável) |
 | Título de hero | Tipografia chapada | `titulo-amanhecer` (gradiente dourado sobre preto) |
 | CTA primário | Verde | Ouro (`destaque` / `bg-financas`) |
@@ -85,6 +85,18 @@ A disciplina da V5 permanece: **transform/opacity apenas**, animações declarad
 | `balanco` | 5s | Oscilação da vegetação |
 | `nuvem` | 46s | Deriva lenta de nuvem |
 | `cintilar` | 3.4s | Luzes acesas da casa rural |
+| `surgir` | 0.7s | Revelação dirigida por scroll (`.revelar`, V6.1) |
+| `cena-paralaxe` | linear | Parallax da cena no hero (`.paralaxe-cena`, V6.1) |
+
+### V6.1 — camada de movimento dirigido por scroll (CSS nativo, zero JS)
+
+Camada adicionada após a entrega da V6 ("gostei, mas quero mais animação"). Técnica: **CSS Scroll-Driven Animations** (`animation-timeline: view()`/`scroll()`), nativas no Chrome/Edge 115+, Firefox 132+, Safari 18+; sem biblioteca, sem JS, sem rAF — custo ~zero em celular.
+
+- `.revelar` — módulo abaixo da dobra nasce da terra ao entrar na viewport (`surgir`, range `entry 5%..55%`). Guarda `@supports (animation-timeline: view())`: navegador sem suporte mostra tudo estático e visível (estado final é o default). Aplicado só ABAIXO da dobra — LCP intocado.
+- `.paralaxe-cena` — a paisagem do hero desce 8vh e cresce 6% conforme o scroll sai do topo (range `0..88vh`).
+- Heróis usam coreografia de entrada única: `motion-safe:animate-emergir` + `animationDelay` escalonado (0/80/160/240ms). O prefixo `motion-safe:` faz a classe nem nascer sob `prefers-reduced-motion` — conteúdo estático-visível imediato, sem janela de invisibilidade por delay.
+- `prefers-reduced-motion: reduce` devolve `.revelar` (opacity 1, transform none, animation none) e `.paralaxe-cena` (off) ao estado terminal na camada base.
+- Páginas já completas (zero edição, sem duplicar): todos os estados de `app/jogar`, transições de `app/entrar`, blocos de `resultado`/`diagnostico`, `event-card` (trava preservada).
 
 **`prefers-reduced-motion`**: os cinco novos keyframes têm estado estático equivalente (`.ceu-respiro`, `.bando`, `.nuvem-painel`, `.folhagem`, `.luz-pisca`); `emergir`/`copa`/`trava` zeram duração; o fluxo da abertura troca o timer automático por botão explícito.
 

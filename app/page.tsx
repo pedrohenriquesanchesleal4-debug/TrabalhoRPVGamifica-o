@@ -22,7 +22,7 @@ export default function HomePage() {
           Paisagem SVG como fundo, texto editorial assimétrico à esquerda.
           ~92dvh no mobile (min-h-[92dvh]), respiração sem empurrar conteúdo.
           ---------------------------------------------------------------- */}
-      <section className="relative min-h-[92dvh] overflow-hidden">
+      <section className="paralaxe-cena relative min-h-[92dvh] overflow-hidden">
         {/* Cenário: full-bleed, por trás de tudo */}
         <CerradoLandscape className="z-0" />
 
@@ -32,31 +32,35 @@ export default function HomePage() {
         {/* Conteúdo: posicionado sobre o cenário */}
         <div className="relative z-[2] flex min-h-[92dvh] flex-col justify-end px-5 pb-12 pt-24 sm:px-8 sm:pb-16 sm:pt-28 lg:mx-auto lg:max-w-6xl lg:px-8">
           <div className="flex max-w-xl flex-col gap-5 lg:max-w-2xl">
-            <Rotulo className="text-financas-texto">
-              BRASÍLIA · DISTRITO FEDERAL · 06:20
-            </Rotulo>
+            <div className="motion-safe:animate-emergir" style={{ animationDelay: '0ms' }}>
+              <Rotulo className="text-financas-texto">
+                BRASÍLIA · DISTRITO FEDERAL · 06:20
+              </Rotulo>
+            </div>
 
-            <h1 className="titulo-amanhecer text-7xl font-bold uppercase leading-[0.88] tracking-[0.004em] sm:text-8xl lg:text-[7rem]">
+            <h1 className="titulo-amanhecer text-7xl font-bold uppercase leading-[0.88] tracking-[0.004em] sm:text-8xl lg:text-[7rem] motion-safe:animate-emergir" style={{ animationDelay: '80ms' }}>
               SAFRA<br />
               DF
             </h1>
 
-            <div className="filete-amanhecer w-full max-w-xs" />
+            <div className="filete-amanhecer w-full max-w-xs motion-safe:animate-emergir" style={{ animationDelay: '160ms' }} />
 
-            <p className="max-w-[38ch] text-base leading-relaxed text-terra-700 sm:text-lg">
+            <p className="max-w-[38ch] text-base leading-relaxed text-terra-700 sm:text-lg motion-safe:animate-emergir" style={{ animationDelay: '240ms' }}>
               Uma propriedade. Recursos limitados. Cinco decisões que alimentam.
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <Link
                 href="/entrar"
-                className="degrau banco pisavel bg-financas text-nevoa-50 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em]"
+                className="degrau banco pisavel bg-financas text-nevoa-50 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em] motion-safe:animate-emergir"
+                style={{ animationDelay: '320ms' }}
               >
                 ENTRAR NA PARTIDA
               </Link>
               <Link
                 href="/admin"
-                className="degrau banco pisavel terr-claro text-terra-900 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em]"
+                className="degrau banco pisavel terr-claro text-terra-900 inline-flex min-h-14 items-center justify-center gap-2 px-6 text-base font-bold tracking-[0.01em] motion-safe:animate-emergir"
+                style={{ animationDelay: '400ms' }}
               >
                 CRIAR PARTIDA
               </Link>
@@ -69,7 +73,7 @@ export default function HomePage() {
           2 · FAIXA MANIFESTO / RAZÃO DE EXISTIR
           Cerrado como problema real, jogo como simulação de decisão.
           ---------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+      <section className="revelar mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
         <div className="degrau terraco terr-neutro flex flex-col gap-5 p-6 sm:p-8">
           <p className="max-w-[54ch] text-sm leading-relaxed text-terra-700">
             O Cerrado abriga a maior biodiversidade da América Latina — e cerca de
@@ -92,7 +96,7 @@ export default function HomePage() {
           Assimétrico: mapa à esquerda em desktop, coluna à direita com
           as 6 propriedades usando Rotulo + nome + região + foco.
           ---------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+      <section className="revelar mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
         <div className="degrau terraco terr-claro flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-start lg:gap-10">
           {/* Mapa */}
           <div className="shrink-0 lg:w-[45%]">
@@ -140,7 +144,7 @@ export default function HomePage() {
           4 · CHAMADA FINAL
           Frase seca + CTA dourado repetido + link do professor.
           ---------------------------------------------------------------- */}
-      <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
+      <section className="revelar mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:py-16">
         <div className="degrau terraco terr-fundo-verde flex flex-col items-center gap-5 p-6 text-center sm:p-10">
           <p className="relevo-lg text-white">
             A primeira decisão é entrar.

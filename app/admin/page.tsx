@@ -213,7 +213,7 @@ function CreateGameScreen({
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-6 py-10 lg:py-16">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-8">
         <section className="degrau mirante terr-fundo-verde flex flex-col gap-6 px-8 py-10 lg:col-span-3 lg:flex-row lg:items-center lg:gap-10 lg:py-14">
-          <div className="flex flex-col gap-3 lg:flex-1">
+          <div className="flex flex-col gap-3 lg:flex-1 motion-safe:animate-emergir">
             <Rotulo className="text-verde-300">SAFRA DF · Painel do professor</Rotulo>
             <h1 className="relevo-lg text-white">Criar uma nova partida</h1>
             <p className="max-w-[46ch] text-white/90">
@@ -222,7 +222,7 @@ function CreateGameScreen({
               rurais do Distrito Federal.
             </p>
           </div>
-          <div className="mx-auto w-32 shrink-0 sm:w-40 lg:w-48">
+          <div className="mx-auto w-32 shrink-0 sm:w-40 lg:w-48 motion-safe:animate-emergir" style={{ animationDelay: '80ms' }}>
             <PropertyScene propertyKey="planalto-familiar" production={58} technology={52} sustainability={64} />
           </div>
         </section>
@@ -272,7 +272,7 @@ function CreateGameScreen({
       </div>
 
       {customize ? (
-        <Degrau nivel="terraco" familia="neutro" className="flex flex-col gap-5 p-6">
+        <Degrau nivel="terraco" familia="neutro" className="revelar flex flex-col gap-5 p-6">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Field
               label="Orçamento inicial (R$)"
@@ -726,7 +726,7 @@ function ControlPanel({
         </Degrau>
       ) : null}
 
-      <section className="relative z-10 flex flex-col gap-4 animate-emergir" style={{ animationDelay: '300ms' }}>
+      <section className="revelar relative z-10 flex flex-col gap-4">
         <SectionHeading
           overline="Equipes"
           title={`${view.teams.length} equipes se formando`}

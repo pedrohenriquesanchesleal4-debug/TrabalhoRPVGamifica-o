@@ -220,10 +220,10 @@ export default function EntrarPage() {
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col justify-end gap-7 px-5 py-8 sm:px-6 md:max-w-3xl md:justify-center md:py-12">
         <div className="flex items-center gap-3">
-          <span className="w-8 shrink-0">
+          <span className="w-8 shrink-0 motion-safe:animate-emergir">
             <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />
           </span>
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5 motion-safe:animate-emergir" style={{ animationDelay: '80ms' }}>
             <Rotulo>Safra DF · Entrada do aluno</Rotulo>
             <div className="filete-amanhecer w-full" />
           </div>

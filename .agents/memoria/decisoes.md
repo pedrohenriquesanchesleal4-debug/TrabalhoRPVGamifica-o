@@ -21,3 +21,17 @@ Mapa do DF (`df-map.tsx`) e cena da propriedade (`property-scene.tsx`) usam silh
 ## 2026-09-11 · D-03: Orquestração do redesign em swarm paralelo
 
 Fundação (globals, landscape, re-skins) feita pelo orquestrador; frentes de página delegadas em paralelo: A=home, B=entrar, C=jogar+event-card+opening-sequence, D=host/admin/resultado/diagnostico. Coordenação por artefatos (globals.css + landscape + lista de classes), não por payloads. Gate final: `npm run verify` + auditoria anti-slop.
+
+## 2026-09-11 · D-05: Camada de movimento V6.1 — scroll-driven CSS nativo (zero JS)
+
+**Contexto:** usuário aprovou V6 ("gostei"), pediu "mais animações". Sistemas de dado JÁ animam (transição do canal 500ms, ponteiro 550ms, `useCountUp`); a lacuna era coreografia: scroll morto, heróis estáticos, sem parallax.
+
+**Decisão:** adicionar `@keyframes surgir` + `cena-paralaxe` e carregar **CSS Scroll-Driven Animations** nativas — `.revelar` (revelação por `view()`, range entry 5..55%) e `.paralaxe-cena` (parallax por `scroll()`, 0..88vh) — dentro de `@supports (animation-timeline: view())`; heróis ganham entrada escalonada com `motion-safe:animate-emergir` + delays 0/80/160/240ms.
+
+**Alternativas consideradas:**
+1. GSAP + ScrollTrigger (scrub/pin verdadeiros) — rejeitada: viola disciplina "zero lib de animação"/perf mobile; pin pesado não justificado para conteúdo simples.
+2. Motion React (`whileInView`) — rejeitada: mesmo pedido de JS/WAAPI por componente, sem ganho sobre CSS nativo aqui.
+3. IntersectionObserver em utilitário próprio — rejeitada: JS a mais para o que `view()` resolve em CSS puro.
+4. Mais laços ambientais na paisagem — rejeitada: satura; paisagem já respira/voa/bala/nuvem/cintila.
+
+**Consequência:** custo zero de JS/CPU mobile (compositor-only), fallback natural sem suporte (`@supports` mostra tudo estático-visível; estado final é o default), reduced-motion devolve estado terminal na camada base, LCP protegido (`.revelar` só abaixo da dobra; `motion-safe:` nem nasce sob reduce). Gate: typecheck+lint+94 testes+build verdes.

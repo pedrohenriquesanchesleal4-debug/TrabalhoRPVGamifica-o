@@ -228,7 +228,7 @@ export default function HostProjectionPage() {
   return (
     <main className="relative mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-10 px-10 py-8 overflow-hidden">
       {/* Paisagem atmosférica ao fundo: amanhecer sutil, sem competir com dados. */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-10">
+      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 opacity-10">
         <CerradoLandscape />
       </div>
       <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/60" />
@@ -334,7 +334,7 @@ function LobbyScreen({ view }: { view: HostView }) {
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center gap-10 px-6 py-12 text-center overflow-hidden">
       {/* Paisagem de fundo: momento de expectativa. */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-15">
+      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 opacity-15">
         <CerradoLandscape />
       </div>
       <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/50" />
