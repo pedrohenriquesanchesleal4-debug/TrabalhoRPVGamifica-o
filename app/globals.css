@@ -120,6 +120,15 @@
   --animate-balanco: balanco 5s ease-in-out infinite;
   --animate-nuvem: nuvem 46s linear infinite;
   --animate-cintilar: cintilar 3.4s ease-in-out infinite;
+
+  /*
+    Raios de superfície V6.2 · "redondinho". Quinas generosas na terra-noite,
+    mantendo a hierarquia de altitude: mais alto = mais redondo.
+  */
+  --raio-degrau: 10px;
+  --raio-banco: 10px;
+  --raio-terraco: 12px;
+  --raio-mirante: 14px;
 }
 
 /* Movimento 1 · emergência do painel. Entrada de módulo novo. */
@@ -373,24 +382,41 @@
       transform: scale(1.3) !important;
     }
 
+    /*
+      Ambiência V6.2 · quem pediu redução não pede morte. A paisagem continua
+      viva em ritmo ~2x mais lento e sem piscada rápida; o global acima zera
+      tudo para 0.01ms, e estes blocos — na SEQUÊNCIA do mesmo media —
+      restauram duração/iteração só para decoração cênica. Painel de dado,
+      alerta (`nascente-anel`) e reveal seguem estáticos e legíveis.
+    */
     .ceu-respiro {
+      animation-duration: 18s !important;
+      animation-iteration-count: infinite !important;
       opacity: 0.75 !important;
     }
 
     .bando {
-      display: none !important;
+      display: block !important;
+      animation-duration: 34s !important;
+      animation-iteration-count: infinite !important;
     }
 
     .nuvem-painel {
+      animation-duration: 92s !important;
+      animation-iteration-count: infinite !important;
       opacity: 0.4 !important;
       transform: translateX(6vw) !important;
     }
 
     .folhagem {
+      animation-duration: 10s !important;
+      animation-iteration-count: infinite !important;
       transform: rotate(0deg) !important;
     }
 
     .luz-pisca {
+      animation-duration: 6.8s !important;
+      animation-iteration-count: infinite !important;
       opacity: 0.85 !important;
     }
 
@@ -512,6 +538,7 @@
   */
   .degrau {
     background-color: var(--prato, var(--color-nevoa-100));
+    border-radius: var(--raio-degrau);
     box-shadow:
       0 var(--pared-h, 4px) 0 0 var(--paredao, var(--color-verde-800)),
       inset 0 1px 0 0 rgba(241, 233, 216, 0.08),
@@ -522,13 +549,13 @@
   /* Nível 1 · placa. Módulo baixo e largo: opção, linha de lista, campo. */
   .banco {
     --pared-h: 4px;
-    border-radius: 5px;
+    border-radius: var(--raio-banco);
   }
 
   /* Nível 2 · painel. Carta de evento, medidor, bloco de resultado. */
   .terraco {
     --pared-h: 8px;
-    border-radius: 3px;
+    border-radius: var(--raio-terraco);
   }
 
   /*
@@ -538,7 +565,7 @@
   */
   .mirante {
     --pared-h: 14px;
-    border-radius: 2px;
+    border-radius: var(--raio-mirante);
     position: relative;
   }
 

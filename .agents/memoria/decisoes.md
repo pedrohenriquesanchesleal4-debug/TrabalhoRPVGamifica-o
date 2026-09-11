@@ -35,3 +35,15 @@ Fundação (globals, landscape, re-skins) feita pelo orquestrador; frentes de p�
 4. Mais laços ambientais na paisagem — rejeitada: satura; paisagem já respira/voa/bala/nuvem/cintila.
 
 **Consequência:** custo zero de JS/CPU mobile (compositor-only), fallback natural sem suporte (`@supports` mostra tudo estático-visível; estado final é o default), reduced-motion devolve estado terminal na camada base, LCP protegido (`.revelar` só abaixo da dobra; `motion-safe:` nem nasce sob reduce). Gate: typecheck+lint+94 testes+build verdes.
+
+## 2026-09-11 · D-06: "Redondinho" + ambiência viva sob reduced-motion (V6.2)
+
+**Contexto:** usuário pediu "deixa o site mais redondinho" e reportou "pássaros parados / não mudou nada" — auditoria em CSS compilado apontou código correto; causa: `prefers-reduced-motion: reduce` ativo no ambiente (reset global 0.01ms congela tudo; `.bando` ficava `display:none`).
+
+**Decisões:**
+1. **Escada de raios de superfície** (`--raio-degrau/banco/terraco/mirante` = 10/10/12/14px), preservando a hierarquia de altitude (mais alto = mais redondo). Base `.degrau` ganhou `border-radius`; sombra do paredão atrás segue por box-shadow (respeita raio automaticamente). Campos já eram 10px, canal/ponteiro já circulares.
+2. **Ambiência lenta sob reduce:** pássaro/nuvem/sol/capim/luz passam a ~2x de duração com iteração infinita (blocos na sequência do media, depois do reset global); `.revelar`/`.paralaxe-cena`/`nascente-anel` seguem estáticos. Decorativo vive lento; informação não se move.
+
+**Alternativas consideradas (2):** manter reduce rígido (rejeitada: o usuário/cliente explicitamente quer ver movimento e o SO dele liga reduce global sem ele saber); remover todo o tratamento reduce (rejeitada: acessibilidade é requisito).
+
+**Consequência:** movimento visível em qualquer ambiente (reduce vira "câmera lenta", não estático); raios consistentes e intencionais, fora do padrão "rounded-2xl uniforme" porque seguem a hierarquia de altitude. Gate: typecheck+lint+94 testes+build verdes.
