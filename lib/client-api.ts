@@ -3,14 +3,6 @@
 import type { HostView, PlayerView } from '@/lib/game-service';
 import type { GameConfig } from '@/types/game';
 
-/**
- * Cliente HTTP da interface.
- *
- * Um único lugar que fala com o servidor, com um formato de erro só. Toda
- * mutação passa por route handler: a interface nunca escreve no Supabase, nem
- * mesmo para entrar na partida.
- */
-
 export class RequestError extends Error {
   constructor(
     readonly code: string,
@@ -22,16 +14,16 @@ export class RequestError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit & { token?: string } = {},
-): Promise<T> {
-  const { token, headers, ...rest } = init;
+async function request<T>(path: string, init?: RequestInit & { token?: string }): Promise<T> {
+  const init2 = init || {};
+  const token = init2.token;
+  const headers = init2.headers;
+  const body = init2.body;
 
   const response = await fetch(path, {
-    ...rest,
+    method: init2.method || 'GET',
     headers: {
-      ...(rest.body ? { 'content-type': 'application/json' } : {}),
+      ...(body ? { 'content-type': 'application/json' } : {}),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -42,19 +34,11 @@ async function request<T>(
 
   if (!response.ok) {
     const error = (payload as { error?: { code?: string; message?: string } } | null)?.error;
-    throw new RequestError(
-      error?.code ?? 'server_error',
-      error?.message ?? 'Não foi possível concluir a ação.',
-      response.status,
-    );
+    throw new Error(error?.message ?? 'Erro');
   }
 
   return payload as T;
 }
-
-// ---------------------------------------------------------------------------
-// Professor
-// ---------------------------------------------------------------------------
 
 export interface CreateGameResponse {
   gameId: string;
@@ -72,7 +56,7 @@ export function createGame(config: Partial<GameConfig> = {}) {
 }
 
 export function fetchHostView(gameId: string, token: string) {
-  return request<HostView>(`/api/host/${gameId}`, { token, cache: 'no-store' });
+  return request<HostView>(/api/host/\${gameId}, { token, cache: 'no-store' });
 }
 
 export type HostAction =
@@ -104,43 +88,30 @@ export function runHostAction(
   action: HostAction,
   remainingSeconds?: number,
 ) {
-  return request<HostActionResponse>(`/api/host/${gameId}/action`, {
+  return request<HostActionResponse>(/api/host/\${gameId}/action, {
     method: 'POST',
     token,
     body: JSON.stringify({ action, remainingSeconds }),
-  });
+  );
 }
 
 export function fetchProjection(gameId: string) {
-  return request<HostView>(`/api/projection/${gameId}`, { cache: 'no-store' });
+  return request<HostView>(/api/projection/\${gameId}, { cache: 'no-store' });
 }
-
-// ---------------------------------------------------------------------------
-// Professor · roteiro de debate (pós-jogo)
-// ---------------------------------------------------------------------------
 
 export interface DebatePrepResponse {
   roteiro: string;
   modelo: string;
   doCache: boolean;
-  /** true quando o roteiro veio com fichas citáveis de políticas/tecnologias. */
   materialUsado: boolean;
 }
 
-/**
- * Gera (ou relê do cache) o roteiro de debate da partida encerrada.
- * A 1ª chamada consome a cota de IA da partida; as seguintes vêm do banco.
- */
 export function fetchDebateRoteiro(gameId: string) {
-  return request<DebatePrepResponse>(`/api/host/${gameId}/debate`, {
+  return request<DebatePrepResponse>(/api/host/\${gameId}/debate, {
     method: 'POST',
     cache: 'no-store',
   });
 }
-
-// ---------------------------------------------------------------------------
-// Aluno
-// ---------------------------------------------------------------------------
 
 export interface JoinResponse {
   playerToken: string;
@@ -166,10 +137,6 @@ export function joinGame(code: string, name: string, choice?: JoinChoice) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Lobby de pré-entrada: propriedade e papel antes de confirmar
-// ---------------------------------------------------------------------------
-
 export interface LobbyRoleResponse {
   role: string;
   roleLabel: string;
@@ -194,23 +161,21 @@ export interface LobbyResponse {
 }
 
 export function fetchLobby(code: string) {
-  return request<LobbyResponse>(`/api/games/lobby?code=${encodeURIComponent(code)}`, {
-    cache: 'no-store',
-  });
+  return request<LobbyResponse>(/api/games/lobby?code=${encodeURIComponent(code)}, { cache: 'no-store' });
 }
 
 export function fetchPlayerView(token: string) {
-  return request<PlayerView>('/api/player/view', { token, cache: 'no-store' });
+  return request<PlayerView>/api/player/view, { token, cache: 'no-store' };
 }
 
 export function submitDecision(token: string, optionKey: string) {
-  return request<{ optionLabel: string; locked: true }>('/api/player/decision', {
+  return request<{ optionLabel: string; locked: true }>/api/player/decision, {
     method: 'POST',
     token,
     body: JSON.stringify({ optionKey }),
-  });
+  };
 }
 
 export function sendHeartbeat(token: string) {
-  return request<{ ok: true }>('/api/player/heartbeat', { method: 'POST', token });
+  return request<{ ok: true }>/api/player/heartbeat, { method: 'POST', token };
 }

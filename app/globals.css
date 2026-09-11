@@ -892,4 +892,191 @@
   .terr-fundo-azul {
     --paredao: #050604;
   }
+}/*
+  ---------------------------------------------------------------------
+  OFICINA SAFRA DF · direção visual "Caderno de Campo".
+
+  A oficina é papel: o professor abre um caderno de campo, o mapa é um
+  croqui a lápis, descobertas viram carimbos e fitas. Diferencia de
+  propósito (e de pele) do Amanhecer do Cerrado do Diagnóstico: lá é a
+  central de operações ao amanhecer; aqui é a mesa do técnico comunitário.
+  Zero imagem, zero WebGL, motion só transform/opacity, respeito a
+  prefers-reduced-motion (já global).
+
+  Uso dos tokens: `caderno-papel`/`caderno-tinta` no fundo/frente;
+  `caderno-verde` (produção/sustento), `caderno-caneta` (conhecimento e
+  tecnologia), `caderno-vinho` (sinal/urgência e carimbo), `caderno-ouro`
+  (destaque, CTA). Texto sobre papel usa SEMPRE o tom 700/900 de tinta,
+  nunca o "texto sobre noite" do tema escuro.
+  ---------------------------------------------------------------------
+*/
+@theme {
+  --color-caderno-papel: #ede0c4;
+  --color-caderno-papel-2: #f4ead3;
+  --color-caderno-papel-3: #e3d3ae;
+  --color-caderno-tinta-900: #2e2a23;
+  --color-caderno-tinta-700: #55493a;
+  --color-caderno-tinta-500: #7a6b56;
+  --color-caderno-linha: rgba(46, 42, 35, 0.16);
+  --color-caderno-verde: #5f7a4a;
+  --color-caderno-verde-escuro: #39491f;
+  --color-caderno-caneta: #2e5fa3;
+  --color-caderno-caneta-escuro: #1c3c68;
+  --color-caderno-vinho: #8a3b2e;
+  --color-caderno-vinho-escuro: #5e241b;
+  --color-caderno-ouro: #b0813b;
+  --color-caderno-ouro-escuro: #6d4c1c;
+  --color-caderno-grafite: #4a4438;
+  --color-caderno-areia: #c9a26b;
+
+  --animate-carimbar: carimbar 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-folhear: folhear 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-assinalar: assinalar 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Papel kraft do caderno, com grão sutil (gradiente, zero imagem). */
+.caderno-papel {
+  background:
+    radial-gradient(120% 90% at 15% 0%, rgba(255, 255, 255, 0.28), transparent 55%),
+    linear-gradient(175deg, #f2e8d0 0%, #ede0c4 40%, #e6d3ab 100%);
+  color: var(--color-caderno-tinta-900);
+}
+
+.caderno-papel-escuro {
+  background:
+    radial-gradient(120% 90% at 15% 0%, rgba(255, 255, 255, 0.1), transparent 55%),
+    linear-gradient(175deg, #4a4438 0%, #3a352c 100%);
+  color: var(--color-caderno-papel);
+}
+
+/* Folha pautada: linhas sintéticas de caderno (repetição de gradiente). */
+.caderno-pauta {
+  background-image: repeating-linear-gradient(
+    transparent 0,
+    transparent 27px,
+    var(--color-caderno-linha) 27px,
+    var(--color-caderno-linha) 28px
+  );
+}
+
+/* Carimbo de descoberta: borda dupla, caixa alta, leve rotação. */
+.carimbo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 2px solid currentColor;
+  border-radius: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.7rem;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px currentColor;
+  transform: rotate(-1.5deg);
+}
+
+/* Fita adesiva de papel ancorando blocos/pistas. */
+.fita {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.9rem;
+  margin-top: -0.35rem;
+  margin-bottom: 0.35rem;
+  background: rgba(233, 214, 156, 0.72);
+  rotate: -1deg;
+  box-shadow: 0 1px 0 rgba(46, 42, 35, 0.12);
+}
+
+/* Traço de caneta sob textos (sublinhado de anotação). */
+.traco-caneta {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--color-caderno-caneta);
+  text-underline-offset: 4px;
+}
+
+/* Rótulo de lápis: monoslope, caixa alta, leve. */
+.rotulo-lapis {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-caderno-tinta-500);
+}
+
+/* Mapa: fundo de croqui (haverá linhas SVG por cima). */
+.caderno-mapa {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(95, 122, 74, 0.1), transparent 34%),
+    radial-gradient(circle at 12% 82%, rgba(46, 95, 163, 0.08), transparent 30%),
+    repeating-linear-gradient(
+      42deg,
+      rgba(46, 42, 35, 0.025) 0,
+      rgba(46, 42, 35, 0.025) 1px,
+      transparent 1px,
+      transparent 11px
+    ),
+    var(--color-caderno-papel-2);
+}
+
+/* Pinças/tarefa: número em caixa de lápis. */
+.bolinha-lapis {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-caderno-tinta-900);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Transições/motion — só transform e opacity. */
+@keyframes carimbar {
+  from {
+    transform: scale(1.8) rotate(-3deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(-1.5deg);
+    opacity: 1;
+  }
+}
+
+@keyframes folhear {
+  from {
+    transform: translateY(8px) rotate(0.6deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes assinalar {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Linha de croqui que se desenha (SVG path: ajuste stroke-dashoffset no JS). */
+.linha-croqui {
+  stroke-dasharray: 4 5;
+  animation: croqui 1.2s linear infinite;
+}
+
+@keyframes croqui {
+  to {
+    stroke-dashoffset: -18;
+  }
 }
