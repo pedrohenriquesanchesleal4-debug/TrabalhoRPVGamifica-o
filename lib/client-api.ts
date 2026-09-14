@@ -337,3 +337,20 @@ export function runOficinaHostAction(
     body: JSON.stringify({ action }),
   });
 }
+
+export interface OficinaProjecaoResponse {
+  game: {
+    id: string;
+    code: string;
+    status: string;
+    mode: GameMode;
+  };
+  view: OficinaPublicView;
+}
+
+/** Projeção pública da Oficina (sem token), resultado direto da parede. */
+export function fetchOficinaProjecao(gameId: string) {
+  return request<OficinaProjecaoResponse>(`/api/oficina/${gameId}/projecao`, {
+    cache: 'no-store',
+  });
+}
