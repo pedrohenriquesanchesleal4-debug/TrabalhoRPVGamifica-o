@@ -1634,6 +1634,7 @@ export interface HostView {
     id: string;
     code: string;
     status: GameStatus;
+    mode: GameMode;
     currentRound: number;
     roundStatus: RoundStatus;
     roundEndsAt: string | null;
@@ -1801,6 +1802,7 @@ async function buildHostView(game: GameRow): Promise<HostView> {
       id: game.id,
       code: game.code,
       status: game.status,
+      mode: game.mode,
       currentRound: game.current_round,
       roundStatus: game.round_status,
       roundEndsAt: game.round_ends_at,
