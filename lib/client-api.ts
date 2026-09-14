@@ -3,7 +3,7 @@
 import type { HostView, PlayerView } from '@/lib/game-service';
 import type { OficinaPublicView } from '@/lib/oficina-service';
 import type { GameConfig } from '@/types/game';
-import type { OficinaIndicadores, OficinaSolucao } from '@/types/oficina';
+import type { GameMode, OficinaIndicadores, OficinaSolucao } from '@/types/oficina';
 
 /**
  * Cliente HTTP da interface.
@@ -62,14 +62,18 @@ export interface CreateGameResponse {
   gameId: string;
   code: string;
   hostToken: string;
+  mode: GameMode;
   config: GameConfig;
   teams: { id: string; name: string; propertyKey: string }[];
 }
 
-export function createGame(config: Partial<GameConfig> = {}) {
+export function createGame(config: Partial<GameConfig> = {}, mode: GameMode = 'diagnostico') {
+  const body: Record<string, unknown> = { ...config };
+  if (mode !== 'diagnostico') body.mode = mode;
+
   return request<CreateGameResponse>('/api/games', {
     method: 'POST',
-    body: JSON.stringify(config),
+    body: JSON.stringify(body),
   });
 }
 

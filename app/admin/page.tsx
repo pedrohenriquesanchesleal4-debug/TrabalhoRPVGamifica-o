@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
+  Activity,
   AlertTriangle,
   ChevronDown,
   ExternalLink,
@@ -12,6 +13,7 @@ import {
   RefreshCcw,
   RotateCcw,
   Settings2,
+  Sprout,
   Users,
 } from 'lucide-react';
 import {
@@ -30,6 +32,7 @@ import { PropertyScene } from '@/components/game/property-scene';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { DEFAULT_CONFIG, ROUND_META, TOTAL_ROUNDS } from '@/types/game';
+import type { GameMode } from '@/types/oficina';
 import type { HostView } from '@/lib/game-service';
 
 /**
@@ -52,6 +55,7 @@ export default function AdminPage() {
   const [gameId, setGameId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [code, setCode] = useState<string | null>(null);
+  const [mode, setMode] = useState<GameMode | null>(null);
   const [view, setView] = useState<HostView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastOutcomes, setLastOutcomes] = useState<HostActionResponse['outcomes']>(null);
@@ -114,11 +118,13 @@ export default function AdminPage() {
     gameId: string;
     token: string;
     code: string;
+    mode: GameMode;
   }) {
     hostSession.set({ token: result.token, gameId: result.gameId, code: result.code });
     setGameId(result.gameId);
     setToken(result.token);
     setCode(result.code);
+    setMode(result.mode);
     setPhase('ready');
     void loadView(result.gameId, result.token);
   }
@@ -149,6 +155,7 @@ export default function AdminPage() {
       gameId={gameId}
       token={token}
       code={code}
+      mode={mode}
       view={view}
       loadError={loadError}
       lastOutcomes={lastOutcomes}
@@ -173,8 +180,9 @@ function CreateGameScreen({
   onCreated,
 }: {
   expired: boolean;
-  onCreated: (result: { gameId: string; token: string; code: string }) => void;
+  onCreated: (result: { gameId: string; token: string; code: string; mode: GameMode }) => void;
 }) {
+  const [mode, setMode] = useState<GameMode>('diagnostico');
   const [customize, setCustomize] = useState(false);
   const [initialBudget, setInitialBudget] = useState(DEFAULT_CONFIG.initialBudget);
   const [roundSeconds, setRoundSeconds] = useState(DEFAULT_CONFIG.roundSeconds);
@@ -201,8 +209,9 @@ function CreateGameScreen({
               weights: { finances, production, technology, sustainability },
             }
           : {},
+        mode,
       );
-      onCreated({ gameId: result.gameId, token: result.hostToken, code: result.code });
+      onCreated({ gameId: result.gameId, token: result.hostToken, code: result.code, mode: result.mode });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível criar a partida.');
     } finally {
@@ -219,9 +228,9 @@ function CreateGameScreen({
             <Rotulo className="text-(--cor-tinta-panel-verde)">SAFRA DF · Painel do professor</Rotulo>
             <h1 className="relevo-lg text-white">Criar uma nova partida</h1>
             <p className="max-w-[46ch] text-white/90">
-              A turma entra pelo celular com um código. Você controla o ritmo das cinco rodadas por
-              esta tela, projetada em telão ou não. Cada equipe assume uma das seis propriedades
-              rurais do Distrito Federal.
+              A turma entra pelo celular com um código. Escolha o modo: o Diagnóstico de cinco
+              rodadas por propriedade ou a Oficina colaborativa da comunidade. Você controla o
+              ritmo por esta tela, projetada em telão ou não.
             </p>
           </div>
           <div className="mx-auto w-32 shrink-0 sm:w-40 lg:w-48 motion-safe:animate-emergir" style={{ animationDelay: '80ms' }}>
@@ -240,6 +249,52 @@ function CreateGameScreen({
             </Degrau>
           ) : null}
 
+          <fieldset className="flex flex-col gap-2 animate-emergir" style={{ animationDelay: '80ms' }}>
+            <legend className="rotulo px-1">Modo da partida</legend>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={mode === 'diagnostico'}
+                onClick={() => setMode('diagnostico')}
+                className={[
+                  'degrau pisavel flex items-center gap-3 p-3.5 text-left',
+                  mode === 'diagnostico' ? 'mirante terr-azul' : 'banco terr-claro',
+                ].join(' ')}
+              >
+                <Activity size={18} className={mode === 'diagnostico' ? 'text-azul-200' : 'text-terra-500'} aria-hidden />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className={mode === 'diagnostico' ? 'relevo-sm text-white' : 'relevo-sm text-terra-900'}>
+                    Diagnóstico Safra
+                  </span>
+                  <span className="text-xs text-terra-700">
+                    Cinco rodadas de decisão de propriedade, uma equipe por fazenda.
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={mode === 'oficina'}
+                onClick={() => setMode('oficina')}
+                className={[
+                  'degrau pisavel flex items-center gap-3 p-3.5 text-left',
+                  mode === 'oficina' ? 'mirante terr-verde' : 'banco terr-claro',
+                ].join(' ')}
+              >
+                <Sprout size={18} className={mode === 'oficina' ? 'text-verde-300' : 'text-terra-500'} aria-hidden />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className={mode === 'oficina' ? 'relevo-sm text-white' : 'relevo-sm text-terra-900'}>
+                    Oficina Safra DF
+                  </span>
+                  <span className="text-xs text-terra-700">
+                    Narrativa colaborativa da comunidade, por perfis, sem rodadas de recurso.
+                  </span>
+                </span>
+              </button>
+            </div>
+          </fieldset>
+
           <Button
             variant="principal"
             size="projecao"
@@ -247,7 +302,11 @@ function CreateGameScreen({
             disabled={creating || (customize && weightSum !== 100)}
             className="w-full"
           >
-            {creating ? 'Criando partida...' : 'Criar partida'}
+            {creating
+              ? 'Criando partida...'
+              : mode === 'oficina'
+                ? 'Criar oficina comunitária'
+                : 'Criar partida'}
           </Button>
 
           {error ? (
@@ -256,20 +315,28 @@ function CreateGameScreen({
             </p>
           ) : null}
 
-          <button
-            type="button"
-            onClick={() => setCustomize((value) => !value)}
-            className="ml-2 flex items-center gap-2 self-start text-sm font-medium text-terra-700 hover:text-terra-900"
-            aria-expanded={customize}
-          >
-            <Settings2 size={16} aria-hidden />
-            Configuração opcional
-            <ChevronDown
-              size={16}
-              aria-hidden
-              className={customize ? 'rotate-180 transition-transform' : 'transition-transform'}
-            />
-          </button>
+          {mode === 'diagnostico' ? (
+            <button
+              type="button"
+              onClick={() => setCustomize((value) => !value)}
+              className="ml-2 flex items-center gap-2 self-start text-sm font-medium text-terra-700 hover:text-terra-900"
+              aria-expanded={customize}
+            >
+              <Settings2 size={16} aria-hidden />
+              Configuração opcional
+              <ChevronDown
+                size={16}
+                aria-hidden
+                className={customize ? 'rotate-180 transition-transform' : 'transition-transform'}
+              />
+            </button>
+          ) : (
+            <p className="ml-2 flex items-center gap-2 self-start text-xs text-terra-500">
+              <Sprout size={14} aria-hidden />
+              Na oficina, a configuração de rodadas e pesos não se aplica: o ritmo é conduzido por
+              este painel.
+            </p>
+          )}
         </div>
       </div>
 
@@ -415,6 +482,7 @@ function ControlPanel({
   gameId,
   token,
   code,
+  mode,
   view,
   loadError,
   lastOutcomes,
@@ -425,6 +493,7 @@ function ControlPanel({
   gameId: string;
   token: string;
   code: string;
+  mode: GameMode | null;
   view: HostView | null;
   loadError: string | null;
   lastOutcomes: HostActionResponse['outcomes'];
@@ -512,6 +581,12 @@ function ControlPanel({
               </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {mode ? (
+              <Pill tone={mode === 'oficina' ? 'pronto' : 'neutro'}>
+                {mode === 'oficina' ? <Sprout size={13} aria-hidden /> : <Activity size={13} aria-hidden />}
+                {mode === 'oficina' ? 'Oficina comunitária' : 'Diagnóstico'}
+              </Pill>
+            ) : null}
             <Pill tone={game.status === 'running' ? 'ativo' : game.status === 'paused' ? 'alerta' : 'neutro'}>
               {STATUS_LABEL[game.status]}
             </Pill>
