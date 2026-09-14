@@ -13,7 +13,7 @@
 
 export type GameMode = 'diagnostico' | 'oficina';
 
-export type OficinaStatus = 'aguardando' | 'ativa' | 'pausada';
+export type OficinaStatus = 'aguardando' | 'ativa' | 'pausada' | 'encerrada';
 
 /** Estágios da oficina, na ordem. O professor controla o ritmo. */
 export type OficinaStage =

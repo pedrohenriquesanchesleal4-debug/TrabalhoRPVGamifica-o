@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { joinGame } from '@/lib/game-service';
 import { ok, parseBody, toResponse } from '@/lib/http';
-import { ROLE_LABEL, ROLE_MISSION, ROLES } from '@/types/game';
+import { ROLE_LABEL, ROLE_MISSION, ROLES, type Role } from '@/types/game';
+import { OFICINA_PERFIS_INFO, type OficinaPerfil } from '@/types/oficina';
 
 /**
  * POST /api/games/join · o aluno entra com código e nome.
@@ -29,16 +30,25 @@ export async function POST(request: Request) {
     const choice = teamId || chosenRole ? { teamId, role: chosenRole } : undefined;
     const { playerToken, player, team, role, game } = await joinGame(code, name, choice);
 
+    const isOficinaPerfil = game.mode === 'oficina';
+    const rotulo = isOficinaPerfil
+      ? OFICINA_PERFIS_INFO[role as OficinaPerfil].rotulo
+      : ROLE_LABEL[role as Role];
+    const missao = isOficinaPerfil
+      ? OFICINA_PERFIS_INFO[role as OficinaPerfil].pitch
+      : ROLE_MISSION[role as Role];
+
     return ok({
       playerToken,
       gameId: game.id,
       gameCode: game.code,
       gameStatus: game.status,
+      mode: game.mode,
       player: { id: player.id, name: player.name },
       team: { id: team.id, name: team.name, propertyKey: team.property_key },
       role,
-      roleLabel: ROLE_LABEL[role],
-      roleMission: ROLE_MISSION[role],
+      roleLabel: rotulo,
+      roleMission: missao,
     });
   } catch (error) {
     return toResponse(error);

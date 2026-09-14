@@ -11,6 +11,7 @@ import { PropertyScene } from '@/components/game/property-scene';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { ROLE_MISSION, type Role } from '@/types/game';
+import { OFICINA_PERFIS_INFO, type OficinaPerfil } from '@/types/oficina';
 
 /**
  * Entrada do aluno, em três passos: código → propriedade e papel → nome.
@@ -60,6 +61,7 @@ export default function EntrarPage() {
   const [loadingLobby, setLoadingLobby] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isOficina = lobby?.mode === 'oficina';
 
   function handleCodeChange(raw: string) {
     const normalized = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
@@ -136,8 +138,10 @@ export default function EntrarPage() {
         gameId: response.gameId,
         gameCode: response.gameCode,
         playerName: response.player.name,
+        teamId: response.team.id,
         teamName: response.team.name,
         role: response.role,
+        mode: response.mode,
       });
       router.push('/jogar');
     } catch (err) {
@@ -292,8 +296,10 @@ export default function EntrarPage() {
             </Button>
 
             <header className="flex flex-col gap-1.5 px-1">
-              <Rotulo>Etapa 02 · Propriedade e função</Rotulo>
-              <h1 className="relevo-lg text-terra-900">Qual propriedade sua equipe vai tocar?</h1>
+              <Rotulo>Etapa 02 · {isOficina ? 'Perfil de atuação' : 'Propriedade e função'}</Rotulo>
+              <h1 className="relevo-lg text-terra-900">
+                {isOficina ? 'Qual perfil sua equipe vai assumir?' : 'Qual propriedade sua equipe vai tocar?'}
+              </h1>
             </header>
 
             {error ? (
@@ -334,9 +340,15 @@ export default function EntrarPage() {
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className={isSelected ? `relevo-sm ${tone?.ink ?? 'text-financas-texto'}` : 'relevo-sm text-terra-900'}>
-                          {team.name}
+                          {isOficina && team.perfil
+                            ? OFICINA_PERFIS_INFO[team.perfil as OficinaPerfil]?.rotulo ?? team.name
+                            : team.name}
                         </span>
-                        <span className="text-xs text-terra-700">{property?.region ?? 'Propriedade'}</span>
+                        <span className="text-xs text-terra-700">
+                          {isOficina && team.perfil
+                            ? OFICINA_PERFIS_INFO[team.perfil as OficinaPerfil]?.pitch
+                            : property?.region ?? 'Propriedade'}
+                        </span>
                         <span className="flex items-center gap-1.5 text-xs font-bold text-terra-500">
                           <Users size={12} aria-hidden="true" />
                           {team.slotsUsed}/{team.slotsMax} vagas · {full ? 'completa' : 'com vaga'}
@@ -358,9 +370,11 @@ export default function EntrarPage() {
                     <PropertyScene compact propertyKey={selectedTeam.propertyKey} production={50} technology={50} sustainability={50} />
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Rotulo>{PROPERTY_BY_KEY[selectedTeam.propertyKey]?.region ?? 'Propriedade'}</Rotulo>
+                    <Rotulo>{isOficina && selectedTeam.perfil ? OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.rotulo : PROPERTY_BY_KEY[selectedTeam.propertyKey]?.region ?? 'Propriedade'}</Rotulo>
                     <h2 className="relevo-lg text-terra-900">{selectedTeam.name}</h2>
-                    {PROPERTY_BY_KEY[selectedTeam.propertyKey] ? (
+                    {selectedTeam.perfil && isOficina ? (
+                      <p className="text-xs text-terra-700">{OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.pitch}</p>
+                    ) : PROPERTY_BY_KEY[selectedTeam.propertyKey] ? (
                       <p className="text-xs text-terra-700">{PROPERTY_BY_KEY[selectedTeam.propertyKey]?.tagline}</p>
                     ) : null}
                   </div>
@@ -368,44 +382,50 @@ export default function EntrarPage() {
 
                 <div className="filete-amanhecer" />
 
-                <div className="flex flex-col gap-2">
-                  <Rotulo>Escolha sua função</Rotulo>
-                  <ul role="radiogroup" aria-label="Função na propriedade" className="flex flex-col gap-2">
-                    {selectedTeam.roles.map((entry) => {
-                      const isSelected = selectedRole === entry.role;
-                      const tone = highlightTone(selectedTeam.propertyKey);
-                      return (
-                        <li key={entry.role}>
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={isSelected}
-                            disabled={entry.taken}
-                            onClick={() => pickRole(entry.role, entry.taken)}
-                            className={[
-                              'degrau banco pisavel flex w-full items-center justify-between gap-3 p-3 text-left',
-                              isSelected ? tone?.terr ?? 'terr-financas' : 'terr-claro',
-                              'disabled:cursor-not-allowed disabled:opacity-45',
-                            ].join(' ')}
-                          >
-                            <span
-                              className={
-                                isSelected
-                                  ? `text-sm font-bold ${tone?.ink ?? 'text-financas-texto'}`
-                                  : 'text-sm font-bold text-terra-900'
-                              }
+                {isOficina ? (
+                  <p className="text-sm font-semibold text-terra-900">
+                    Sua equipe assume este perfil na oficina.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Rotulo>Escolha sua função</Rotulo>
+                    <ul role="radiogroup" aria-label="Função na propriedade" className="flex flex-col gap-2">
+                      {selectedTeam.roles.map((entry) => {
+                        const isSelected = selectedRole === entry.role;
+                        const tone = highlightTone(selectedTeam.propertyKey);
+                        return (
+                          <li key={entry.role}>
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={isSelected}
+                              disabled={entry.taken}
+                              onClick={() => pickRole(entry.role, entry.taken)}
+                              className={[
+                                'degrau banco pisavel flex w-full items-center justify-between gap-3 p-3 text-left',
+                                isSelected ? tone?.terr ?? 'terr-financas' : 'terr-claro',
+                                'disabled:cursor-not-allowed disabled:opacity-45',
+                              ].join(' ')}
                             >
-                              {entry.roleLabel}
-                            </span>
-                            <span className="text-xs text-terra-500">
-                              {entry.taken ? `Ocupado por ${entry.playerName ?? 'colega'}` : 'Livre'}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                              <span
+                                className={
+                                  isSelected
+                                    ? `text-sm font-bold ${tone?.ink ?? 'text-financas-texto'}`
+                                    : 'text-sm font-bold text-terra-900'
+                                }
+                              >
+                                {entry.roleLabel}
+                              </span>
+                              <span className="text-xs text-terra-500">
+                                {entry.taken ? `Ocupado por ${entry.playerName ?? 'colega'}` : 'Livre'}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </section>
             ) : null}
 
@@ -413,10 +433,12 @@ export default function EntrarPage() {
               type="button"
               variant="destaque"
               size="grande"
-              disabled={!selectedTeam || !selectedRole}
+              disabled={!selectedTeam || (!isOficina && !selectedRole)}
               onClick={() => setStep('nome')}
             >
-              Entrar na propriedade
+              {isOficina
+                ? `Entrar como ${selectedTeam?.perfil ? OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.rotulo ?? selectedTeam?.name : 'equipe'}`
+                : 'Entrar na propriedade'}
               <ArrowRight size={18} aria-hidden="true" />
             </Button>
           </div>
@@ -440,21 +462,33 @@ export default function EntrarPage() {
                     <PropertyScene compact propertyKey={selectedTeam.propertyKey} production={50} technology={50} sustainability={50} />
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Rotulo>{PROPERTY_BY_KEY[selectedTeam.propertyKey]?.region ?? 'Propriedade'}</Rotulo>
+                    <Rotulo>{isOficina && selectedTeam.perfil ? OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.rotulo : PROPERTY_BY_KEY[selectedTeam.propertyKey]?.region ?? 'Propriedade'}</Rotulo>
                     <p className="relevo-md text-terra-900">{selectedTeam.name}</p>
                   </div>
                 </div>
                 <p className="text-sm text-terra-700">
-                  Você entra como{' '}
-                  <span className="font-bold text-terra-900">
-                    {selectedTeam.roles.find((entry) => entry.role === selectedRole)?.roleLabel}
-                  </span>
-                  {ROLE_MISSION[selectedRole as Role] ? (
+                  {isOficina ? (
                     <>
-                      . {ROLE_MISSION[selectedRole as Role]}
+                      Sua equipe entra com o perfil{' '}
+                      <span className="font-bold text-terra-900">
+                        {selectedTeam.perfil ? OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.rotulo : selectedTeam.name}
+                      </span>
+                      {selectedTeam.perfil ? `. ${OFICINA_PERFIS_INFO[selectedTeam.perfil as OficinaPerfil]?.pitch}` : '.'}
                     </>
                   ) : (
-                    '.'
+                    <>
+                      Você entra como{' '}
+                      <span className="font-bold text-terra-900">
+                        {selectedTeam.roles.find((entry) => entry.role === selectedRole)?.roleLabel}
+                      </span>
+                      {ROLE_MISSION[selectedRole as Role] ? (
+                        <>
+                          . {ROLE_MISSION[selectedRole as Role]}
+                        </>
+                      ) : (
+                        '.'
+                      )}
+                    </>
                   )}
                 </p>
               </section>

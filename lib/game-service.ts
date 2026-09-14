@@ -34,6 +34,8 @@ import {
 import { ApiError } from './http';
 import { adminClient } from './supabase';
 import { generateGameCode, generateToken, hashToken, normalizeGameCode } from './tokens';
+import { criarEstruturaOficina } from './oficina-service';
+import type { GameMode, OficinaPerfil } from '@/types/oficina';
 
 /**
  * O servidor do jogo.
@@ -55,6 +57,7 @@ export interface GameRow {
   id: string;
   code: string;
   status: GameStatus;
+  mode: GameMode;
   current_round: number;
   round_status: RoundStatus;
   round_started_at: string | null;
@@ -92,7 +95,7 @@ export interface TeamMemberRow {
   game_id: string;
   team_id: string;
   player_id: string;
-  role: Role;
+  role: Role | OficinaPerfil;
 }
 
 export interface RoundRow {
@@ -320,10 +323,12 @@ export interface CreateGameResult {
  *
  * As equipes já nascem com estado próprio (uma propriedade real, indicadores
  * ajustados, orçamento igual), porque grupo sem estado próprio é divisão
- * visual, não jogo.
+ * visual, não jogo. Para mode = 'oficina', o scaffolding colaborativo (sessão
+ * + equipes com perfil) é criado também.
  */
 export async function createGame(
   overrides: Partial<GameConfig> = {},
+  mode: GameMode = 'diagnostico',
 ): Promise<CreateGameResult> {
   // Todo o caminho de criação passa por um único try/catch: qualquer exceção
   // não prevista (env ausente, cliente mal configurado, chave de propriedade
@@ -350,7 +355,7 @@ export async function createGame(
     for (let attempt = 0; attempt < 5 && !game; attempt += 1) {
       const { data, error } = await db()
         .from('games')
-        .insert({ code: generateGameCode(), config })
+        .insert({ code: generateGameCode(), config, mode })
         .select('*')
         .single();
 
@@ -406,6 +411,11 @@ export async function createGame(
     }
     const teams = unwrap(teamsResult, 'criar as equipes') as TeamRow[];
 
+    if (mode === 'oficina') {
+      // Sessão da oficina + perfis das equipes (perspectivas, não limitação).
+      await criarEstruturaOficina(game!.id, teams.map((t) => t.id));
+    }
+
     return { game, hostToken, teams };
   } catch (error) {
     throw classifyGameCreationError(error, 'criar-partida');
@@ -420,7 +430,7 @@ export interface JoinResult {
   playerToken: string;
   player: PlayerRow;
   team: TeamRow;
-  role: Role;
+  role: Role | OficinaPerfil;
   game: GameRow;
 }
 
@@ -455,7 +465,7 @@ export async function getGameByCode(code: string): Promise<GameRow> {
 // ---------------------------------------------------------------------------
 
 export interface LobbyRole {
-  role: Role;
+  role: Role | OficinaPerfil;
   taken: boolean;
   /** Só o nome, nunca token nem qualquer dado de sessão: já é público via `team_members`/`players`. */
   playerName: string | null;
@@ -468,12 +478,15 @@ export interface LobbyTeam {
   slotsUsed: number;
   slotsMax: number;
   roles: LobbyRole[];
+  /** Perfil da equipe no modo oficina (null no Diagnóstico). */
+  perfil: OficinaPerfil | null;
 }
 
 export interface LobbyView {
   gameId: string;
   gameCode: string;
   gameStatus: GameStatus;
+  mode: GameMode;
   teams: LobbyTeam[];
 }
 
@@ -500,26 +513,39 @@ export async function getGameLobby(code: string): Promise<LobbyView> {
       .select('team_id, role, players(name)')
       .eq('game_id', game.id),
     'carregar os integrantes',
-  ) as { team_id: string; role: Role; players: { name: string } | { name: string }[] | null }[];
+  ) as { team_id: string; role: Role | OficinaPerfil; players: { name: string } | { name: string }[] | null }[];
 
   function embeddedName(row: (typeof rows)[number]): string | null {
     const value = Array.isArray(row.players) ? (row.players[0] ?? null) : row.players;
     return value?.name ?? null;
   }
 
-  const membersByTeam = new Map<string, { role: Role; name: string | null }[]>();
+  const membersByTeam = new Map<string, { role: Role | OficinaPerfil; name: string | null }[]>();
   for (const row of rows) {
     const list = membersByTeam.get(row.team_id) ?? [];
     list.push({ role: row.role, name: embeddedName(row) });
     membersByTeam.set(row.team_id, list);
   }
 
+  // No modo oficina cada equipe tem um perfil próprio (perspectiva narrativa).
+  const perfilPorTeam = new Map<string, OficinaPerfil>();
+  if (game.mode === 'oficina') {
+    const perfilRows = unwrap(
+      await db().from('oficina_equipes').select('team_id, perfil').eq('game_id', game.id),
+      'carregar os perfis das equipes',
+    ) as { team_id: string; perfil: OficinaPerfil }[];
+    for (const row of perfilRows) perfilPorTeam.set(row.team_id, row.perfil);
+  }
+
   const lobbyTeams: LobbyTeam[] = teams.map((team) => {
     const taken = membersByTeam.get(team.id) ?? [];
-    const roles: LobbyRole[] = ROLE_ASSIGNMENT_ORDER.map((role) => {
-      const match = taken.find((entry) => entry.role === role);
-      return { role, taken: Boolean(match), playerName: match?.name ?? null };
-    });
+    const roles: LobbyRole[] =
+      game.mode === 'oficina'
+        ? []
+        : ROLE_ASSIGNMENT_ORDER.map((role) => {
+            const match = taken.find((entry) => entry.role === role);
+            return { role, taken: Boolean(match), playerName: match?.name ?? null };
+          });
 
     return {
       id: team.id,
@@ -528,6 +554,7 @@ export async function getGameLobby(code: string): Promise<LobbyView> {
       slotsUsed: taken.length,
       slotsMax: game.config.maxPlayersPerTeam,
       roles,
+      perfil: game.mode === 'oficina' ? (perfilPorTeam.get(team.id) ?? null) : null,
     };
   });
 
@@ -535,6 +562,7 @@ export async function getGameLobby(code: string): Promise<LobbyView> {
     gameId: game.id,
     gameCode: game.code,
     gameStatus: game.status,
+    mode: game.mode,
     teams: lobbyTeams,
   };
 }
@@ -557,7 +585,7 @@ function chooseTeamAndRole(
 
   for (const member of members) {
     countByTeam.set(member.team_id, (countByTeam.get(member.team_id) ?? 0) + 1);
-    rolesByTeam.get(member.team_id)?.push(member.role);
+    rolesByTeam.get(member.team_id)?.push(member.role as Role);
   }
 
   const ordered = teams
@@ -609,7 +637,7 @@ export function chooseTeamAndRoleExplicit(
   const countByTeam = new Map<string, number>(teams.map((team) => [team.id, 0]));
   for (const member of members) {
     countByTeam.set(member.team_id, (countByTeam.get(member.team_id) ?? 0) + 1);
-    rolesByTeam.get(member.team_id)?.push(member.role);
+    rolesByTeam.get(member.team_id)?.push(member.role as Role);
   }
 
   if (choice.teamId) {
@@ -697,6 +725,12 @@ export async function joinGame(
       ? chooseTeamAndRoleExplicit(teams, members, game.config.maxPlayersPerTeam, choice)
       : chooseTeamAndRole(teams, members, game.config.maxPlayersPerTeam);
 
+  // No modo oficina o "papel" do jogador é o perfil da equipe (perspectiva
+  // narrativa compartilhada por quem está na mesma equipe). Ignoramos a regra
+  // de "um papel por equipe" do Diagnóstico: o perfil não é um cargo único.
+  const papelFinal: Role | OficinaPerfil =
+    game.mode === 'oficina' ? await perfilDaEquipe(team.id) : role;
+
   const player = unwrap(
     await db()
       .from('players')
@@ -720,7 +754,7 @@ export async function joinGame(
     game_id: game.id,
     team_id: team.id,
     player_id: player.id,
-    role,
+    role: papelFinal,
   });
 
   if (membership.error) {
@@ -732,10 +766,23 @@ export async function joinGame(
     playerName: player.name,
     teamId: team.id,
     teamName: team.name,
-    role,
+    role: papelFinal,
   });
 
-  return { playerToken, player, team, role, game };
+  return { playerToken, player, team, role: papelFinal, game };
+}
+
+/** Perfil da equipe no modo oficina (perspectiva narrativa). */
+async function perfilDaEquipe(teamId: string): Promise<OficinaPerfil> {
+  const { data, error } = await db()
+    .from('oficina_equipes')
+    .select('perfil')
+    .eq('team_id', teamId)
+    .maybeSingle();
+
+  if (error) throw new ApiError('server_error', 'Falha ao carregar o perfil da equipe.', error.message);
+  if (!data) throw new ApiError('server_error', 'Equipe sem perfil definido na oficina.');
+  return data.perfil as OficinaPerfil;
 }
 
 // ---------------------------------------------------------------------------
@@ -1556,7 +1603,7 @@ export async function getPlayerView(token: string): Promise<PlayerView> {
       totalRounds: TOTAL_ROUNDS,
       config: game.config,
     },
-    player: { id: player.id, name: player.name, role: member.role },
+    player: { id: player.id, name: player.name, role: member.role as Role },
     team: {
       id: team.id,
       name: team.name,
@@ -1723,7 +1770,7 @@ async function buildHostView(game: GameRow): Promise<HostView> {
           return {
             id: member.player_id,
             name: player?.name ?? 'jogador',
-            role: member.role,
+            role: member.role as Role,
             state: player?.state ?? ('thinking' as const),
             connected: player?.connected ?? false,
           };

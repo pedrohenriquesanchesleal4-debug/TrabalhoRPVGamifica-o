@@ -1,5 +1,5 @@
-import { adminClient } from '@/lib/supabase';
-import { ApiError, ok, toResponse } from '@/lib/http';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { ApiError } from './http';
 import {
   aplicarDelta,
   validarAcao,
@@ -9,31 +9,30 @@ import {
   coerenciaSolucao,
   calcularResultados,
   calcularResultadoOficinaResumo,
-  type OficinaIndicadores,
-  type OficinaAcao,
-  type OficinaEvento,
-  type OficinaEventoOpcao,
-  type OficinaSolucao,
-  type OficinaBlocoSolucao,
-  type OficinaEquipeRow,
-  type OficinaSessaoRow,
-  type OficinaAcaoRow,
-  type OficinaPistaRow,
-  type OficinaEventoRow,
-  type OficinaSolucaoRow,
-  type OficinaResultadoRow,
-  type OficinaStage,
-  type OficinaStatus,
-  type TagOficina,
-  OFICINA_STAGES_ORDEM,
-  OFICINA_PERFIS_INFO,
-  OFICINA_BLOCOS_INFO,
-} from '@/types/oficina';
+  type EquipeInput,
+} from '@/game/oficina-engine';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_IA_FALLBACKS } from '@/data/oficina-ia';
-import { generateToken, hashToken } from './tokens';
-
-const db = adminClient;
+import {
+  criarOficinaIndicadores,
+  OFICINA_STAGES_ORDEM,
+  type OficinaAcaoRow,
+  type OficinaEquipeRow,
+  type OficinaEvento,
+  type OficinaEventoOpcao,
+  type OficinaEventoRow,
+  type OficinaIndicadores,
+  type OficinaPistaRow,
+  type OficinaPerfil,
+  type OficinaResultadoCategoria,
+  type OficinaResultadoRow,
+  type OficinaSessaoRow,
+  type OficinaSolucao,
+  type OficinaSolucaoRow,
+  type OficinaStage,
+  type TagOficina,
+} from '@/types/oficina';
+import { adminClient } from './supabase';
 
 /**
  * Serviço do modo Oficina Safra DF.
@@ -42,17 +41,31 @@ const db = adminClient;
  * - O navegador NUNCA escreve no banco.
  * - Toda mutação acontece em route handlers via service_role.
  * - Validações de permissão, etapa, idempotência acontecem aqui.
- * - A engine pura (oficina-engine) faz os cálculos; este arquivo orquestra I/O.
+ * - A engine pura (game/oficina-engine) faz os cálculos; este arquivo orquestra I/O.
  */
 
 const MAX_ACOES_POR_ESTAGIO = 4;
+
+function db(): SupabaseClient {
+  return adminClient();
+}
+
+/** Ordem fixa de perfis para distribuição às equipes (1 perfil por equipe). */
+export const OFICINA_PERFIS_ORDEM: OficinaPerfil[] = [
+  'produtores',
+  'cooperativa',
+  'comercializacao',
+  'logistica',
+  'juventude_tech',
+  'articulacao',
+];
 
 // ---------------------------------------------------------------------------
 // Helpers de validação e estado
 // ---------------------------------------------------------------------------
 
 async function getSessao(gameId: string): Promise<OficinaSessaoRow | null> {
-  const { data, error } = await db
+  const { data, error } = await db()
     .from('oficina_sessoes')
     .select('*')
     .eq('game_id', gameId)
@@ -63,7 +76,7 @@ async function getSessao(gameId: string): Promise<OficinaSessaoRow | null> {
 }
 
 async function getEquipe(teamId: string): Promise<OficinaEquipeRow | null> {
-  const { data, error } = await db
+  const { data, error } = await db()
     .from('oficina_equipes')
     .select('*')
     .eq('team_id', teamId)
@@ -74,7 +87,7 @@ async function getEquipe(teamId: string): Promise<OficinaEquipeRow | null> {
 }
 
 async function getEquipesDoJogo(gameId: string): Promise<OficinaEquipeRow[]> {
-  const { data, error } = await db
+  const { data, error } = await db()
     .from('oficina_equipes')
     .select('*')
     .eq('game_id', gameId)
@@ -98,6 +111,62 @@ function requireActive(sessao: OficinaSessaoRow) {
 }
 
 // ---------------------------------------------------------------------------
+// Criação da estrutura (usada pelo createGame quando mode = 'oficina')
+// ---------------------------------------------------------------------------
+
+/**
+ * Cria as linhas mínimas para uma partida em modo oficina:
+ * a sessão (aguardando, estágio briefing) e uma equipe da oficina por time,
+ * cada uma com um perfil próprio e indicadores iniciais.
+ *
+ * Idempotente: se a sessão já existir, apenas preenche as equipes faltantes.
+ */
+export async function criarEstruturaOficina(gameId: string, teamIds: string[]): Promise<void> {
+  const { data: sessaoExistente } = await db()
+    .from('oficina_sessoes')
+    .select('game_id')
+    .eq('game_id', gameId)
+    .maybeSingle();
+
+  if (!sessaoExistente) {
+    const { error } = await db().from('oficina_sessoes').insert({
+      game_id: gameId,
+      status: 'aguardando',
+      stage: 'briefing',
+      stage_progresso: 0,
+      evento_atual: null,
+      sorteio_eventos: [],
+      iniciada_em: null,
+      finalizada_em: null,
+    });
+    if (error) throw new ApiError('server_error', 'Falha ao criar a sessão da oficina.', error.message);
+  }
+
+  const { data: existentes } = await db()
+    .from('oficina_equipes')
+    .select('team_id')
+    .eq('game_id', gameId);
+
+  const jaExistem = new Set((existentes ?? []).map((row) => row.team_id));
+
+  const linhas = teamIds
+    .filter((teamId) => !jaExistem.has(teamId))
+    .map((teamId, index) => ({
+      game_id: gameId,
+      team_id: teamId,
+      perfil: OFICINA_PERFIS_ORDEM[index % OFICINA_PERFIS_ORDEM.length],
+      indicadores: criarOficinaIndicadores(),
+      acoes_usadas: 0,
+      marcadores: [],
+    }));
+
+  if (linhas.length === 0) return;
+
+  const { error } = await db().from('oficina_equipes').insert(linhas);
+  if (error) throw new ApiError('server_error', 'Falha ao criar as equipes da oficina.', error.message);
+}
+
+// ---------------------------------------------------------------------------
 // Professor: controle de ritmo da oficina
 // ---------------------------------------------------------------------------
 
@@ -111,11 +180,11 @@ export async function iniciarOficina(gameId: string): Promise<IniciarOficinaResu
   if (!sessao) throw new ApiError('not_found', 'Sessão da oficina não existe para esta partida.');
   if (sessao.status !== 'aguardando') throw new ApiError('conflict', 'Oficina já iniciada.');
 
-  // Sorteia os 3 eventos coletivos (fixo para MVP)
+  // Sorteia os eventos coletivos (até 3, determinístico por partida).
   const poolEventos = OFICINA_CONTENT.eventos.map((e) => e.key);
   const sorteados = sortearEventos(gameId, poolEventos, 3);
 
-  const { error } = await db
+  const { error } = await db()
     .from('oficina_sessoes')
     .update({
       status: 'ativa',
@@ -129,13 +198,14 @@ export async function iniciarOficina(gameId: string): Promise<IniciarOficinaResu
 
   if (error) throw new ApiError('server_error', 'Falha ao iniciar oficina.', error.message);
 
-  // Busca/gera narrativa inicial (IA ou fallback)
+  await db().from('games').update({ status: 'running' }).eq('id', gameId);
+
   const narrativa = await getOrGenerateIa(gameId, 'narrativa_inicial', () => OFICINA_IA_FALLBACKS.narrativa_inicial);
 
-  // Emite evento realtime
   await emitOficinaEvent(gameId, 'OFICINA_STAGE_CHANGED', { stage: 'briefing' });
 
-  return { sessao: { ...sessao, status: 'ativa', stage: 'briefing', sorteio_eventos: sorteados }, narrativaInicial: narrativa };
+  const sessaoAtualizada: OficinaSessaoRow = { ...sessao, status: 'ativa', stage: 'briefing', sorteio_eventos: sorteados };
+  return { sessao: sessaoAtualizada, narrativaInicial: narrativa };
 }
 
 export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSessaoRow; narrativaTransicao?: string }> {
@@ -149,25 +219,33 @@ export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSes
   }
 
   const nextStage = OFICINA_STAGES_ORDEM[idx + 1];
-
-  // Se avançando PARA eventos, abre o primeiro evento sorteado
+  const stageProgresso = 0;
   let eventoAtual: string | null = null;
-  let stageProgresso = 0;
+
   if (nextStage === 'eventos') {
     eventoAtual = sessao.sorteio_eventos[0] ?? null;
-    stageProgresso = 0;
+    if (eventoAtual) await abrirEventoColetivo(gameId, eventoAtual);
   }
 
-  const { error } = await db
+  const { error } = await db()
     .from('oficina_sessoes')
-    .update({
-      stage: nextStage,
-      stage_progresso: stageProgresso,
-      evento_atual: eventoAtual,
-    })
+    .update({ stage: nextStage, stage_progresso: stageProgresso, evento_atual: eventoAtual })
     .eq('game_id', gameId);
 
   if (error) throw new ApiError('server_error', 'Falha ao avançar estágio.', error.message);
+
+  // O estágio resultado precisa dos cálculos de avaliação prontos na tela.
+  if (nextStage === 'resultado') {
+    await calcularResultadosOficina(gameId);
+  }
+
+  // Um novo estágio recomeça o limite de ações de todas as equipes.
+  if (nextStage === 'investigacao') {
+    await db()
+      .from('oficina_equipes')
+      .update({ acoes_usadas: 0 })
+      .eq('game_id', gameId);
+  }
 
   const narrativaTransicao = nextStage !== 'briefing'
     ? OFICINA_IA_FALLBACKS.transicoes[nextStage] ?? ''
@@ -176,6 +254,27 @@ export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSes
   await emitOficinaEvent(gameId, 'OFICINA_STAGE_CHANGED', { stage: nextStage, evento: eventoAtual });
 
   return { sessao: { ...sessao, stage: nextStage, stage_progresso: stageProgresso, evento_atual: eventoAtual }, narrativaTransicao };
+}
+
+/** Cria a linha aberta de um evento coletivo (uma única vez, por partida). */
+async function abrirEventoColetivo(gameId: string, eventKey: string): Promise<void> {
+  const { data: existente } = await db()
+    .from('oficina_eventos')
+    .select('id')
+    .eq('game_id', gameId)
+    .eq('event_key', eventKey)
+    .maybeSingle();
+
+  if (existente) return;
+
+  const { error } = await db().from('oficina_eventos').insert({
+    game_id: gameId,
+    event_key: eventKey,
+    status: 'aberto',
+    aberto_em: new Date().toISOString(),
+    contribuicoes: {},
+  });
+  if (error) throw new ApiError('server_error', 'Falha ao abrir o evento coletivo.', error.message);
 }
 
 export async function reabrirStageAnterior(gameId: string): Promise<OficinaSessaoRow> {
@@ -188,7 +287,7 @@ export async function reabrirStageAnterior(gameId: string): Promise<OficinaSessa
   const prevStage = OFICINA_STAGES_ORDEM[idx - 1];
   const eventoAtual = prevStage === 'eventos' ? sessao.sorteio_eventos[sessao.sorteio_eventos.length - 1] : null;
 
-  const { error } = await db
+  const { error } = await db()
     .from('oficina_sessoes')
     .update({ stage: prevStage, stage_progresso: 0, evento_atual: eventoAtual })
     .eq('game_id', gameId);
@@ -205,8 +304,10 @@ export async function pausarOficina(gameId: string): Promise<OficinaSessaoRow> {
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
   if (sessao.status !== 'ativa') throw new ApiError('conflict', 'Só é possível pausar oficina ativa.');
 
-  const { error } = await db.from('oficina_sessoes').update({ status: 'pausada' }).eq('game_id', gameId);
+  const { error } = await db().from('oficina_sessoes').update({ status: 'pausada' }).eq('game_id', gameId);
   if (error) throw new ApiError('server_error', 'Falha ao pausar.', error.message);
+
+  await db().from('games').update({ status: 'paused' }).eq('id', gameId);
 
   await emitOficinaEvent(gameId, 'GAME_PAUSED', {});
   return { ...sessao, status: 'pausada' };
@@ -216,9 +317,12 @@ export async function retomarOficina(gameId: string): Promise<OficinaSessaoRow> 
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
   if (sessao.status !== 'pausada') throw new ApiError('conflict', 'Só é possível retomar oficina pausada.');
+  if (sessao.stage === 'encerrada') throw new ApiError('conflict', 'Oficina encerrada não pode ser retomada.');
 
-  const { error } = await db.from('oficina_sessoes').update({ status: 'ativa' }).eq('game_id', gameId);
+  const { error } = await db().from('oficina_sessoes').update({ status: 'ativa' }).eq('game_id', gameId);
   if (error) throw new ApiError('server_error', 'Falha ao retomar.', error.message);
+
+  await db().from('games').update({ status: 'running' }).eq('id', gameId);
 
   await emitOficinaEvent(gameId, 'GAME_RESUMED', {});
   return { ...sessao, status: 'ativa' };
@@ -227,37 +331,42 @@ export async function retomarOficina(gameId: string): Promise<OficinaSessaoRow> 
 export async function encerrarOficina(gameId: string): Promise<OficinaSessaoRow> {
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
-  if (sessao.status === 'encerrada') throw new ApiError('conflict', 'Já encerrada.');
+  if (sessao.status === 'encerrada' || sessao.stage === 'encerrada') {
+    throw new ApiError('conflict', 'Oficina já encerrada.');
+  }
 
-  // Calcula resultados finais
   await calcularResultadosOficina(gameId);
 
-  const { error } = await db
+  const { error } = await db()
     .from('oficina_sessoes')
     .update({ status: 'encerrada', stage: 'encerrada', finalizada_em: new Date().toISOString() })
     .eq('game_id', gameId);
 
   if (error) throw new ApiError('server_error', 'Falha ao encerrar.', error.message);
 
-  await emitOficinaEvent(gameId, 'OFICINA_FINISHED', {});
+  await db().from('games').update({ status: 'finished', finished_at: new Date().toISOString() }).eq('id', gameId);
 
-  return { ...sessao, status: 'encerrada', stage: 'encerrada' };
+  await emitOficinaEvent(gameId, 'OFICINA_FINISHED', {});
+  return { ...sessao, status: 'encerrada', stage: 'encerrada', finalizada_em: new Date().toISOString() };
 }
 
 export async function reiniciarOficina(gameId: string): Promise<OficinaSessaoRow> {
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
 
-  // Limpa todo estado da oficina (exceto sessão)
-  await db.from('oficina_equipes').update({ indicadores: criarIndicadoresIniciais(), acoes_usadas: 0, marcadores: [] }).eq('game_id', gameId);
-  await db.from('oficina_pistas').delete().eq('game_id', gameId);
-  await db.from('oficina_acoes').delete().eq('game_id', gameId);
-  await db.from('oficina_eventos').delete().eq('game_id', gameId);
-  await db.from('oficina_solucoes').delete().eq('game_id', gameId);
-  await db.from('oficina_resultados').delete().eq('game_id', gameId);
-  await db.from('oficina_ia').delete().eq('game_id', gameId);
+  // Limpa todo estado da oficina (exceto sessão e equipes).
+  await db().from('oficina_pistas').delete().eq('game_id', gameId);
+  await db().from('oficina_acoes').delete().eq('game_id', gameId);
+  await db().from('oficina_eventos').delete().eq('game_id', gameId);
+  await db().from('oficina_solucoes').delete().eq('game_id', gameId);
+  await db().from('oficina_resultados').delete().eq('game_id', gameId);
+  await db().from('oficina_ia').delete().eq('game_id', gameId);
+  await db()
+    .from('oficina_equipes')
+    .update({ indicadores: criarOficinaIndicadores(), acoes_usadas: 0, marcadores: [] })
+    .eq('game_id', gameId);
 
-  const { error } = await db
+  const { error } = await db()
     .from('oficina_sessoes')
     .update({
       status: 'aguardando',
@@ -272,21 +381,10 @@ export async function reiniciarOficina(gameId: string): Promise<OficinaSessaoRow
 
   if (error) throw new ApiError('server_error', 'Falha ao reiniciar.', error.message);
 
+  await db().from('games').update({ status: 'lobby' }).eq('id', gameId);
+
   await emitOficinaEvent(gameId, 'GAME_RESET', {});
   return { ...sessao, status: 'aguardando', stage: 'briefing' };
-}
-
-function criarIndicadoresIniciais(): OficinaIndicadores {
-  return {
-    cooperacao: 50,
-    organizacao: 50,
-    mercado: 50,
-    conhecimento: 50,
-    sustentabilidade: 50,
-    confianca: 50,
-    inclusao: 50,
-    viabilidade: 50,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +395,8 @@ export interface AcaoJogadorInput {
   gameId: string;
   teamId: string;
   acaoKey: string;
-  alvoId?: string; // local_id ou pista_id
+  /** Local ou personagem alvo (para ações de investigação). */
+  alvoId?: string;
 }
 
 export interface AcaoJogadorResult {
@@ -318,27 +417,21 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
   const equipe = await getEquipe(teamId);
   if (!equipe) throw new ApiError('not_found', 'Equipe não encontrada na oficina.');
 
-  // Verifica limite de ações
-  if (equipe.acoes_usadas >= MAX_ACOES_POR_ESTAGIO) {
-    throw new ApiError('conflict', `Limite de ${MAX_ACOES_POR_ESTAGIO} ações por estágio atingido.`);
-  }
-
-  // Busca ação no conteúdo
   const acaoDef = OFICINA_CONTENT.acoes.find((a) => a.key === acaoKey);
   if (!acaoDef) throw new ApiError('bad_request', 'Ação inválida.');
 
-  // Valida requisitos (tags de pista)
-  const pistasEquipe = await db
+  // Valida requisitos (tags de pista): vetor de tags por pista da equipe.
+  const pistasTags: string[][] = [];
+  const { data: pistasEquipe } = await db()
     .from('oficina_pistas')
     .select('pista_id')
     .eq('game_id', gameId)
     .eq('team_id', teamId);
 
-  const pistasTags: TagOficina[] = [];
-  if (pistasEquipe.data) {
-    for (const p of pistasEquipe.data) {
+  if (pistasEquipe) {
+    for (const p of pistasEquipe) {
       const pistaDef = OFICINA_CONTENT.pistas.find((pi) => pi.id === p.pista_id);
-      if (pistaDef) pistasTags.push(...pistaDef.tags);
+      if (pistaDef) pistasTags.push(pistaDef.tags);
     }
   }
 
@@ -352,8 +445,17 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
 
   if (!validacao.ok) throw new ApiError('conflict', validacao.motivo!);
 
-  // Idempotência: tenta inserir no log de ações
-  const { data: acaoExistente, error: insertError } = await db
+  // `acaoResultado` devolve o NOVO estado completo em `efeitos`. Guardamos no
+  // log o delta (o que mudou de fato), mas aplicamos o estado final completo.
+  const resultadoAcao = acaoResultado(equipe.indicadores, acaoDef);
+  const novosIndicadores = resultadoAcao.efeitos;
+  const deltas = deltaOf(equipe.indicadores, novosIndicadores);
+  const aviso = resultadoAcao.aviso;
+
+  // Idempotência: a constraint unique (team_id, stage, acao_key, alvo_id)
+  // impede o clique duplo. Se já rodou antes, devolve a ação registrada sem
+  // aplicar efeitos de novo.
+  const { data: acaoInserida, error: insertError } = await db()
     .from('oficina_acoes')
     .insert({
       game_id: gameId,
@@ -361,34 +463,51 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
       stage: sessao.stage,
       acao_key: acaoKey,
       alvo_id: alvoId ?? null,
-      efeitos: acaoResultado(equipe.indicadores, acaoDef).efeitos,
+      efeitos: deltas,
     })
     .select()
     .maybeSingle();
 
-  if (insertError && insertError.code !== '23505') { // unique_violation
+  if (insertError) {
+    if (insertError.code === '23505') {
+      const { data: existente } = await db()
+        .from('oficina_acoes')
+        .select('*')
+        .eq('game_id', gameId)
+        .eq('team_id', teamId)
+        .eq('stage', sessao.stage)
+        .eq('acao_key', acaoKey)
+        .eq('alvo_id', alvoId ?? null)
+        .maybeSingle();
+
+      const { data: equipeAtual } = await db()
+        .from('oficina_equipes')
+        .select('indicadores')
+        .eq('team_id', teamId)
+        .maybeSingle();
+
+      return {
+        acao: existente as OficinaAcaoRow,
+        indicadoresAtualizados: (equipeAtual?.indicadores ?? equipe.indicadores) as OficinaIndicadores,
+      };
+    }
     throw new ApiError('server_error', 'Falha ao registrar ação.', insertError.message);
   }
 
-  // Se já existia (clique duplo), retorna a existente sem duplicar efeitos
-  if (acaoExistente) {
-    const indicadoresAtuais = await getEquipe(teamId);
-    return { acao: acaoExistente as OficinaAcaoRow, indicadoresAtualizados: indicadoresAtuais!.indicadores };
-  }
+  // Aplica efeitos nos indicadores (só na primeira execução).
+  const { data: acaoRow } = await db()
+    .from('oficina_equipes')
+    .update({ indicadores: novosIndicadores, acoes_usadas: equipe.acoes_usadas + 1 })
+    .eq('team_id', teamId)
+    .select()
+    .single();
 
-  // Aplica efeitos nos indicadores
-  const { efeitos, aviso } = acaoResultado(equipe.indicadores, acaoDef);
-  const novosIndicadores = aplicarDelta(equipe.indicadores, efeitos);
-
-  await db.from('oficina_equipes').update({ indicadores: novosIndicadores, acoes_usadas: equipe.acoes_usadas + 1 }).eq('team_id', teamId);
-
-  // Se ação investiga e tem alvo, tenta descobrir pista
+  // Ação de investigação com alvo: tenta descobrir a pista associada ao alvo.
   let pistaDescoberta: OficinaPistaRow | undefined;
   if (acaoDef.investiga && alvoId) {
-    // Busca a pista associada ao alvo (local ou personagem)
     const pistaAlvo = OFICINA_CONTENT.pistas.find((p) => p.id === alvoId || p.origem.includes(alvoId));
     if (pistaAlvo) {
-      const { data: pistaRow, error: pistaError } = await db
+      const { data: pistaRow, error: pistaError } = await db()
         .from('oficina_pistas')
         .insert({
           game_id: gameId,
@@ -401,34 +520,45 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
 
       if (!pistaError && pistaRow) {
         pistaDescoberta = pistaRow as OficinaPistaRow;
-        // Marca marcador se for tecnologia/conectividade
-        if (pistaAlvo.tags.includes('tecnologia') || pistaAlvo.tags.includes('conectividade')) {
-          await adicionarMarcador(teamId, 'tech_usada');
-        }
-        if (pistaAlvo.tags.includes('capacitacao')) {
-          await adicionarMarcador(teamId, 'capacitacao_feita');
-        }
+        await marcarTagsPista(teamId, pistaAlvo.tags);
         await emitOficinaEvent(gameId, 'OFICINA_CLUE_FOUND', { teamId, pistaId: pistaAlvo.id });
       }
     }
   }
 
-  // Adiciona marcadores baseados em tags da ação
-  if (acaoDef.tags.includes('tecnologia') || acaoDef.tags.includes('conectividade')) {
-    await adicionarMarcador(teamId, 'tech_usada');
-  }
-  if (acaoDef.tags.includes('capacitacao')) {
-    await adicionarMarcador(teamId, 'capacitacao_feita');
-  }
+  await marcarTagsPista(teamId, acaoDef.tags);
 
-  return { acao: { ...acaoExistente!, efeitos } as OficinaAcaoRow, pistaDescoberta, indicadoresAtualizados: novosIndicadores, aviso };
+  return {
+    acao: (acaoInserida ?? acaoRow) as OficinaAcaoRow,
+    pistaDescoberta,
+    indicadoresAtualizados: novosIndicadores,
+    aviso,
+  };
 }
 
-async function adicionarMarcador(teamId: string, marcador: string) {
+/** Calcula o delta (diff) entre dois estados de indicadores. */
+function deltaOf(de: OficinaIndicadores, para: OficinaIndicadores): Partial<OficinaIndicadores> {
+  const delta: Partial<OficinaIndicadores> = {};
+  for (const chave of Object.keys(para) as (keyof OficinaIndicadores)[]) {
+    const diff = para[chave] - de[chave];
+    if (diff !== 0) delta[chave] = diff;
+  }
+  return delta;
+}
+
+async function marcarTagsPista(teamId: string, tags: TagOficina[]) {
   const equipe = await getEquipe(teamId);
   if (!equipe) return;
-  if (!equipe.marcadores.includes(marcador)) {
-    await db.from('oficina_equipes').update({ marcadores: [...equipe.marcadores, marcador] }).eq('team_id', teamId);
+
+  const novosMarcadores = new Set(equipe.marcadores);
+  if (tags.includes('tecnologia') || tags.includes('conectividade')) novosMarcadores.add('tech_usada');
+  if (tags.includes('capacitacao')) novosMarcadores.add('capacitacao_feita');
+
+  if (novosMarcadores.size !== equipe.marcadores.length) {
+    await db()
+      .from('oficina_equipes')
+      .update({ marcadores: [...novosMarcadores] })
+      .eq('team_id', teamId);
   }
 }
 
@@ -442,7 +572,7 @@ export async function compartilharPista(gameId: string, teamId: string, pistaId:
   requireActive(sessao);
   requireStage(sessao, 'investigacao');
 
-  const { data, error } = await db
+  const { data, error } = await db()
     .from('oficina_pistas')
     .update({ compartilhada_em: new Date().toISOString() })
     .eq('game_id', gameId)
@@ -484,8 +614,7 @@ export async function votarEvento(input: VotarEventoInput): Promise<{ opcao: Ofi
   const opcao = eventoDef.opcoes.find((o) => o.key === opcaoKey);
   if (!opcao) throw new ApiError('bad_request', 'Opção inválida.');
 
-  // Verifica se já votou
-  const { data: existente } = await db
+  const { data: existente } = await db()
     .from('oficina_eventos')
     .select('contribuicoes')
     .eq('game_id', gameId)
@@ -495,18 +624,34 @@ export async function votarEvento(input: VotarEventoInput): Promise<{ opcao: Ofi
   const contribuicoes = (existente?.contribuicoes ?? {}) as Record<string, { opcao_key: string; efeitos: Partial<OficinaIndicadores> }>;
   if (contribuicoes[teamId]) throw new ApiError('conflict', 'Esta equipe já contribuiu neste evento.');
 
-  // Aplica efeitos individuais + coletivos
   const equipe = await getEquipe(teamId);
   if (!equipe) throw new ApiError('not_found', 'Equipe não encontrada.');
 
   const efeitosIndividuais = eventoContribuicao(equipe.indicadores, opcao, eventoDef.efeito_coletivo);
   const novosIndicadores = aplicarDelta(equipe.indicadores, efeitosIndividuais);
 
-  await db.from('oficina_equipes').update({ indicadores: novosIndicadores }).eq('team_id', teamId);
+  await db().from('oficina_equipes').update({ indicadores: novosIndicadores }).eq('team_id', teamId);
 
-  // Registra contribuição
   const novasContribuicoes = { ...contribuicoes, [teamId]: { opcao_key: opcaoKey, efeitos: efeitosIndividuais } };
-  await db.from('oficina_eventos').update({ contribuicoes: novasContribuicoes }).eq('game_id', gameId).eq('event_key', eventKey);
+
+  // Guarda otimista contra clique duplo: o update só casa se a equipe ainda
+  // NÃO estiver nas contribuições. Se outro clique já gravou, o filter não
+  // casa, data vem null e tratamos como conflito (idempotente, sem duplo delta).
+  const { data: atualizado } = await db()
+    .from('oficina_eventos')
+    .update({ contribuicoes: novasContribuicoes })
+    .eq('game_id', gameId)
+    .eq('event_key', eventKey)
+    .not('contribuicoes', 'contains', { [teamId]: { opcao_key: opcaoKey, efeitos: efeitosIndividuais } })
+    .select('id')
+    .maybeSingle();
+
+  if (!atualizado) {
+    return {
+      opcao,
+      efeitos: {},
+    };
+  }
 
   await emitOficinaEvent(gameId, 'OFICINA_EVENT_RESOLVED', { teamId, eventKey, opcaoKey });
 
@@ -521,28 +666,21 @@ export async function abrirProximoEvento(gameId: string): Promise<{ sessao: Ofic
 
   const proxIdx = sessao.stage_progresso + 1;
   if (proxIdx >= sessao.sorteio_eventos.length) {
-    // Fim dos eventos → avança para solução
-    return { sessao: await avancarStage(gameId) };
+    const avancado = await avancarStage(gameId);
+    return { sessao: avancado.sessao };
   }
 
   const proximoEventoKey = sessao.sorteio_eventos[proxIdx];
   const eventoDef = OFICINA_CONTENT.eventos.find((e) => e.key === proximoEventoKey);
 
-  const { error } = await db
+  await abrirEventoColetivo(gameId, proximoEventoKey);
+
+  const { error } = await db()
     .from('oficina_sessoes')
     .update({ stage_progresso: proxIdx, evento_atual: proximoEventoKey })
     .eq('game_id', gameId);
 
   if (error) throw new ApiError('server_error', 'Falha ao abrir próximo evento.', error.message);
-
-  // Cria registro do evento coletivo
-  await db.from('oficina_eventos').insert({
-    game_id: gameId,
-    event_key: proximoEventoKey,
-    status: 'aberto',
-    aberto_em: new Date().toISOString(),
-    contribuicoes: {},
-  }).select().maybeSingle();
 
   await emitOficinaEvent(gameId, 'OFICINA_EVENT_OPENED', { eventKey: proximoEventoKey, idx: proxIdx });
 
@@ -561,17 +699,32 @@ export async function resolverEventoAtual(gameId: string): Promise<{ sessao: Ofi
   const eventoDef = OFICINA_CONTENT.eventos.find((e) => e.key === eventoKey);
   if (!eventoDef) throw new ApiError('bad_request', 'Evento inválido.');
 
-  // Aplica efeito coletivo a todas as equipes
+  // Quem já contribuiu recebeu individual + coletivo na hora do voto
+  // (eventoContribuicao combina os dois). Só quem faltou recebe agora o
+  // coletivo — evita aplicar o mesmo delta duas vezes.
+  const { data: eventRow } = await db()
+    .from('oficina_eventos')
+    .select('contribuicoes')
+    .eq('game_id', gameId)
+    .eq('event_key', eventoKey)
+    .maybeSingle();
+
+  const contribuicoes = (eventRow?.contribuicoes ?? {}) as Record<string, unknown>;
+
   const equipes = await getEquipesDoJogo(gameId);
   for (const eq of equipes) {
+    if (contribuicoes[eq.team_id]) continue;
     const novos = aplicarDelta(eq.indicadores, eventoDef.efeito_coletivo);
-    await db.from('oficina_equipes').update({ indicadores: novos }).eq('team_id', eq.team_id);
+    await db().from('oficina_equipes').update({ indicadores: novos }).eq('team_id', eq.team_id);
   }
 
-  // Marca evento como resolvido
-  await db.from('oficina_eventos').update({ status: 'resolvido', resolvido_em: new Date().toISOString() }).eq('game_id', gameId).eq('event_key', eventoKey);
+  await db()
+    .from('oficina_eventos')
+    .update({ status: 'resolvido', resolvido_em: new Date().toISOString() })
+    .eq('game_id', gameId)
+    .eq('event_key', eventoKey);
 
-  await emitOficinaEvent(gameId, 'OFICINA_EVENT_RESOLVED', { eventKey, coletivo: true });
+  await emitOficinaEvent(gameId, 'OFICINA_EVENT_RESOLVED', { eventKey: eventoKey, coletivo: true });
 
   return { sessao: { ...sessao }, efeitosColetivos: eventoDef.efeito_coletivo };
 }
@@ -586,22 +739,22 @@ export async function submeterSolucao(gameId: string, teamId: string, solucao: O
   requireActive(sessao);
   requireStage(sessao, 'solucao');
 
-  // Validação leve de coerência (só aviso, não bloqueia)
-  const problemaEscolhido = solucao.blocos.problema_principal;
-  const problemaTags = OFICINA_CONTENT.pistas.find((p) => p.id === problemaEscolhido)?.tags ?? [];
-
-  const { error } = await db
+  const { data, error } = await db()
     .from('oficina_solucoes')
-    .upsert({
-      game_id: gameId,
-      team_id: teamId,
-      blocos: solucao,
-      enviada_em: new Date().toISOString(),
-    })
+    .upsert(
+      {
+        game_id: gameId,
+        team_id: teamId,
+        blocos: solucao,
+        enviada_em: new Date().toISOString(),
+      },
+      { onConflict: 'team_id' },
+    )
     .select()
     .maybeSingle();
 
   if (error) throw new ApiError('server_error', 'Falha ao submeter solução.', error.message);
+  if (!data) throw new ApiError('server_error', 'Falha ao salvar solução.');
 
   await emitOficinaEvent(gameId, 'OFICINA_SOLUTION_SUBMITTED', { teamId });
 
@@ -609,21 +762,30 @@ export async function submeterSolucao(gameId: string, teamId: string, solucao: O
 }
 
 // ---------------------------------------------------------------------------
+// Avaliação de coerência da solução (apoio ao professor, não bloqueio)
+// ---------------------------------------------------------------------------
+
+export function avaliarCoerencia(solucao: OficinaSolucao): { score: number; avisos: string[]; alinhados: string[]; desalinhados: string[] } {
+  const problemaEscolhido = solucao.blocos.problema_principal;
+  const problemaTags = OFICINA_CONTENT.pistas.find((p) => p.id === problemaEscolhido)?.tags ?? [];
+  return coerenciaSolucao(solucao, problemaEscolhido ?? '', problemaTags, OFICINA_CONTENT.cartoes);
+}
+
+// ---------------------------------------------------------------------------
 // Cálculo de resultados
 // ---------------------------------------------------------------------------
 
-async function calcularResultadosOficina(gameId: string): Promise<void> {
+export async function calcularResultadosOficina(gameId: string): Promise<void> {
   const equipes = await getEquipesDoJogo(gameId);
-  const solucoes: Record<string, OficinaSolucao> = {};
 
+  const solucoes: Record<string, OficinaSolucao> = {};
   for (const eq of equipes) {
-    const { data: sol } = await db
+    const { data: sol } = await db()
       .from('oficina_solucoes')
       .select('blocos')
       .eq('game_id', gameId)
       .eq('team_id', eq.team_id)
       .maybeSingle();
-
     if (sol) solucoes[eq.team_id] = sol.blocos as OficinaSolucao;
   }
 
@@ -634,30 +796,62 @@ async function calcularResultadosOficina(gameId: string): Promise<void> {
     problemaTagsPorEquipe[teamId] = prob?.tags ?? [];
   }
 
-  const resultados = calcularResultados(
-    equipes.map((e) => ({ team_id: e.team_id, indicadores: e.indicadores, marcadores: e.marcadores, solucao: solucoes[e.team_id] })),
-    OFICINA_CONTENT.cartoes,
-    problemaTagsPorEquipe
-  );
+  const inputs: EquipeInput[] = equipes.map((e) => ({
+    team_id: e.team_id,
+    indicadores: e.indicadores,
+    marcadores: e.marcadores,
+    solucao: solucoes[e.team_id],
+  }));
 
-  // Salva resultados por equipe
+  const resultados = calcularResultados(inputs, OFICINA_CONTENT.cartoes, problemaTagsPorEquipe);
+
   for (const eq of equipes) {
     const catEquipe = resultados.filter((r) => r.team_id === eq.team_id);
-    await db.from('oficina_resultados').upsert({
-      game_id: gameId,
-      team_id: eq.team_id,
-      categorias: catEquipe,
-      indicadores: eq.indicadores,
-    });
+    await db().from('oficina_resultados').upsert(
+      {
+        game_id: gameId,
+        team_id: eq.team_id,
+        categorias: catEquipe,
+        indicadores: eq.indicadores,
+        criado_em: new Date().toISOString(),
+      },
+      { onConflict: 'team_id' },
+    );
   }
 }
 
+export async function resumoParaDebate(gameId: string): Promise<{ resumo_para_debate: string }> {
+  const equipes = await getEquipesDoJogo(gameId);
+
+  const { data: resultados, error } = await db()
+    .from('oficina_resultados')
+    .select('categorias')
+    .eq('game_id', gameId);
+
+  if (error) throw new ApiError('server_error', 'Falha ao ler resultados.', error.message);
+
+  const categorias = (resultados ?? []).flatMap((row) =>
+    Array.isArray(row.categorias) ? (row.categorias as OficinaResultadoCategoria[]) : [],
+  );
+
+  const inputs: EquipeInput[] = equipes.map((e) => ({
+    team_id: e.team_id,
+    indicadores: e.indicadores,
+    marcadores: e.marcadores,
+    solucao: undefined,
+  }));
+
+  return calcularResultadoOficinaResumo(inputs, categorias);
+}
+
 // ---------------------------------------------------------------------------
-// IA econômica
+// IA econômica (cache por partida — 3 slots no máximo)
 // ---------------------------------------------------------------------------
 
-async function getOrGenerateIa(gameId: string, tipo: 'narrativa_inicial' | 'reflexao_final' | 'debate', fallback: () => string): Promise<string> {
-  const { data: cached } = await db
+type OficinaIaTipo = 'narrativa_inicial' | 'reflexao_final' | 'debate';
+
+async function getOrGenerateIa(gameId: string, tipo: OficinaIaTipo, fallback: () => string): Promise<string> {
+  const { data: cached } = await db()
     .from('oficina_ia')
     .select('texto')
     .eq('game_id', gameId)
@@ -666,14 +860,12 @@ async function getOrGenerateIa(gameId: string, tipo: 'narrativa_inicial' | 'refl
 
   if (cached?.texto) return cached.texto;
 
-  // Chama IA real (com timeout e fallback)
   const texto = await chamarIaOficina(tipo, fallback);
-  await db.from('oficina_ia').upsert({ game_id: gameId, tipo, texto, modelo: 'gemini-3.6-flash' });
+  await db().from('oficina_ia').upsert({ game_id: gameId, tipo, texto, modelo: 'gemini-3.6-flash' });
   return texto;
 }
 
-async function chamarIaOficina(tipo: string, fallback: () => string): Promise<string> {
-  // Reusa a infraestrutura do gemini.ts via import dinâmico para não criar dependência circular
+async function chamarIaOficina(tipo: OficinaIaTipo, fallback: () => string): Promise<string> {
   try {
     const { _internals } = await import('./gemini');
     const prompt = construirPromptIaOficina(tipo);
@@ -684,20 +876,20 @@ async function chamarIaOficina(tipo: string, fallback: () => string): Promise<st
   }
 }
 
-function construirPromptIaOficina(tipo: string): string {
-  // Prompts curtos, sem dados sensíveis, reusando fallbacks como base
-  const base = OFICINA_IA_FALLBACKS;
-
+function construirPromptIaOficina(tipo: OficinaIaTipo): string {
   switch (tipo) {
     case 'narrativa_inicial':
-      return `Você é um narrador de oficina comunitária no Cerrado. Escreva 3-4 parágrafos acolhedores apresentando a "Comunidade Boa Vista do Cerrado", seus desafios (transporte, conectividade, comercialização, capacitação, políticas públicas) e convidando 6 equipes com perfis distintos a colaborar. Tom: humano, digno, sem jargão de IA. Português do Brasil.`;
+      return 'Você é um narrador de oficina comunitária no Cerrado. Escreva 3-4 parágrafos acolhedores apresentando a "Comunidade Boa Vista do Cerrado", seus desafios (transporte, conectividade, comercialização, capacitação, políticas públicas) e convidando 6 equipes com perfis distintos a colaborar. Tom: humano, digno, sem jargão de IA. Português do Brasil.';
     case 'reflexao_final':
-      return `Você é facilitador pedagógico. Escreva uma reflexão final de 4-5 parágrafos sobre a oficina comunitária recém-concluída, retomando as 9 perguntas-chave como provocação para debate em sala. Tom: professor experiente, sem julgamento de certo/errado, foco no processo coletivo. Português do Brasil.`;
+      return 'Você é facilitador pedagógico. Escreva uma reflexão final de 4-5 parágrafos sobre a oficina comunitária recém-concluída, retomando as 9 perguntas-chave como provocação para debate em sala. Tom: professor experiente, sem julgamento de certo/errado, foco no processo coletivo. Português do Brasil.';
     case 'debate':
-      return `Você é mediador de debate escolar. Com base na oficina "Comunidade Boa Vista do Cerrado", gere um roteiro para o professor conduzir o debate pós-atividade: fala de abertura, 3 pontos para sustentar, 1 provocação, 3 perguntas para a sala. Cite políticas públicas reais (PAA, PNAE, ATER) apenas se aparecerem nas soluções das equipes. Formato markdown simples (# ## - 1. **). PT-BR oral.`;
-    default:
-      return fallback();
+      return 'Você é mediador de debate escolar. Com base na oficina "Comunidade Boa Vista do Cerrado", gere um roteiro para o professor conduzir o debate pós-atividade: fala de abertura, 3 pontos para sustentar, 1 provocação, 3 perguntas para a sala. Cite políticas públicas reais (PAA, PNAE, ATER) apenas se aparecerem nas soluções das equipes. Formato markdown simples. PT-BR oral.';
   }
+}
+
+export async function reflexaoFinalOficina(gameId: string): Promise<{ reflexao: string; perguntas: string[] }> {
+  const reflexao = await getOrGenerateIa(gameId, 'reflexao_final', () => OFICINA_IA_FALLBACKS.narrativa_inicial);
+  return { reflexao, perguntas: OFICINA_IA_FALLBACKS.reflexao_perguntas };
 }
 
 // ---------------------------------------------------------------------------
@@ -705,21 +897,55 @@ function construirPromptIaOficina(tipo: string): string {
 // ---------------------------------------------------------------------------
 
 async function emitOficinaEvent(gameId: string, type: string, payload: Record<string, unknown>) {
-  await db.from('game_events').insert({ game_id: gameId, type, payload });
+  const { error } = await db().from('game_events').insert({ game_id: gameId, type, payload });
+  if (error) {
+    console.error(`[safra-df] falha ao emitir ${type}:`, error.message);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// View pública para o mapa (anon read via RLS)
+// View pública (leitura RLS anon + conteúdo estático)
 // ---------------------------------------------------------------------------
 
+export interface OficinaEquipeComNome extends OficinaEquipeRow {
+  nome: string;
+}
+
 export interface OficinaPublicView {
+  gameId: string;
   sessao: OficinaSessaoRow | null;
-  equipes: OficinaEquipeRow[];
-  locais: typeof OFICINA_CONTENT.locais;
-  personagens: typeof OFICINA_CONTENT.personagens;
+  equipes: OficinaEquipeComNome[];
+  pistas: OficinaPistaRow[];
+  eventos: OficinaEventoRow[];
+  solucoes: OficinaSolucaoRow[];
+  resultados: OficinaResultadoRow[];
 }
 
 export async function getOficinaPublicView(gameId: string): Promise<OficinaPublicView> {
-  const [sessao, equipes] = await Promise.all([getSessao(gameId), getEquipesDoJogo(gameId)]);
-  return { sessao, equipes, locais: OFICINA_CONTENT.locais, personagens: OFICINA_CONTENT.personagens };
+  const [sessao, equipes, pistas, eventos, solucoes, resultados, teamRows] = await Promise.all([
+    getSessao(gameId),
+    getEquipesDoJogo(gameId),
+    db().from('oficina_pistas').select('*').eq('game_id', gameId).order('descoberta_em'),
+    db().from('oficina_eventos').select('*').eq('game_id', gameId).order('aberto_em'),
+    db().from('oficina_solucoes').select('*').eq('game_id', gameId).order('enviada_em'),
+    db().from('oficina_resultados').select('*').eq('game_id', gameId).order('criado_em'),
+    db().from('teams').select('id, name').eq('game_id', gameId),
+  ]);
+
+  const nomePorTeam = new Map((teamRows.data ?? []).map((t) => [t.id, t.name]));
+
+  const equipesComNome: OficinaEquipeComNome[] = equipes.map((e) => ({
+    ...e,
+    nome: nomePorTeam.get(e.team_id) ?? 'Equipe',
+  }));
+
+  return {
+    gameId,
+    sessao: sessao as OficinaSessaoRow | null,
+    equipes: equipesComNome,
+    pistas: (pistas.data ?? []) as OficinaPistaRow[],
+    eventos: (eventos.data ?? []) as OficinaEventoRow[],
+    solucoes: (solucoes.data ?? []) as OficinaSolucaoRow[],
+    resultados: (resultados.data ?? []) as OficinaResultadoRow[],
+  };
 }

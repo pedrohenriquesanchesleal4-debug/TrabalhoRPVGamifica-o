@@ -50,7 +50,7 @@ comment on column public.games.mode is
 create table if not exists public.oficina_sessoes (
   game_id           uuid primary key references public.games(id) on delete cascade,
   status            text not null default 'aguardando'
-                      check (status in ('aguardando', 'ativa', 'pausada')),
+                      check (status in ('aguardando', 'ativa', 'pausada', 'encerrada')),
   stage             text not null default 'briefing'
                       check (stage in ('briefing', 'investigacao', 'eventos',
                                        'solucao', 'resultado', 'encerrada')),

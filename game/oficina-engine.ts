@@ -126,7 +126,8 @@ export function validarAcao({
 // ---------------------------------------------------------------------------
 
 export interface AcaoResultado {
-  efeitos: Partial<OficinaIndicadores>;
+  /** Estado COMPLETO dos indicadores após aplicar a ação (não é um delta). */
+  efeitos: OficinaIndicadores;
   aviso?: string;
 }
 
