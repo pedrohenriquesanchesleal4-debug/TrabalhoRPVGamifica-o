@@ -16,7 +16,6 @@ import {
   Pause,
   Play,
   Power,
-  Repeat,
   RotateCcw,
   Share2,
   Sprout,
@@ -36,7 +35,6 @@ import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_COMUNIDADE_NOME } from '@/data/oficina-ia';
 import {
-  OFICINA_INDICADORES_INFO,
   OFICINA_PERFIS_INFO,
   OFICINA_STAGES_ORDEM,
   type OficinaEventoRow,
@@ -457,7 +455,6 @@ export function OficinaTeacherPanel({
         sessao={sessao}
         eventoAtual={eventoAtual}
         totalEquipes={equipes.length}
-        view={view}
       />
 
       <section className="relative z-10 flex flex-col gap-4 revelar">
@@ -591,12 +588,10 @@ function EventosSection({
   sessao,
   eventoAtual,
   totalEquipes,
-  view,
 }: {
   sessao: OficinaSessaoRow;
   eventoAtual: OficinaEventoRow | null | undefined;
   totalEquipes: number;
-  view: OficinaHostViewResponse;
 }) {
   if (sessao.stage !== 'eventos') return null;
 

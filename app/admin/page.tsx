@@ -26,6 +26,7 @@ import {
 } from '@/lib/client-api';
 import { hostSession } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
+import { OficinaTeacherPanel } from '@/components/oficina/oficina-teacher-panel';
 import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DenseTeamCard } from '@/components/host/team-board';
 import { PropertyScene } from '@/components/game/property-scene';
@@ -64,6 +65,7 @@ export default function AdminPage() {
     try {
       const nextView = await fetchHostView(id, hostToken);
       setView(nextView);
+      setMode(nextView.game.mode);
       setLoadError(null);
     } catch (error) {
       if (error instanceof RequestError && (error.code === 'unauthorized' || error.code === 'not_found')) {
@@ -148,6 +150,27 @@ export default function AdminPage() {
 
   if (!gameId || !token || !code) {
     return null;
+  }
+
+  if (mode === 'oficina') {
+    return (
+      <div className="relative">
+        <OficinaTeacherPanel gameId={gameId} token={token} code={code} />
+        <button
+          type="button"
+          onClick={() => {
+            hostSession.clear();
+            setPhase('no_session');
+            setView(null);
+            setMode(null);
+            setLastOutcomes(null);
+          }}
+          className="fixed bottom-6 right-6 z-20 inline-flex items-center gap-1.5 text-sm font-medium text-terra-500 hover:text-terra-900"
+        >
+          Encerrar sessão
+        </button>
+      </div>
+    );
   }
 
   return (
