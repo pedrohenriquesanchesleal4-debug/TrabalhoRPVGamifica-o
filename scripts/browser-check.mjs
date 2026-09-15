@@ -42,7 +42,21 @@ async function main() {
   const watch = (page, label) => {
     page.on('pageerror', (error) => errors.push(`${label}: ${error.message}`));
     page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(`${label} (console): ${message.text()}`);
+      // O genérico "Failed to load resource" não tem URL e duplicaria o que o
+      // handler de `response` abaixo já registra com status e URL.
+      if (message.type() === 'error' && !/failed to load resource/i.test(message.text())) {
+        errors.push(`${label} (console): ${message.text()}`);
+      }
+    });
+    // 404 de recurso não viram console.error com URL; captura a resposta real.
+    page.on('response', (response) => {
+      if (response.status() === 404 && response.url().includes('/api/oficina/')) {
+        // Fallback por design no telão clássico: não conta como erro.
+        return;
+      }
+      if (response.status() >= 400) {
+        errors.push(`${label} (http ${response.status()}): ${response.url()}`);
+      }
     });
   };
 
@@ -123,6 +137,29 @@ async function main() {
       code,
       { timeout: 10000 },
     );
+
+    await page.getByRole('button', { name: /entrar na fazenda/i }).click();
+
+    /*
+     * Fluxo novo em 3 passos: depois do código, o aluno escolhe a EQUIPE na
+     * lista (radiogroup "Propriedades com vaga") e a FUNÇÃO dentro dela
+     * ("Função na propriedade"), e só então chega ao nome. Cada aluno entra
+     * na equipe `index % 6`, então as 6 equipes recebem dois colegas cada —
+     * mantendo a prova de realtime dentro da mesma equipe no passo 4.
+     */
+    await page
+      .getByText(/qual propriedade sua equipe vai tocar|perfil de atuação/i)
+      .first()
+      .waitFor({ timeout: 20000 });
+
+    const teamIndex = roster.indexOf(name) % 6;
+    await page.getByRole('radio', { name: /sítio|cerrado|esperança|riacho|safra|planalto/i }).nth(teamIndex).click();
+    await page
+      .getByRole('radiogroup', { name: /função na propriedade/i })
+      .locator('button[role="radio"]:not([disabled])')
+      .first()
+      .click();
+    await page.getByRole('button', { name: /entrar na propriedade/i }).click();
 
     const nameField = page.getByLabel(/nome/i);
     await nameField.click();
