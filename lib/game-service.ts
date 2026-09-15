@@ -1438,6 +1438,24 @@ export async function resetGame(gameId: string, hostToken: string): Promise<Game
   return updated;
 }
 
+/**
+ * Exclui a partida inteira.
+ *
+ * Todas as tabelas do jogo — jogadores, equipes, rodadas, eventos, decisões,
+ * scores, debate preparado, oficina (sessão, pistas, soluções, resultados) e o
+ * próprio segredo do professor — referenciam `games(id)` com
+ * `on delete cascade`: apagar a linha da partida limpa tudo de uma vez. O token
+ * do professor é conferido antes, como em qualquer mutação de controle.
+ */
+export async function deleteGame(gameId: string, hostToken: string): Promise<void> {
+  await authenticateHost(gameId, hostToken);
+
+  const { error } = await db().from('games').delete().eq('id', gameId);
+  if (error) {
+    throw new ApiError('server_error', 'Falha ao excluir a partida.', error.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Visões
 // ---------------------------------------------------------------------------

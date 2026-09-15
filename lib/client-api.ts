@@ -81,6 +81,14 @@ export function fetchHostView(gameId: string, token: string) {
   return request<HostView>(`/api/host/${gameId}`, { token, cache: 'no-store' });
 }
 
+/** Exclui a partida inteira (cascata). O token é o Bearer do professor. */
+export function deleteGame(gameId: string, token: string) {
+  return request<{ deleted: boolean }>(`/api/games/${gameId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export type HostAction =
   | 'start_round'
   | 'resolve_round'
