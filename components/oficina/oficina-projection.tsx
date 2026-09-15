@@ -8,6 +8,7 @@ import {
   Hourglass,
   Lightbulb,
   Megaphone,
+  MessageCircle,
   Search,
   Share2,
   Sprout,
@@ -166,8 +167,11 @@ export function OficinaProjection({ projecao }: { projecao: OficinaProjecaoRespo
           </div>
         </div>
 
-        {sessao.stage === 'eventos' ? <EventoProjecao evento={eventoAtual} status={sessao.status} /> : null}
-        <ProjecaoPistas pistasDescobertas={view.pistas} stage={sessao.stage} />
+{sessao.stage === 'eventos' ? <EventoProjecao evento={eventoAtual} status={sessao.status} /> : null}
+      {sessao.stage === 'resultado' || sessao.stage === 'encerrada' ? (
+        <ReflexaoProjecao stage={sessao.stage} />
+      ) : null}
+      <ProjecaoPistas pistasDescobertas={view.pistas} stage={sessao.stage} />
 
         <section className="flex flex-col gap-3 animate-emergir" style={{ animationDelay: '160ms' }} aria-live="polite">
           <Rotulo>
@@ -257,6 +261,38 @@ function EventoProjecao({ evento, status }: { evento: OficinaEventoRow | undefin
             {contribuidores} {contribuidores === 1 ? 'equipe já contribuiu' : 'equipes já contribuíram'} com a resposta da comunidade
           </p>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ReflexaoProjecao({ stage }: { stage: OficinaStage }) {
+  const perguntas = OFICINA_CONTENT.reflexao_perguntas ?? [];
+  const destaques = perguntas.slice(0, Math.min(perguntas.length, stage === 'resultado' ? 3 : 5));
+
+  if (destaques.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-3 animate-emergir" style={{ animationDelay: '120ms' }} aria-live="polite">
+      <Rotulo>
+        <span className="inline-flex items-center gap-1.5">
+          <MessageCircle size={14} aria-hidden />
+          Para fechar em roda — reflexão do território
+        </span>
+      </Rotulo>
+      <div className="flex flex-col gap-2 rounded-3xl border-2 border-borda-amanhecer bg-nevoa-50 p-6">
+        {destaques.map((pergunta, index) => (
+          <div key={index} className="flex items-start gap-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-terra-800 text-xs font-bold text-terra-900">
+              {index + 1}
+            </span>
+            <p className="text-base leading-[1.5] text-terra-900">{pergunta}</p>
+          </div>
+        ))}
+        <p className="mt-2 flex items-center gap-2 text-sm font-medium text-terra-600">
+          <Lightbulb size={15} className="text-financas" aria-hidden />
+          O professor gera a reflexão final após o resultado — o círculo se fecha com a memória do que foi vivido.
+        </p>
       </div>
     </section>
   );

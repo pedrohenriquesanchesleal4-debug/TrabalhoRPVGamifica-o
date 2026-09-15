@@ -10,7 +10,6 @@ import {
   Hourglass,
   Loader2,
   Lock,
-  MessageCircle,
   PauseCircle,
   RefreshCcw,
   Search,
@@ -33,6 +32,7 @@ import { playerSession, type PlayerSessionData } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Button, Pill, Rotulo } from '@/components/ui/primitives';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
+import { OficinaMap } from '@/components/oficina/oficina-map';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_COMUNIDADE_NOME, OFICINA_IA_FALLBACKS } from '@/data/oficina-ia';
 import {
@@ -450,76 +450,7 @@ function Investigacao({
 
       <SecaoPistas minhas={minhasPistas} compartilhadas={pistasCompartilhadas} busyKey={busyKey} run={run} />
 
-      <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-3 p-5">
-        <Rotulo>Mapa da comunidade</Rotulo>
-        <ul className="flex flex-col divide-y divide-terra-200">
-          {OFICINA_CONTENT.locais.map((local) => {
-            const personagem = local.personagem_id
-              ? OFICINA_CONTENT.personagens.find((p) => p.id === local.personagem_id)
-              : null;
-            const alvoPista = local.pista_id ? PISTA_BY_ID.get(local.pista_id) : null;
-            const jaDescoberta = alvoPista
-              ? minhasPistas.some((p) => p.pista_id === alvoPista.id)
-              : false;
-
-            return (
-              <li key={local.id} className="flex flex-col gap-2 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="relevo-sm text-terra-900">{local.nome}</span>
-                    <span className="text-xs text-terra-500">{local.situacao}</span>
-                  </div>
-                  {jaDescoberta ? (
-                    <span className="shrink-0 rounded-[5px] bg-verde-100 px-2 py-1 text-[11px] font-bold text-verde-800">
-                      <Check size={11} className="mr-1 inline" aria-hidden="true" />
-                      Pista achada
-                    </span>
-                  ) : null}
-                </div>
-
-                <p className="text-sm leading-[1.6] text-terra-700">{local.problema}</p>
-
-                {personagem ? (
-                  <p className="rounded-[5px] bg-terra-50 px-3 py-2 text-[13px] italic leading-[1.6] text-terra-600">
-                    “{personagem.fala}”
-                  </p>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secundario"
-                    disabled={Boolean(busyKey) || restantes === 0 || jaDescoberta}
-                    onClick={() =>
-                      void run(`investigar-${local.id}`, () =>
-                        executarOficinaAcao(playerSession.get()?.token ?? '', 'investigar', local.id),
-                      )
-                    }
-                  >
-                    <Search size={14} aria-hidden="true" />
-                    Investigar
-                  </Button>
-                  {personagem ? (
-                    <Button
-                      type="button"
-                      variant="secundario"
-                      disabled={Boolean(busyKey) || restantes === 0}
-                      onClick={() =>
-                        void run(`conversar-${personagem.id}`, () =>
-                          executarOficinaAcao(playerSession.get()?.token ?? '', 'conversar', personagem.id),
-                        )
-                      }
-                    >
-                      <MessageCircle size={14} aria-hidden="true" />
-                      Conversar
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <OficinaMap eu={eu} view={view} busyKey={busyKey} run={run} />
 
       <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-3 p-5">
         <Rotulo>Mover a comunidade</Rotulo>
