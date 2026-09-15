@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_IA_FALLBACKS } from '@/data/oficina-ia';
+import { resolverPistaDoAlvo } from '@/lib/oficina-service';
 import {
   OFICINA_ACAO_KEYS,
   OFICINA_BLOCOS_INFO,
@@ -321,5 +322,41 @@ describe('fallback de IA da oficina', () => {
         new RegExp(`\\b${palavra}\\b`, 'i'),
       );
     }
+  });
+});
+
+describe('resolução de pista por alvo (regressão: ações de investigação travadas)', () => {
+  it('todo LOCAL tem pista resolvível pelo seu id (mapa envia local.id)', () => {
+    for (const local of OFICINA_CONTENT.locais) {
+      const pista = resolverPistaDoAlvo(local.id);
+      expect(pista, `local "${local.id}" não resolve pista pelo id`).toBeDefined();
+      if (local.pista_id !== null) {
+        expect(pista?.id, `local "${local.id}" resolveu pista errada`).toBe(local.pista_id);
+      }
+    }
+  });
+
+  it('todo PERSONAGEM tem pista resolvível pelo seu id (conversar envia personagem.id)', () => {
+    for (const personagem of OFICINA_CONTENT.personagens) {
+      const pista = resolverPistaDoAlvo(personagem.id);
+      expect(pista, `personagem "${personagem.id}" não resolve pista pelo id`).toBeDefined();
+      if (personagem.pista_id !== null) {
+        expect(pista?.id, `personagem "${personagem.id}" resolveu pista errada`).toBe(personagem.pista_id);
+      }
+    }
+  });
+
+  it('resolve por id direto da pista e por origem sem depender de caixa', () => {
+    const primeira = OFICINA_CONTENT.pistas[0];
+    expect(resolverPistaDoAlvo(primeira.id)?.id).toBe(primeira.id);
+    const ultima = OFICINA_CONTENT.pistas[OFICINA_CONTENT.pistas.length - 1];
+    // O bug era case-sensitivity: origem "Personagem Seu Nestor" nunca casava
+    // com alvo "nestor". Agora resolve por palavra-chave lowercased dos dois lados.
+    const palavraChave = ultima.origem.split(' ').pop()!.toLocaleLowerCase('pt-BR');
+    expect(resolverPistaDoAlvo(palavraChave)?.id, 'origem lowercased não resolveu').toBe(ultima.id);
+  });
+
+  it('desconhecido devolve undefined sem lançar', () => {
+    expect(resolverPistaDoAlvo('lugar_que_nao_existe')).toBeUndefined();
   });
 });

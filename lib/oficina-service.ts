@@ -22,6 +22,7 @@ import {
   type OficinaEventoOpcao,
   type OficinaEventoRow,
   type OficinaIndicadores,
+  type OficinaPista,
   type OficinaPistaRow,
   type OficinaPerfil,
   type OficinaResultadoCategoria,
@@ -406,6 +407,30 @@ export interface AcaoJogadorResult {
   aviso?: string;
 }
 
+/**
+ * Resolve a pista que uma ação de investigação revela, a partir do alvo.
+ *
+ * Ordem de resolução (declarativa, nunca heurística de texto):
+ * 1. alvo é um LOCAL → usa `local.pista_id`
+ * 2. alvo é um PERSONAGEM → usa `personagem.pista_id`
+ * 3. alvo é o próprio id da pista
+ * 4. sobra: origem da pista (case-insensitive) — pistas soltas do acervo
+ */
+export function resolverPistaDoAlvo(alvoId: string): OficinaPista | undefined {
+  const local = OFICINA_CONTENT.locais.find((l) => l.id === alvoId);
+  if (local?.pista_id) {
+    return OFICINA_CONTENT.pistas.find((p) => p.id === local.pista_id);
+  }
+
+  const personagem = OFICINA_CONTENT.personagens.find((p) => p.id === alvoId);
+  if (personagem?.pista_id) {
+    return OFICINA_CONTENT.pistas.find((p) => p.id === personagem.pista_id);
+  }
+
+  return OFICINA_CONTENT.pistas.find((p) => p.id === alvoId) ??
+    OFICINA_CONTENT.pistas.find((p) => p.origem.toLocaleLowerCase('pt-BR').includes(alvoId.toLocaleLowerCase('pt-BR')));
+}
+
 export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogadorResult> {
   const { gameId, teamId, acaoKey, alvoId } = input;
 
@@ -505,7 +530,7 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
   // Ação de investigação com alvo: tenta descobrir a pista associada ao alvo.
   let pistaDescoberta: OficinaPistaRow | undefined;
   if (acaoDef.investiga && alvoId) {
-    const pistaAlvo = OFICINA_CONTENT.pistas.find((p) => p.id === alvoId || p.origem.includes(alvoId));
+    const pistaAlvo = resolverPistaDoAlvo(alvoId);
     if (pistaAlvo) {
       const { data: pistaRow, error: pistaError } = await db()
         .from('oficina_pistas')

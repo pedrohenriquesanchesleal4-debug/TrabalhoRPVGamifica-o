@@ -46,3 +46,10 @@
   3. `reflexaoFinalOficina` usa o snapshot real e fallback próprio novo.
   4. `data/oficina-ia.ts` + `types/oficina.ts`: novo campo `reflexao_final` em `OficinaIaFallbacks` com texto estático que sustenta a síntese do debate.
 - **Regra nova:** compartilhamento de IA entre modos nunca por atalho — cada modo chama o Gemini com seu próprio system; e todo texto gerado com teto 1500 em modelo com "thinking" corre risco de truncar. Testes: 166 passando (9 arquivos); lint 0 erros.
+
+## 2026-09-15 · Oficina: ações de investigação nunca revelavam pista (cadeia inteira travada)
+
+- **Sintoma:** "as ações da oficina não estão funcionando" — investigar/conversar não entregavam pista nenhuma e as ações com `requisito_tags` ("Chamar assistência técnica", "Organizar transporte", "Fechar parceria"...) ficavam bloqueadas para sempre.
+- **Causa raiz:** `executarAcao` resolvia a pista do alvo com `pistas.find(p => p.id === alvoId || p.origem.includes(alvoId))`. O mapa envia `alvoId = local.id` (ex.: `'feira'`), mas as pistas têm `id: 'p3'` e `origem: 'Personagem Seu Nestor'` — `includes` case-sensitive + substring de texto que nunca casa → `pistaAlvo` = `undefined` para quase todo alvo → `marcarTagsPista` nunca rodava → ações com requisito nunca liberavam.
+- **Correção:** nova `resolverPistaDoAlvo(alvoId)` (exportada, em `lib/oficina-service.ts`): resolve declarativamente por 1) `local.pista_id`, 2) `personagem.pista_id`, 3) id direto da pista, 4) origem case-insensitive como sobra. Teste de regressão em `tests/oficina-content.test.ts` cobre todos os 10 locais e 9 personagens.
+- **Regra nova:** resolver entidade por ID declarativo declarado no dado (`.pista_id`), nunca por heurística de texto case-sensitive. Testes: 170 passando (9 arquivos).
