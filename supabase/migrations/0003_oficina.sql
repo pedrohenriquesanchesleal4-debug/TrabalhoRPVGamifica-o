@@ -208,7 +208,7 @@ create table if not exists public.oficina_solucoes (
 comment on table public.oficina_solucoes is
   'Solução final de cada equipe na oficina. 1:1 com teams. Blocos jsonb: problema, recursos, parceiros, etc.';
 comment on column public.oficina_solucoes.blocos is
-  'Partial<Record<OficinaBlocoSolucao, string>>: cada bloco pode ter campo_livre extra.";
+  'Partial<Record<OficinaBlocoSolucao, string>>: cada bloco pode ter campo_livre extra.';
 
 -- ---------------------------------------------------------------------------
 -- 8. oficina_resultados — 1 por equipe
