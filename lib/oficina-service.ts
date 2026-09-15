@@ -841,7 +841,14 @@ export async function resumoParaDebate(gameId: string): Promise<{ resumo_para_de
     solucao: undefined,
   }));
 
-  return calcularResultadoOficinaResumo(inputs, categorias);
+  // IA gera o roteiro completo (fala de abertura, pontos com soluções reais,
+  // provocação e perguntas). Sem IA, cai no resumo determinístico neutro.
+  const roteiro = await getOrGenerateIa(gameId, 'debate', () => {
+    const { resumo_para_debate } = calcularResultadoOficinaResumo(inputs, categorias);
+    return resumo_para_debate;
+  });
+
+  return { resumo_para_debate: roteiro };
 }
 
 // ---------------------------------------------------------------------------
@@ -860,20 +867,94 @@ async function getOrGenerateIa(gameId: string, tipo: OficinaIaTipo, fallback: ()
 
   if (cached?.texto) return cached.texto;
 
-  const texto = await chamarIaOficina(tipo, fallback);
+  const texto = await chamarIaOficina(gameId, tipo, fallback);
   await db().from('oficina_ia').upsert({ game_id: gameId, tipo, texto, modelo: 'gemini-3.6-flash' });
   return texto;
 }
 
-async function chamarIaOficina(tipo: OficinaIaTipo, fallback: () => string): Promise<string> {
+async function chamarIaOficina(gameId: string, tipo: OficinaIaTipo, fallback: () => string): Promise<string> {
   try {
     const { _internals } = await import('./gemini');
-    const prompt = construirPromptIaOficina(tipo);
-    const roteiro = await _internals.callGeminiWithRetry(prompt);
+    const snapshot = await construirSnapshotOficina(gameId, tipo);
+    const system = construirPromptIaOficina(tipo);
+    const roteiro = await _internals.callGeminiText(system, snapshot);
     return roteiro;
   } catch {
     return fallback();
   }
+}
+
+/**
+ * Snapshot compacto da oficina para a IA: tudo que ela pode citar, sem ruído.
+ * `narrativa_inicial` não precisa dos dados; os demais tipos leem o estado real.
+ */
+async function construirSnapshotOficina(gameId: string, tipo: OficinaIaTipo): Promise<string> {
+  if (tipo === 'narrativa_inicial') {
+    return 'Oficina colaborativa da Comunidade Boa Vista do Cerrado. Voz de quem convida: humana, digna, sem jargão de IA.';
+  }
+
+  const [equipes, solucoes, resultados, pistas, eventos] = await Promise.all([
+    getEquipesDoJogo(gameId),
+    db().from('oficina_solucoes').select('*').eq('game_id', gameId),
+    db().from('oficina_resultados').select('*').eq('game_id', gameId),
+    db().from('oficina_pistas').select('*').eq('game_id', gameId),
+    db().from('oficina_eventos').select('*').eq('game_id', gameId),
+  ]);
+
+  const nomePorTeam = new Map<string, string>();
+  if (pistas.data && pistas.data.length > 0) {
+    // Nomes reais das equipes vêm da tabela teams.
+  }
+  const teamRows = await db().from('teams').select('id, name').eq('game_id', gameId);
+  for (const t of teamRows.data ?? []) {
+    nomePorTeam.set(t.id, t.name as string);
+  }
+
+  const rotuloBloco = (bloco: string, chave: string | undefined): string => {
+    if (!chave) return '';
+    const cartao = OFICINA_CONTENT.cartoes.find((c) => c.bloco === bloco);
+    const opcao = cartao?.opcoes.find((o) => o.key === chave);
+    return opcao?.rotulo ?? chave;
+  };
+
+  /** Lê blocos/campos livres de uma solução com segurança, sem depender do tipo do banco. */
+  const lerSolucao = (solucao: unknown): Record<string, string> => {
+    const out: Record<string, string> = {};
+    if (!solucao || typeof solucao !== 'object') return out;
+    const s = solucao as {
+      blocos?: Record<string, string> | null;
+      campos_livres?: Record<string, string> | null;
+    };
+    for (const [bloco, chave] of Object.entries(s.blocos ?? {})) {
+      const rotulo = rotuloBloco(bloco, chave);
+      if (rotulo) out[bloco] = rotulo;
+    }
+    for (const [bloco, livre] of Object.entries(s.campos_livres ?? {})) {
+      if (typeof livre === 'string' && livre.trim()) out[`${bloco}_livre`] = livre.trim().slice(0, 120);
+    }
+    return out;
+  };
+
+  const compact = {
+    oficina: gameId,
+    equipes: (equipes ?? []).map((eq) => {
+      const sol = (solucoes.data ?? []).find((s) => s.team_id === eq.team_id);
+      const solucao = lerSolucao(sol?.blocos);
+      return {
+        nome: nomePorTeam.get(eq.team_id) ?? 'Equipe',
+        perfil: eq.perfil,
+        indicadores: eq.indicadores,
+        solucao,
+      };
+    }),
+    categorias: (resultados.data ?? []).flatMap((row) =>
+      Array.isArray(row.categorias) ? (row.categorias as { categoria: string; razao: string }[]) : [],
+    ).map((c) => ({ categoria: c.categoria, razao: c.razao.slice(0, 160) })),
+    pistasCompartilhadas: (pistas.data ?? []).filter((p) => p.compartilhada_em).length,
+    eventosResolvidos: (eventos.data ?? []).filter((e) => e.status === 'resolvido').length,
+  };
+
+  return JSON.stringify(compact);
 }
 
 function construirPromptIaOficina(tipo: OficinaIaTipo): string {
@@ -881,14 +962,14 @@ function construirPromptIaOficina(tipo: OficinaIaTipo): string {
     case 'narrativa_inicial':
       return 'Você é um narrador de oficina comunitária no Cerrado. Escreva 3-4 parágrafos acolhedores apresentando a "Comunidade Boa Vista do Cerrado", seus desafios (transporte, conectividade, comercialização, capacitação, políticas públicas) e convidando 6 equipes com perfis distintos a colaborar. Tom: humano, digno, sem jargão de IA. Português do Brasil.';
     case 'reflexao_final':
-      return 'Você é facilitador pedagógico. Escreva uma reflexão final de 4-5 parágrafos sobre a oficina comunitária recém-concluída, retomando as 9 perguntas-chave como provocação para debate em sala. Tom: professor experiente, sem julgamento de certo/errado, foco no processo coletivo. Português do Brasil.';
+      return 'Você é facilitador pedagógico. Escreva uma reflexão final de 4-5 parágrafos sobre a oficina comunitária recém-concluída, retomando as 9 perguntas-chave como provocação para debate em sala. Use APENAS os dados reais da oficina fornecidos (indicadores das equipes, soluções, categorias de destaque, pistas compartilhadas, eventos resolvidos). Tom: professor experiente, sem julgamento de certo/errado, foco no processo coletivo. Português do Brasil.';
     case 'debate':
-      return 'Você é mediador de debate escolar. Com base na oficina "Comunidade Boa Vista do Cerrado", gere um roteiro para o professor conduzir o debate pós-atividade: fala de abertura, 3 pontos para sustentar, 1 provocação, 3 perguntas para a sala. Cite políticas públicas reais (PAA, PNAE, ATER) apenas se aparecerem nas soluções das equipes. Formato markdown simples. PT-BR oral.';
+      return 'Você é mediador de debate escolar. De POSSE dos dados reais da oficina fornecidos (soluções das equipes, indicadores, categorias de destaque), gere um roteiro completo para o professor conduzir o debate pós-atividade: fala de abertura acolhedora ancorada em um fato real da oficina, 3 pontos para sustentar — cada um citando uma solução concreta de equipe (problema, parceiro, política pública, transporte ou tecnologia que a equipe escolheu) —, 1 provocação forte e 3 perguntas para a sala. Não invente solução que não esteja nos dados. Cite políticas públicas reais (PAA, PNAE, ATER/Emater-DF) apenas se aparecerem nas soluções das equipes. Formato markdown: # título, ## subtítulo, - listas, 1. listas. PT-BR oral, completo, sem cortar.';
   }
 }
 
 export async function reflexaoFinalOficina(gameId: string): Promise<{ reflexao: string; perguntas: string[] }> {
-  const reflexao = await getOrGenerateIa(gameId, 'reflexao_final', () => OFICINA_IA_FALLBACKS.narrativa_inicial);
+  const reflexao = await getOrGenerateIa(gameId, 'reflexao_final', () => OFICINA_IA_FALLBACKS.reflexao_final);
   return { reflexao, perguntas: OFICINA_IA_FALLBACKS.reflexao_perguntas };
 }
 
