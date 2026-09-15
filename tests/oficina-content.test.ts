@@ -307,4 +307,19 @@ describe('fallback de IA da oficina', () => {
     }
     expect(OFICINA_IA_FALLBACKS.provocacao.trim().length).toBeGreaterThan(0);
   });
+
+  it('reflexão final é própria (não repete a narrativa inicial) e sustenta a síntese do debate', () => {
+    const reflexao = OFICINA_IA_FALLBACKS.reflexao_final;
+    expect(reflexao.trim().length, 'reflexão final vazia').toBeGreaterThan(0);
+    expect(reflexao, 'reflexão final não deve repetir a narrativa inicial').not.toBe(
+      OFICINA_IA_FALLBACKS.narrativa_inicial,
+    );
+    // Deve amarrar a conclusão pedagógica da oficina, não apenas descrever o cenário.
+    expect(reflexao, 'reflexão final sem amarração com combinações coletivas').toMatch(/combinad/i);
+    for (const palavra of PROIBIDAS) {
+      expect(reflexao, `reflexão final contém a palavra "${palavra}"`).not.toMatch(
+        new RegExp(`\\b${palavra}\\b`, 'i'),
+      );
+    }
+  });
 });

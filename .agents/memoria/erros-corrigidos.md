@@ -32,3 +32,17 @@
 - **Causa raiz 3:** OficinaTeacherPanel ficava preso em "Carregando a oficina..." porque só carregava por evento realtime — sem carga inicial.
 - **Correção:** `useEffect(() => { void load(); }, [load])`.
 - **Regra nova:** componente client que depende de realtime precisa de carga inicial, não só do callback de evento; e nunca duas assinaturas no mesmo canal Supabase.
+
+## 2026-09-15 · Roteiro de debate da oficina cortado / sem soluções / fallback errado
+
+- **Sintoma:** "roteiro de debate não está criando do jeito certo, ele corta e não cria tudo" — texto incompleto no painel da oficina.
+- **Causa raiz 1 — chamada de IA errada:** `chamarIaOficina` chamava `_internals.callGeminiWithRetry(prompt)`, que injeta o `SYSTEM_INSTRUCTION` do Diagnóstico (formato rígido de 4 blocos) e trata o 1º argumento como snapshot de partida. O prompt da oficina ia como "dados" → resposta com formato errado.
+- **Causa raiz 2 — teto de tokens:** `MAX_OUTPUT_TOKENS = 1500` no `lib/gemini.ts`; o 3.6-flash gasta ~469 tokens de "thinking" antes do texto visível → roteiro longo (fala + pontos + provocação + perguntas) cortava no meio.
+- **Causa raiz 3 — slot `debate` do cache nunca usado:** `resumoParaDebate` era determinístico puro (e ignorava soluções: `solucao: undefined`); a tabela `oficina_ia` tem check `('narrativa_inicial','reflexao_final','debate')` e o slot `debate` nunca era gravado.
+- **Causa raiz 4 — fallback errado:** `reflexaoFinalOficina` caía em `OFICINA_IA_FALLBACKS.narrativa_inicial` (texto de abertura no lugar da reflexão).
+- **Correções:**
+  1. `lib/gemini.ts`: nova `callGeminiText(system, prompt)` (system propio da oficina, sem wrapper de snapshot, sem SYSTEM_INSTRUCTION do Diagnóstico) exposta nos `_internals`; `MAX_OUTPUT_TOKENS` 1500 → 4096 (vale também para o roteiro do Diagnóstico, que podia cortar igual).
+  2. `lib/oficina-service.ts`: `chamarIaOficina` agora recebe `gameId` e monta um snapshot REAL (`construirSnapshotOficina`: equipes + perfil + indicadores + solução legível com rótulos dos cartões + categorias + pistas compartilhadas + eventos resolvidos); `resumoParaDebate` usa `getOrGenerateIa(gameId, 'debate', fallback)` — slot `debate` finalmente gerado, fallback = `calcularResultadoOficinaResumo`.
+  3. `reflexaoFinalOficina` usa o snapshot real e fallback próprio novo.
+  4. `data/oficina-ia.ts` + `types/oficina.ts`: novo campo `reflexao_final` em `OficinaIaFallbacks` com texto estático que sustenta a síntese do debate.
+- **Regra nova:** compartilhamento de IA entre modos nunca por atalho — cada modo chama o Gemini com seu próprio system; e todo texto gerado com teto 1500 em modelo com "thinking" corre risco de truncar. Testes: 166 passando (9 arquivos); lint 0 erros.
