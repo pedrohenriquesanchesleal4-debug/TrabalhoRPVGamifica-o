@@ -20,8 +20,10 @@ export interface PlayerSessionData {
   gameId: string;
   gameCode: string;
   playerName: string;
+  teamId: string;
   teamName: string;
   role: string;
+  mode: 'diagnostico' | 'oficina';
 }
 
 export interface HostSessionData {

@@ -34,6 +34,7 @@ import { PropertyScene } from '@/components/game/property-scene';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { financeIndex } from '@/game/engine';
+import { OficinaPlayerApp } from '@/components/oficina/oficina-player';
 
 /**
  * SAFRA DF · Tela do aluno — direção V6 "Amanhecer do Cerrado".
@@ -88,7 +89,7 @@ export default function JogarPage() {
   const openingCheckedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (!session) return;
+    if (!session || session.mode !== 'diagnostico') return;
     try {
       const next = await fetchPlayerView(session.token);
       setView(next);
@@ -138,7 +139,7 @@ export default function JogarPage() {
   });
 
   useEffect(() => {
-    if (!session) return undefined;
+    if (!session || session.mode !== 'diagnostico') return undefined;
     const interval = window.setInterval(() => {
       sendHeartbeat(session.token).catch(() => {
         // Falha de rede pontual: a próxima batida tenta de novo, sem incomodar o aluno.
@@ -183,6 +184,11 @@ export default function JogarPage() {
   );
 
   if (!session) return null;
+
+  // Modo Oficina Safra DF: tela própria, mesma sessão de aluno.
+  if (session.mode === 'oficina') {
+    return <OficinaPlayerApp session={session} />;
+  }
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:px-6">

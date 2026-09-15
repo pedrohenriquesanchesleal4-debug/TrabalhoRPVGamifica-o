@@ -12,6 +12,7 @@ import { ok, parseBody, toResponse } from '@/lib/http';
 
 const bodySchema = z
   .object({
+    mode: z.enum(['diagnostico', 'oficina']).optional(),
     initialBudget: z.number().int().min(10_000).max(1_000_000).optional(),
     roundSeconds: z.number().int().min(30).max(900).optional(),
     teamCount: z.number().int().min(1).max(6).optional(),
@@ -30,12 +31,13 @@ const bodySchema = z
 export async function POST(request: Request) {
   try {
     const config = await parseBody(request, bodySchema);
-    const { game, hostToken, teams } = await createGame(config);
+    const { game, hostToken, teams } = await createGame(config, config.mode ?? 'diagnostico');
 
     return ok({
       gameId: game.id,
       code: game.code,
       hostToken,
+      mode: game.mode,
       config: game.config,
       teams: teams
         .slice()

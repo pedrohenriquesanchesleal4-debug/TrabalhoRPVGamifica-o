@@ -13,6 +13,7 @@ const VIEW: HostView = {
     id: 'partida-1',
     code: 'ABC123',
     status: 'finished',
+    mode: 'diagnostico',
     currentRound: 5,
     roundStatus: 'resolved',
     roundEndsAt: null,

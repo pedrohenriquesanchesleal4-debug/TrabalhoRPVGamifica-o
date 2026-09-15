@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { getGameLobby } from '@/lib/game-service';
 import { ok, toResponse } from '@/lib/http';
 import { ApiError } from '@/lib/http';
-import { ROLE_LABEL } from '@/types/game';
+import { ROLE_LABEL, type Role } from '@/types/game';
 
 /**
  * GET /api/games/lobby?code=XXXXX · leitura pública de pré-entrada.
@@ -32,15 +32,17 @@ export async function GET(request: Request) {
       gameId: lobby.gameId,
       gameCode: lobby.gameCode,
       gameStatus: lobby.gameStatus,
+      mode: lobby.mode,
       teams: lobby.teams.map((team) => ({
         id: team.id,
         name: team.name,
         propertyKey: team.propertyKey,
         slotsUsed: team.slotsUsed,
         slotsMax: team.slotsMax,
+        perfil: team.perfil,
         roles: team.roles.map((entry) => ({
           role: entry.role,
-          roleLabel: ROLE_LABEL[entry.role],
+          roleLabel: ROLE_LABEL[entry.role as Role],
           taken: entry.taken,
           playerName: entry.playerName,
         })),

@@ -1,7 +1,9 @@
 'use client';
 
 import type { HostView, PlayerView } from '@/lib/game-service';
+import type { OficinaPublicView } from '@/lib/oficina-service';
 import type { GameConfig } from '@/types/game';
+import type { GameMode, OficinaIndicadores, OficinaSolucao } from '@/types/oficina';
 
 /**
  * Cliente HTTP da interface.
@@ -60,14 +62,18 @@ export interface CreateGameResponse {
   gameId: string;
   code: string;
   hostToken: string;
+  mode: GameMode;
   config: GameConfig;
   teams: { id: string; name: string; propertyKey: string }[];
 }
 
-export function createGame(config: Partial<GameConfig> = {}) {
+export function createGame(config: Partial<GameConfig> = {}, mode: GameMode = 'diagnostico') {
+  const body: Record<string, unknown> = { ...config };
+  if (mode !== 'diagnostico') body.mode = mode;
+
   return request<CreateGameResponse>('/api/games', {
     method: 'POST',
-    body: JSON.stringify(config),
+    body: JSON.stringify(body),
   });
 }
 
@@ -147,6 +153,7 @@ export interface JoinResponse {
   gameId: string;
   gameCode: string;
   gameStatus: string;
+  mode: 'diagnostico' | 'oficina';
   player: { id: string; name: string };
   team: { id: string; name: string; propertyKey: string };
   role: string;
@@ -184,12 +191,14 @@ export interface LobbyTeamResponse {
   slotsUsed: number;
   slotsMax: number;
   roles: LobbyRoleResponse[];
+  perfil: string | null;
 }
 
 export interface LobbyResponse {
   gameId: string;
   gameCode: string;
   gameStatus: string;
+  mode: 'diagnostico' | 'oficina';
   teams: LobbyTeamResponse[];
 }
 
@@ -213,4 +222,135 @@ export function submitDecision(token: string, optionKey: string) {
 
 export function sendHeartbeat(token: string) {
   return request<{ ok: true }>('/api/player/heartbeat', { method: 'POST', token });
+}
+
+// ---------------------------------------------------------------------------
+// Modo Oficina · aluno
+// ---------------------------------------------------------------------------
+
+export interface OficinaEu {
+  playerId: string;
+  name: string;
+  teamId: string;
+  teamName: string;
+  perfil: string | null;
+  indicadores: OficinaIndicadores | null;
+  marcadores: string[];
+  acoesUsadas: number;
+  solucao: OficinaSolucao | null;
+}
+
+export interface OficinaPanelResponse {
+  game: { id: string; code: string; status: string };
+  briefing: { narrativaInicial: string | null };
+  eu: OficinaEu;
+  view: OficinaPublicView;
+}
+
+export function fetchOficinaPanel(token: string) {
+  return request<OficinaPanelResponse>('/api/player/oficina', { token, cache: 'no-store' });
+}
+
+export interface OficinaAcaoResult {
+  acao: { id: string; acao_key: string; stage: string; efeitos: Partial<OficinaIndicadores> };
+  pistaDescoberta?: { id: string; pista_id: string; team_id: string } | null;
+  indicadoresAtualizados: OficinaIndicadores;
+  aviso?: string;
+}
+
+export function executarOficinaAcao(token: string, acaoKey: string, alvoId?: string) {
+  return request<OficinaAcaoResult>('/api/player/oficina', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ action: 'acao', acaoKey, alvoId }),
+  });
+}
+
+export function compartilharOficinaPista(token: string, pistaId: string) {
+  return request<{ pista: { id: string; titulo: string; texto_pista: string } }>(
+    '/api/player/oficina',
+    { method: 'POST', token, body: JSON.stringify({ action: 'compartilhar', pistaId }) },
+  );
+}
+
+export function votarOficinaEvento(token: string, eventKey: string, opcaoKey: string) {
+  return request<{ contribuicao: { opcaoKey: string; efeitos: Partial<OficinaIndicadores> } }>(
+    '/api/player/oficina',
+    { method: 'POST', token, body: JSON.stringify({ action: 'votar', eventKey, opcaoKey }) },
+  );
+}
+
+export function submeterOficinaSolucao(token: string, solucao: OficinaSolucao) {
+  return request<{ solucao: { blocos: OficinaSolucao } }>('/api/player/oficina', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ action: 'solucao', solucao }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Modo Oficina · professor
+// ---------------------------------------------------------------------------
+
+export type OficinaHostAction =
+  | 'iniciar'
+  | 'avancar'
+  | 'reabrir'
+  | 'pausar'
+  | 'retomar'
+  | 'encerrar'
+  | 'reiniciar'
+  | 'abrir_evento'
+  | 'resolver_evento'
+  | 'resumo'
+  | 'reflexao';
+
+export interface OficinaHostViewResponse {
+  game: {
+    id: string;
+    code: string;
+    status: string;
+    currentRound: number;
+    roundStatus: string;
+    roundEndsAt: string | null;
+    totalRounds: number;
+    config: Record<string, unknown>;
+  };
+  view: OficinaPublicView;
+}
+
+export function fetchOficinaHostView(gameId: string, token: string) {
+  return request<OficinaHostViewResponse>(`/api/oficina/${gameId}`, {
+    token,
+    cache: 'no-store',
+  });
+}
+
+export function runOficinaHostAction(
+  gameId: string,
+  token: string,
+  action: OficinaHostAction,
+) {
+  return request<Record<string, unknown>>(`/api/oficina/${gameId}`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ action }),
+  });
+}
+
+export interface OficinaProjecaoResponse {
+  game: {
+    id: string;
+    code: string;
+    status: string;
+    mode: GameMode;
+  };
+  view: OficinaPublicView;
+}
+
+/** Projeção pública da Oficina (sem token), resultado direto da parede. */
+export function fetchOficinaProjecao(gameId: string) {
+  return request<OficinaProjecaoResponse>(`/api/oficina/${gameId}/projecao`, {
+    cache: 'no-store',
+  });
 }
