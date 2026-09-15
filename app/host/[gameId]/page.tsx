@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AlertTriangle, Timer, Trophy, Users } from 'lucide-react';
-import { fetchProjection, RequestError } from '@/lib/client-api';
+import {
+  fetchOficinaProjecao,
+  fetchProjection,
+  RequestError,
+  type OficinaProjecaoResponse,
+} from '@/lib/client-api';
 import { useGameChannel, useRoundTimer, formatClock } from '@/hooks/use-game-channel';
 import { Pill, Rotulo } from '@/components/ui/primitives';
 import { FocusTeamBoard, TeamRow, DenseTeamCard, useFlipRows } from '@/components/host/team-board';
+import { OficinaProjection } from '@/components/oficina/oficina-projection';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { ROUND_META, TOTAL_ROUNDS, type GameStatus } from '@/types/game';
 import type { HostView, HostTeamView } from '@/lib/game-service';
@@ -135,15 +141,34 @@ export default function HostProjectionPage() {
   const gameId = typeof params.gameId === 'string' ? params.gameId : null;
 
   const [view, setView] = useState<HostView | null>(null);
+  const [oficinaView, setOficinaView] = useState<OficinaProjecaoResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!gameId) return;
     try {
-      const next = await fetchProjection(gameId);
-      setView(next);
+      const oficina = await fetchOficinaProjecao(gameId);
+      setOficinaView(oficina);
       setError(null);
+      return;
     } catch (err) {
+      // A projeção da Oficina é autoritativa para o modo oficina; para o
+      // Diagnóstico (e qualquer fallback) volta ao telão clássico.
+      if (err instanceof RequestError && (err.code === 'not_found' || err.code === 'forbidden')) {
+        try {
+          const next = await fetchProjection(gameId);
+          setView(next);
+          setError(null);
+          return;
+        } catch (projErr) {
+          setError(
+            projErr instanceof RequestError
+              ? projErr.message
+              : 'Não foi possível carregar a projeção. Verifique a conexão.',
+          );
+          return;
+        }
+      }
       setError(
         err instanceof RequestError
           ? err.message
@@ -199,7 +224,7 @@ export default function HostProjectionPage() {
     return null;
   }
 
-  if (error && !view) {
+  if (error && !view && !oficinaView) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <AlertTriangle className="text-alerta" size={32} aria-hidden />
@@ -208,13 +233,19 @@ export default function HostProjectionPage() {
     );
   }
 
-  if (!view) {
+  if (!view && !oficinaView) {
     return (
       <main className="flex min-h-dvh items-center justify-center">
         <p className="dado-lg text-terra-700">Carregando projeção...</p>
       </main>
     );
   }
+
+  if (oficinaView) {
+    return <OficinaProjection projecao={oficinaView} />;
+  }
+
+  if (!view) return null;
 
   const { game } = view;
 
