@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ExternalLink,
+  Loader2,
   Pause,
   Play,
   Power,
@@ -14,10 +15,12 @@ import {
   RotateCcw,
   Settings2,
   Sprout,
+  Trash2,
   Users,
 } from 'lucide-react';
 import {
   createGame,
+  deleteGame,
   fetchHostView,
   runHostAction,
   RequestError,
@@ -158,7 +161,18 @@ export default function AdminPage() {
   if (mode === 'oficina') {
     return (
       <div className="relative">
-        <OficinaTeacherPanel gameId={gameId} token={token} code={code} />
+        <OficinaTeacherPanel
+          gameId={gameId}
+          token={token}
+          code={code}
+          onDeleted={() => {
+            hostSession.clear();
+            setPhase('no_session');
+            setView(null);
+            setMode(null);
+            setLastOutcomes(null);
+          }}
+        />
         <button
           type="button"
           onClick={() => {
@@ -188,6 +202,12 @@ export default function AdminPage() {
       onOutcomes={setLastOutcomes}
       onReload={() => void loadView(gameId, token)}
       onReset={() => {
+        hostSession.clear();
+        setPhase('no_session');
+        setView(null);
+        setLastOutcomes(null);
+      }}
+      onDeleted={() => {
         hostSession.clear();
         setPhase('no_session');
         setView(null);
@@ -515,6 +535,7 @@ function ControlPanel({
   onOutcomes,
   onReload,
   onReset,
+  onDeleted,
 }: {
   gameId: string;
   token: string;
@@ -526,11 +547,14 @@ function ControlPanel({
   onOutcomes: (outcomes: HostActionResponse['outcomes']) => void;
   onReload: () => void;
   onReset: () => void;
+  onDeleted: () => void;
 }) {
   const [pending, setPending] = useState<HostAction | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const actionStates = useMemo(() => (view ? computeActionState(view) : null), [view]);
 
@@ -545,6 +569,19 @@ function ControlPanel({
       setActionError(error instanceof Error ? error.message : 'A ação não pôde ser concluída.');
     } finally {
       setPending(null);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await deleteGame(gameId, token);
+      onDeleted();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Não foi possível excluir a partida.');
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   }
 
@@ -779,6 +816,43 @@ function ControlPanel({
                     Sim, reiniciar
                   </Button>
                   <Button variant="silencioso" onClick={() => setConfirmReset(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </Degrau>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            {!confirmDelete ? (
+              <Button variant="perigo" onClick={() => setConfirmDelete(true)} disabled={deleting}>
+                {deleting ? (
+                  <Loader2 size={16} className="animate-spin" aria-hidden />
+                ) : (
+                  <Trash2 size={16} aria-hidden />
+                )}
+                Excluir partida
+              </Button>
+            ) : (
+              <Degrau nivel="banco" familia="alerta" className="flex flex-col gap-2 p-4">
+                <p className="text-sm text-terra-700">
+                  Excluir apaga esta partida inteira — rodadas, decisões, jogadores e equipes —
+                  e volta para a tela de criação. Não dá para desfazer. Confirma?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="perigo"
+                    onClick={() => void handleDelete()}
+                    disabled={deleting}
+                  >
+                    {deleting && <Loader2 size={16} className="animate-spin" aria-hidden />}
+                    Sim, excluir
+                  </Button>
+                  <Button
+                    variant="silencioso"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={deleting}
+                  >
                     Cancelar
                   </Button>
                 </div>

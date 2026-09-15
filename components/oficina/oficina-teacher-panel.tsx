@@ -20,9 +20,11 @@ import {
   Share2,
   Sprout,
   Star,
+  Trash2,
   Users,
 } from 'lucide-react';
 import {
+  deleteGame,
   fetchOficinaHostView,
   RequestError,
   runOficinaHostAction,
@@ -144,10 +146,12 @@ export function OficinaTeacherPanel({
   gameId,
   token,
   code,
+  onDeleted,
 }: {
   gameId: string;
   token: string;
   code: string;
+  onDeleted?: () => void;
 }) {
   const [view, setView] = useState<OficinaHostViewResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -156,6 +160,8 @@ export function OficinaTeacherPanel({
   const [resultadoAcao, setResultadoAcao] = useState<{ rotulo: string; texto: string } | null>(null);
   const [confirmEncerrar, setConfirmEncerrar] = useState(false);
   const [confirmReiniciar, setConfirmReiniciar] = useState(false);
+  const [confirmExcluir, setConfirmExcluir] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -168,8 +174,11 @@ export function OficinaTeacherPanel({
   }, [gameId, token]);
 
   // Carga inicial: sem evento realtime não há por que o painel nascer vazio.
+  // A IIFE assíncrona evita o setState síncrono no corpo do efeito (cascata).
   useEffect(() => {
-    void load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   useGameChannel({
@@ -204,6 +213,19 @@ export function OficinaTeacherPanel({
       setActionError(err instanceof RequestError ? err.message : 'A ação não pôde ser concluída.');
     } finally {
       setPending(null);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await deleteGame(gameId, token);
+      onDeleted?.();
+    } catch (err) {
+      setActionError(err instanceof RequestError ? err.message : 'Não foi possível excluir a oficina.');
+      setDeleting(false);
+      setConfirmExcluir(false);
     }
   }
 
@@ -431,6 +453,41 @@ export function OficinaTeacherPanel({
               </Degrau>
             )}
           </div>
+        </div>
+
+        <div className="h-px w-full bg-nevoa-200" />
+
+        <div className="flex flex-col gap-2">
+          {!confirmExcluir ? (
+            <Button
+              variant="perigo"
+              onClick={() => setConfirmExcluir(true)}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Trash2 size={16} aria-hidden />}
+              Excluir partida
+            </Button>
+          ) : (
+            <Degrau nivel="banco" familia="alerta" className="flex flex-col gap-2 p-4">
+              <p className="text-sm text-terra-700">
+                Excluir apaga esta oficina inteira — equipes, pistas, eventos, soluções e
+                resultado — e volta para a tela de criação. Não dá para desfazer. Confirma?
+              </p>
+              <div className="flex gap-2">
+                <Button variant="perigo" onClick={() => void handleDelete()} disabled={deleting}>
+                  {deleting && <Loader2 size={16} className="animate-spin" aria-hidden />}
+                  Sim, excluir
+                </Button>
+                <Button
+                  variant="silencioso"
+                  onClick={() => setConfirmExcluir(false)}
+                  disabled={deleting}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </Degrau>
+          )}
         </div>
       </Degrau>
 
