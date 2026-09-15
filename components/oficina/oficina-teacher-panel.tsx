@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -166,6 +166,11 @@ export function OficinaTeacherPanel({
       setLoadError(err instanceof Error ? err.message : 'Não foi possível carregar a oficina.');
     }
   }, [gameId, token]);
+
+  // Carga inicial: sem evento realtime não há por que o painel nascer vazio.
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useGameChannel({
     gameId,

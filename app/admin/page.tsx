@@ -107,7 +107,10 @@ export default function AdminPage() {
   }, [loadView]);
 
   useGameChannel({
-    gameId: phase === 'ready' ? gameId : null,
+    // No modo oficina quem assina o barramento é o OficinaTeacherPanel: assinar
+    // aqui E ali no mesmo canal `game:<id>` faria o segundo `.on()` disparar o
+    // "cannot add postgres_changes callbacks after subscribe()" do Supabase.
+    gameId: phase === 'ready' && mode !== 'oficina' ? gameId : null,
     onEvent: () => {
       if (gameId && token) void loadView(gameId, token);
     },
