@@ -421,6 +421,7 @@ export interface OficinaIaRow {
 
 export interface OficinaIaFallbacks {
   narrativa_inicial: string;
+  reflexao_final: string;
   transicoes: Record<OficinaStage, string>;
   feedback_por_perfil: Record<OficinaPerfil, string>;
   reflexao_perguntas: string[];

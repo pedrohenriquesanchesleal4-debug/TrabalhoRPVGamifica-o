@@ -26,9 +26,11 @@ import {
 
 const DEFAULT_MODEL = 'gemini-3.6-flash';
 // O 3.6-flash consome tokens de SAÍDA no "pensamento" antes do texto visível
-// (medido: 469 tokens de thinking numa resposta de 41). 1500 garante margem
-// para o raciocínio + os ~800 tokens do roteiro, sem inflar a janela.
-const MAX_OUTPUT_TOKENS = 1_500;
+// (medido: 469 tokens de thinking numa resposta de 41). O teto antigo de 1500
+// cortava roteiros no meio: com 3-5 pontos ancorados + citações de políticas,
+// a resposta fácil passa de 1000 tokens visíveis — e o thinking come a cota.
+// 4096 garante roteiro completo sem deixar a janela inflar.
+const MAX_OUTPUT_TOKENS = 4_096;
 const TIMEOUT_MS = 25_000;
 const SNAPSHOT_CHAR_CAP = 7_000;
 
@@ -254,6 +256,92 @@ async function callGeminiWithRetry(snapshot: string): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Chamada de texto livre (modo oficina): system + prompt próprios, sem o
+// wrapper de snapshot do Diagnóstico e sem o SYSTEM_INSTRUCTION rígido de
+// 4 blocos. Mesma disciplina de cota: 429 não retenta, 5xx/rede retenta 1 vez.
+// ---------------------------------------------------------------------------
+
+async function callGeminiTextRaw(system: string, prompt: string, key: string): Promise<string> {
+  const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
+    `?key=${encodeURIComponent(key)}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      if (response.status === 429) {
+        throw new ApiError(
+          'server_error',
+          'A IA está no limite de requisições agora. Espere um minuto e tente de novo.',
+        );
+      }
+      if (response.status >= 400 && response.status < 500) {
+        console.error('[safra-df] Gemini recusou a requisição (texto livre):', response.status, detail);
+        throw new ApiError(
+          'server_error',
+          'A configuração da IA recusou o pedido. Verifique a chave e o modelo no servidor.',
+        );
+      }
+      throw new Error(`Gemini respondeu ${response.status}: ${detail}`);
+    }
+
+    const payload = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+
+    const text =
+      payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
+    if (!text.trim()) {
+      throw new Error('Gemini retornou resposta vazia.');
+    }
+    return text.trim();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (controller.signal.aborted) {
+      throw new ApiError('server_error', 'A IA demorou demais para responder. Tente de novo.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Chamada de texto livre com 1 retry para falha transitória. Nunca para 429. */
+async function callGeminiText(system: string, prompt: string): Promise<string> {
+  const key = requireGeminiKey();
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await callGeminiTextRaw(system, prompt, key);
+    } catch (error) {
+      const retryable = error instanceof Error && !(error instanceof ApiError);
+      if (!retryable || attempt === 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+    }
+  }
+
+  throw new ApiError('server_error', 'Não foi possível gerar o texto agora. Tente de novo.');
+}
+
+// ---------------------------------------------------------------------------
 // Serviço: cache no banco + singleflight + geração.
 // ---------------------------------------------------------------------------
 
@@ -329,4 +417,4 @@ async function generateAndSave(
 }
 
 /** Visibilidade para testes: nada aqui precisa da rede. */
-export const _internals = { requireGeminiKey, callGeminiWithRetry };
+export const _internals = { requireGeminiKey, callGeminiWithRetry, callGeminiText };

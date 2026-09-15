@@ -69,8 +69,17 @@ const REFLEXAO_PERGUNTAS: string[] = [
 
 const PROVOCACAO = `Fechem os olhos por um segundo: a feira da Boa Vista em um sábado cheio, caminhão carregado saindo no horário, escola recebendo verdura fresca. Agora abram. O que separa essa cena da que vocês viram hoje não é máquina, não é dinheiro e não é sorte: é decisão. Vocês acabaram de provar que sabem tomar. Levem isso para a próxima comunidade que cruzarem o caminho.`;
 
+const REFLEXAO_FINAL = `Quando a oficina começou, a Boa Vista era um retrato de gente capaz fazendo tudo separado: cada família com sua carroça, seu freezer, sua experiência. Quando terminou, o quadro mudou — não porque apareceu uma máquina mágica, mas porque as decisões ganharam organização, parceria e continuidade.
+
+As equipes escolheram caminhos diferentes para o mesmo problema: transporte que sai no horário, política pública que garante preço, tecnologia que não depende de sinal forte, capacitação que troca saber entre vizinhos. Note o que aparece em quase todas as propostas: nenhuma resolveu sozinha. A ferramenta escolhida sempre veio acompanhada de um combinado entre pessoas — quem faz o quê, até quando, com quem.
+
+O que vocês provaram aqui é o coração da aula: tecnologia e política pública funcionam quando uma comunidade decide usá-las juntas. A feira do sábado cheio, a escola com verdura fresca, o caminhão saindo no horário — tudo isso nasce de uma decisão coletiva e morre sem ela.
+
+Levem essa conclusão para o debate: não existe solução bonita que sobreviva a um combinado fraco, e não existe combinado forte que nasça de uma só cabeça.`;
+
 export const OFICINA_IA_FALLBACKS: OficinaIaFallbacks = {
   narrativa_inicial: NARRATIVA_INICIAL,
+  reflexao_final: REFLEXAO_FINAL,
   transicoes: TRANSICOES,
   feedback_por_perfil: FEEDBACK_POR_PERFIL,
   reflexao_perguntas: REFLEXAO_PERGUNTAS,
