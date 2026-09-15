@@ -20,3 +20,15 @@
 - **Regra nova:** toda animação cênica decorativa deve ter modo reduce = "lenta e gentil", nunca display:none nem congelada; conteúdo/informação continua sem movimento. Vale para navegadores com reduce, que são mais comuns que parecem (Windows "efeitos de animação" liga reduce global no Chrome).## V6.3 (tema claro) - 2026-09-11
 - **Build quebrou no prerender: "Missing getServerSnapshot"** no `useSyncExternalStore` do ThemeToggle. Corrigido com 3º argumento (`() => 'escuro'`). **Regra:** uSES em componente SSR SEMPRE com getServerSnapshot; sem ele, cliente e servidor não têm snapshot e o Next cai no client-render no build.
 - **Contraste 4.15:1** `terr-financas` claro x `financas-texto` (estado inicial #8a5a10): medido por script, escurecido para #7a4d0b (~4.6). **Regra:** no tema claro, medir pares MISTOS (prato = color-mix 26-30% acento + nevoa-100 novo), nunca o acento puro.
+
+## 2026-09-15 · Modo Oficina: banco incompleto + realtime colidindo + painel sem carga inicial
+
+- **Sintoma (500 em /admin ao criar oficina):** migration 0003 nunca aplicou por completo.
+- **Causa raiz:** na linha 211 de `0003_oficina.sql`, o comentário de coluna fechava com `"` em vez de `'` (`campo_livre extra.";`) — o parser SQL engolia até o próximo apóstrofo e as instruções seguintes (`oficina_resultados`, `oficina_ia`, RLS, grants, realtime) nunca rodavam; 0004 dependia e também não rodava.
+- **Correção:** aspa trocada e 0003 + 0004 reaplicadas via psql (exit 0 as duas). Schema agora com 8 tabelas `oficina_*` + coluna `games.mode` + 7 policies.
+- **Sintoma 2:** ao abrir a oficina criada, tela caía no ErrorBoundary "ALGO FALHOU NESTA TELA" com `cannot add postgres_changes callbacks for realtime:game:<id> after subscribe()`.
+- **Causa raiz:** Supabase cacheia canais por nome; `/admin` (useGameChannel) e OficinaTeacherPanel assinavam o MESMO canal `game:<id>` — segundo `.on()` após `.subscribe()` lança.
+- **Correção:** `/admin` só assina quando `mode !== 'oficina'` (o painel da oficina já assina).
+- **Causa raiz 3:** OficinaTeacherPanel ficava preso em "Carregando a oficina..." porque só carregava por evento realtime — sem carga inicial.
+- **Correção:** `useEffect(() => { void load(); }, [load])`.
+- **Regra nova:** componente client que depende de realtime precisa de carga inicial, não só do callback de evento; e nunca duas assinaturas no mesmo canal Supabase.
