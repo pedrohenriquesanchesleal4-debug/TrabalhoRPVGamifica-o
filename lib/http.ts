@@ -112,3 +112,21 @@ export function requireBearer(request: Request): string {
   }
   return token;
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Valida um `gameId` vindo do caminho da URL antes de qualquer consulta.
+ *
+ * Um id que não é UUID chega ao Postgres como `invalid input syntax for type
+ * uuid` — erro de servidor 500 com detalhes do banco vazando na resposta.
+ * Quem digita uma URL com id errado (ou um link quebrado) deve receber 404
+ * limpo, não um rastro de SQL no corpo da resposta.
+ */
+export function requireUuid(value: string, name = 'gameId'): string {
+  if (!UUID_RE.test(value)) {
+    throw new ApiError('not_found', `${name} inválido na URL.`);
+  }
+  return value.toLowerCase();
+}

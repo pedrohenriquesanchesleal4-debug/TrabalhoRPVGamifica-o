@@ -1,5 +1,5 @@
 import { adminClient } from '@/lib/supabase';
-import { ApiError, ok, toResponse } from '@/lib/http';
+import { ApiError, ok, requireUuid, toResponse } from '@/lib/http';
 import { getOficinaPublicView, type OficinaPublicView } from '@/lib/oficina-service';
 import type { GameMode } from '@/types/oficina';
 
@@ -27,7 +27,7 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
 
     const { data: game, error } = await adminClient()
       .from('games')

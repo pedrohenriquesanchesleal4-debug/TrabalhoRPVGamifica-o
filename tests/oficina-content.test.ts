@@ -3,7 +3,6 @@ import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_IA_FALLBACKS } from '@/data/oficina-ia';
 import { resolverPistaDoAlvo } from '@/lib/oficina-service';
 import {
-  OFICINA_ACAO_KEYS,
   OFICINA_BLOCOS_INFO,
   OFICINA_INDICADORES_INFO,
   OFICINA_PERFIS_INFO,

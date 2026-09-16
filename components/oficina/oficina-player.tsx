@@ -124,7 +124,7 @@ export function OficinaPlayerApp({ session }: { session: PlayerSessionData }) {
       await refresh();
       if (cancelled) return;
     })();
-    const interval = window.setInterval(() => void refresh(), 12_000);
+    const interval = window.setInterval(() => void refresh(), 60_000); // fallback reconexão
     return () => {
       cancelled = true;
       mountedRef.current = false;

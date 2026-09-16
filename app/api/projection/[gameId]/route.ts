@@ -1,5 +1,5 @@
 import { getProjectionView } from '@/lib/game-service';
-import { ok, toResponse } from '@/lib/http';
+import { ok, requireUuid, toResponse } from '@/lib/http';
 
 /**
  * GET /api/projection/[gameId] · a tela de projeção.
@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     return ok(await getProjectionView(gameId));
   } catch (error) {
     return toResponse(error);

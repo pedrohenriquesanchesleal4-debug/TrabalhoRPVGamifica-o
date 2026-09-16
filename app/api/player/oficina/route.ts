@@ -1,4 +1,5 @@
-import { ok, toResponse, requireBearer, ApiError } from '@/lib/http';
+import { z } from 'zod';
+import { ok, parseBody, toResponse, requireBearer, ApiError } from '@/lib/http';
 import { authenticatePlayer } from '@/lib/game-service';
 import { adminClient } from '@/lib/supabase';
 import {
@@ -44,42 +45,25 @@ export async function POST(request: Request) {
     const gameId = session.game.id;
     const teamId = session.member.team_id;
 
-    const { action } = await request.json().catch(() => ({ action: undefined }));
-    if (typeof action !== 'string' || action.length === 0) {
-      throw new ApiError('bad_request', 'Ação ausente na requisição.');
-    }
+    const body = await parseBody(request, playerActionSchema);
 
-    switch (action) {
+    switch (body.action) {
       case 'acao': {
-        const body = await request.json();
-        const { acaoKey, alvoId } = body;
-        if (typeof acaoKey !== 'string') throw new ApiError('bad_request', 'Chave da ação ausente.');
-        const resultado = await executarAcao({ gameId, teamId, acaoKey, alvoId: typeof alvoId === 'string' ? alvoId : undefined });
+        const resultado = await executarAcao({ gameId, teamId, acaoKey: body.acaoKey, alvoId: body.alvoId });
         return ok(resultado);
       }
       case 'compartilhar': {
-        const body = await request.json();
-        if (typeof body?.pistaId !== 'string') throw new ApiError('bad_request', 'Pista ausente.');
         const pista = await compartilharPista(gameId, teamId, body.pistaId);
         return ok({ pista });
       }
       case 'votar': {
-        const body = await request.json();
-        if (typeof body?.eventKey !== 'string' || typeof body?.opcaoKey !== 'string') {
-          throw new ApiError('bad_request', 'Evento ou opção ausente.');
-        }
         const contribuicao = await votarEvento({ gameId, teamId, eventKey: body.eventKey, opcaoKey: body.opcaoKey });
         return ok({ contribuicao });
       }
       case 'solucao': {
-        const body = await request.json();
-        const solucao = body?.solucao as OficinaSolucao | undefined;
-        if (!solucao || typeof solucao !== 'object' || typeof solucao.blocos !== 'object') {
-          throw new ApiError('bad_request', 'Solução inválida.');
-        }
         const salva = await submeterSolucao(gameId, teamId, {
-          blocos: solucao.blocos ?? {},
-          campos_livres: solucao.campos_livres ?? {},
+          blocos: body.solucao.blocos,
+          campos_livres: body.solucao.campos_livres,
         });
         return ok({ solucao: salva });
       }
@@ -90,6 +74,31 @@ export async function POST(request: Request) {
     return toResponse(err);
   }
 }
+
+/** Schema de entrada para ações do aluno — lê o body uma única vez. */
+const playerActionSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('acao'),
+    acaoKey: z.string().min(1).max(40),
+    alvoId: z.string().max(60).optional(),
+  }),
+  z.object({
+    action: z.literal('compartilhar'),
+    pistaId: z.string().min(1).max(60),
+  }),
+  z.object({
+    action: z.literal('votar'),
+    eventKey: z.string().min(1).max(40),
+    opcaoKey: z.string().min(1).max(40),
+  }),
+  z.object({
+    action: z.literal('solucao'),
+    solucao: z.object({
+      blocos: z.record(z.string(), z.string().max(200)).default({}),
+      campos_livres: z.record(z.string(), z.string().max(500)).default({}),
+    }),
+  }),
+]);
 
 async function carregarPainelOficina(session: Awaited<ReturnType<typeof authenticatePlayer>>) {
   const { player, member, team, game } = session;

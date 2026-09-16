@@ -92,6 +92,7 @@ export interface ValidarAcaoResultado {
  */
 export function validarAcao({
   acao,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mantido por contrato de interface
   indicadores: _indicadores,
   pistasTags,
   acoesUsadas,
@@ -347,7 +348,9 @@ export interface EquipeInput {
  */
 export function calcularResultados(
   equipes: EquipeInput[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mantido por contrato de interface
   _cartoes: OficinaCartao[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mantido por contrato de interface
   _problemaTagsPorEquipe: Record<string, TagOficina[]>,
 ): OficinaResultadoCategoria[] {
   const categorias: OficinaCategoriaResultado[] = [

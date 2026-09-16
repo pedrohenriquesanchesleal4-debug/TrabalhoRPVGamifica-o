@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { browserClient } from '@/lib/supabase';
 import type { RealtimeEventType } from '@/types/game';
 
@@ -24,8 +24,6 @@ export interface GameChannelEvent {
   createdAt: string;
 }
 
-export type ChannelStatus = 'connecting' | 'connected' | 'error' | 'idle';
-
 interface Options {
   gameId: string | null;
   /** Chamado a cada evento novo do barramento. */
@@ -35,23 +33,14 @@ interface Options {
 }
 
 export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
-  /**
-   * O estado da conexão guarda a qual partida ele se refere.
-   *
-   * Assim o status pode ser DERIVADO em vez de escrito no corpo do efeito:
-   * trocar de partida não deixa um "conectado" antigo na tela, e nenhum
-   * setState roda de forma sincrona durante a sincronização do efeito, o que
-   * causaria renderização em cascata.
-   */
-  const [connection, setConnection] = useState<{
-    gameId: string;
-    state: Exclude<ChannelStatus, 'idle'>;
-  } | null>(null);
-  const [lastEvent, setLastEvent] = useState<GameChannelEvent | null>(null);
-
   // Callbacks em ref: mudar handler não deve derrubar e recriar o canal.
   const eventRef = useRef(onEvent);
   const teamRef = useRef(onTeamUpdate);
+
+  // Coalesce: evita rajada de refreshes (resolve_round → 6 updates de team).
+  // Um timer único agrupa todos os onTeamUpdate em 1 chamada em ~400ms.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTeamRef = useRef(false);
 
   // A sincronização das refs acontece depois da renderização, nunca durante.
   useEffect(() => {
@@ -64,6 +53,13 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
 
     let cancelled = false;
     const supabase = browserClient();
+
+    const flushTeam = () => {
+      if (cancelled || !pendingTeamRef.current) return;
+      pendingTeamRef.current = false;
+      teamRef.current?.();
+    };
+
     const channel = supabase
       .channel(`game:${gameId}`)
       .on(
@@ -82,16 +78,13 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
             created_at: string;
           };
 
-          const event: GameChannelEvent = {
+          if (cancelled) return;
+          eventRef.current?.({
             id: row.id,
             type: row.type,
             payload: row.payload ?? {},
             createdAt: row.created_at,
-          };
-
-          if (cancelled) return;
-          setLastEvent(event);
-          eventRef.current?.(event);
+          });
         },
       )
       .on(
@@ -103,32 +96,27 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
           filter: `game_id=eq.${gameId}`,
         },
         () => {
-          if (!cancelled) teamRef.current?.();
+          if (cancelled) return;
+          pendingTeamRef.current = true;
+          if (!refreshTimerRef.current) {
+            refreshTimerRef.current = setTimeout(() => {
+              refreshTimerRef.current = null;
+              flushTeam();
+            }, 400);
+          }
         },
       )
-      .subscribe((state) => {
-        if (cancelled) return;
-        if (state === 'SUBSCRIBED') setConnection({ gameId, state: 'connected' });
-        else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT') {
-          setConnection({ gameId, state: 'error' });
-        }
-      });
+      .subscribe(() => {});
 
     return () => {
       cancelled = true;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
       void supabase.removeChannel(channel);
     };
   }, [gameId]);
-
-  // Status derivado: sem partida é 'idle'; com partida, vale o que o canal
-  // reportou para ESTA partida, e 'connecting' enquanto nada foi reportado.
-  const status: ChannelStatus = !gameId
-    ? 'idle'
-    : connection?.gameId === gameId
-      ? connection.state
-      : 'connecting';
-
-  return { status, lastEvent };
 }
 
 /**

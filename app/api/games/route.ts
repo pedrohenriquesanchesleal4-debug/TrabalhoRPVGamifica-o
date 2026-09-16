@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createGame } from '@/lib/game-service';
 import { ok, parseBody, toResponse } from '@/lib/http';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/games · o professor cria a partida.
@@ -30,6 +31,7 @@ const bodySchema = z
 
 export async function POST(request: Request) {
   try {
+    rateLimit(`create:${clientIp(request)}`, 3, 60_000, 'Aguarde um instante antes de criar outra partida.');
     const config = await parseBody(request, bodySchema);
     const { game, hostToken, teams } = await createGame(config, config.mode ?? 'diagnostico');
 

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, ArrowRight, Landmark, Lightbulb, Sparkles, Sprout } from 'lucide-react';
 import { fetchDebateRoteiro, fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
+import { hostSession } from '@/lib/client-session';
 import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { MarkdownLite } from '@/components/ui/markdown-lite';
 import { RankingTable } from '@/components/host/ranking-table';
@@ -48,7 +49,11 @@ export default function ResultadoPage() {
     setDebateLoading(true);
     setDebateError(null);
     try {
-      setDebate(await fetchDebateRoteiro(gameId));
+      const host = hostSession.get();
+      if (!host || host.gameId !== gameId) {
+        throw new RequestError('unauthorized', 'Sessão do professor expirada. Crie a partida de novo.', 401);
+      }
+      setDebate(await fetchDebateRoteiro(gameId, host.token));
     } catch (err) {
       setDebateError(
         err instanceof RequestError

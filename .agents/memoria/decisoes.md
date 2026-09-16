@@ -1,5 +1,18 @@
 # Decisões (ADR-lite)
 
+## 2026-09-16 · D-08: Endurecimento de segurança pós-auditoria (SWARM)
+
+**Contexto:** auditoria de segurança (agente `security`) com 8 achados abrindo o hagfish (H1..L4): body lido 2x, debate sem auth, campos ilimitados, comparação de token não-constante, RLS frouxo em `oficina_ia`, vazamento em realtime, 500 em optionKey inválida.
+
+**Decisão:** fechar todos em rodada única: Zod discriminated union na rota de oficina; `requireBearer`+`authenticateHost`+rate limit (em memória, janela deslizante) nas rotas que gastam cota; migration 0005 revogando acesso anon a `oficina_ia`; `tokenMatches` timing-safe; `InvalidDecisionError('unknown_option')` no lugar de `option!`; snapshot da oficina delimitado `<dados_da_oficina>` anti prompt-injection; JSON.parse seguro no client.
+
+**Alternativas consideradas:**
+1. Rate limit com Upstash para serverless multi-instância — rejeitada: conta externa a mais para cenário de sala de aula (1 instância); documentado como limitação em `lib/rate-limit.ts`.
+2. Sanitizar o snapshot antes do Gemini (strip de instruções) — rejeitada: delimitação + aviso é o padrão recomendado e não corrompe conteúdo pedagógico.
+3. Deixar RLS frouxo e confiar em service_role — rejeitada: dado de professor (roteiro) não deve ser público, mesmo sendo "só cache".
+
+**Consequência:** rotas que consomem cota Gemini autenticadas e limitadas; 500 → 422 em opção inválida; hash-timing neutro; zero leitura anon de `oficina_ia`. Gate: typecheck + lint + 170 testes + build verdes; probes live 401/401 em debate/oficina sem token.
+
 ## 2026-09-11 · D-01: Redesign visual V6 "Amanhecer do Cerrado"
 
 **Contexto:** V5 "Painel de Silo" aprovada pelo usuário, mas feedback: "está legal, não brilha meus olhos; quero mais animações, sem pesar no celular (foco mobile, 100 usuários simultâneos)". Brief extenso pede estética cinematográfica CERRADO + AGRICULTURA + TECNOLOGIA + ESTRATÉGIA, luz de 06:20 ("BRASÍLIA · 06:20"), premium, não genérica.

@@ -1,5 +1,5 @@
 import { deleteGame } from '@/lib/game-service';
-import { ok, requireBearer, toResponse } from '@/lib/http';
+import { ok, requireBearer, requireUuid, toResponse } from '@/lib/http';
 
 /**
  * DELETE /api/games/[gameId] · o professor exclui a partida e cria outra.
@@ -15,7 +15,7 @@ export async function DELETE(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     const token = requireBearer(request);
     await deleteGame(gameId, token);
     return ok({ deleted: true });

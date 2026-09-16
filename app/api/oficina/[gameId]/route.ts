@@ -1,4 +1,4 @@
-import { ok, toResponse, requireBearer, ApiError } from '@/lib/http';
+import { ok, toResponse, requireBearer, requireUuid, ApiError } from '@/lib/http';
 import {
   iniciarOficina,
   avancarStage,
@@ -32,7 +32,7 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     const game = await authenticateHost(gameId, requireBearer(request));
     const view = await getOficinaPublicView(gameId);
     return ok({ game, view });
@@ -46,7 +46,7 @@ export async function POST(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     const game = await authenticateHost(gameId, requireBearer(request));
 
     const { action } = await request.json().catch(() => ({ action: undefined }));

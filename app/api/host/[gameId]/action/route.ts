@@ -8,7 +8,7 @@ import {
   resumeGame,
   startRound,
 } from '@/lib/game-service';
-import { ok, parseBody, requireBearer, toResponse } from '@/lib/http';
+import { ok, parseBody, requireBearer, requireUuid, toResponse } from '@/lib/http';
 
 /**
  * POST /api/host/[gameId]/action · o controle da partida, em um endpoint.
@@ -30,7 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     const token = requireBearer(request);
     const { action, remainingSeconds } = await parseBody(request, bodySchema);
 

@@ -8,6 +8,7 @@ import {
   optionAvailability,
   rankTeams,
   resolveDecision,
+  InvalidDecisionError,
   type TeamScoreInput,
 } from '@/game/engine';
 import {
@@ -33,7 +34,7 @@ import {
 } from '@/types/game';
 import { ApiError } from './http';
 import { adminClient } from './supabase';
-import { generateGameCode, generateToken, hashToken, normalizeGameCode } from './tokens';
+import { generateGameCode, generateToken, hashToken, normalizeGameCode, tokenMatches } from './tokens';
 import { criarEstruturaOficina } from './oficina-service';
 import type { GameMode, OficinaPerfil } from '@/types/oficina';
 
@@ -849,7 +850,7 @@ export async function authenticateHost(gameId: string, token: string): Promise<G
   if (error) {
     throw new ApiError('server_error', 'Falha ao validar o acesso do professor.', error.message);
   }
-  if (!data || data.host_token_hash !== hashToken(token)) {
+  if (!data || !tokenMatches(token, data.host_token_hash)) {
     throw new ApiError('forbidden', 'Este acesso de professor não vale para esta partida.');
   }
 
@@ -1089,7 +1090,10 @@ export async function submitDecision(
     seed: [game.id, round.index, team.id],
   });
 
-  const option = card.options.find((entry) => entry.key === optionKey)!;
+  const option = card.options.find((entry) => entry.key === optionKey);
+  if (!option) {
+    throw new InvalidDecisionError('unknown_option', 'Opção inválida para esta carta.');
+  }
 
   const insert = await db().from('decisions').insert({
     game_id: game.id,
@@ -1132,12 +1136,11 @@ export async function submitDecision(
     console.error('[safra-df] falha ao marcar equipe como decidida:', markDecided.error.message);
   }
 
+  // optionLabel e playerName omitidos: o barramento é público (anon pode
+  // assinar game_events). A resolução da rodada já revela o resultado final.
   await emit(game.id, 'DECISION_LOCKED', {
     teamId: team.id,
-    teamName: team.name,
     roundIndex: round.index,
-    optionLabel: option.label,
-    playerName: player.name,
   });
 
   return { optionLabel: option.label, locked: true };

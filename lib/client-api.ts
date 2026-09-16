@@ -40,7 +40,12 @@ async function request<T>(
   });
 
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as unknown) : null;
+  let payload: unknown = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
 
   if (!response.ok) {
     const error = (payload as { error?: { code?: string; message?: string } } | null)?.error;
@@ -144,10 +149,12 @@ export interface DebatePrepResponse {
 /**
  * Gera (ou relê do cache) o roteiro de debate da partida encerrada.
  * A 1ª chamada consome a cota de IA da partida; as seguintes vêm do banco.
+ * Exige autenticação do professor (Bearer token).
  */
-export function fetchDebateRoteiro(gameId: string) {
+export function fetchDebateRoteiro(gameId: string, token: string) {
   return request<DebatePrepResponse>(`/api/host/${gameId}/debate`, {
     method: 'POST',
+    token,
     cache: 'no-store',
   });
 }

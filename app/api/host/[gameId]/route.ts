@@ -1,5 +1,5 @@
 import { getHostView } from '@/lib/game-service';
-import { ok, requireBearer, toResponse } from '@/lib/http';
+import { ok, requireBearer, requireUuid, toResponse } from '@/lib/http';
 
 /**
  * GET /api/host/[gameId] · painel do professor.
@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ gameId: string }> },
 ) {
   try {
-    const { gameId } = await params;
+    const gameId = requireUuid((await params).gameId);
     const token = requireBearer(request);
 
     return ok(await getHostView(gameId, token));
