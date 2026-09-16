@@ -13,6 +13,25 @@
 
 **Consequência:** rotas que consomem cota Gemini autenticadas e limitadas; 500 → 422 em opção inválida; hash-timing neutro; zero leitura anon de `oficina_ia`. Gate: typecheck + lint + 170 testes + build verdes; probes live 401/401 em debate/oficina sem token.
 
+## 2026-09-16 · D-09: Micro-interações cirúrgicas — pop de seleção + revelação por rodada
+
+**Contexto:** projeto maduro em motion (emergir/paralaxe/nascente/trava/ticker/tema claro). Dois gaps reais: 1) desktop usa mouse mas hover no degrau dá zero feedback antes do clique; 2) check de seleção aparece abrupto; 3) projeção na sala de aula não tem "momento de revelação" quando a rodada encerra (as barras mudam sem o slide-up cinemático).
+
+**Decisão (fundação, orquestrador):** adicionar ao globals.css três primitivas, nenhuma nova lib:
+- `@keyframes eclode` (pop-in escala 0.35→1.12→1, 0.18s, easing com overshoot leve) + `--animate-eclode` no theme: transform/opacity apenas. Sob reduced-motion: override explícito freeze em opacity:1/transform:none (conteúdo visível).
+- `@media (hover:hover) .pisavel:not(:disabled):hover { filter: brightness(1.07) }`: luz sutil em desktop sem layout shift, zero custo mobile.
+
+**Decisão (agentes paralelos, animation):**
+1. `event-card.tsx`: check-mark wrapper ganha `animate-eclode` — pop-in na seleção (mount React → animação dispara). Oficina usada internamente e verificada (não tem checkbox equivalente).
+2. `host/[gameId]/page.tsx`: FocusTeamBoard e Classificados ganham `key={view.game.currentRound}` → React remonta na transição de rodada → `animate-emergir` re-trigger → revelação cinemática no telão da sala.
+
+**Alternativas consideradas:**
+- Hover com `transform: translateY(-2px)` — rejeitado: conflita com fill-mode both de animações preexistentes (`.animate-emergir` mantém transform identidade, que sobrepõe transição de hover). `filter: brightness` compõe sem conflito.
+- Nova lib (Motion/Framer) para parallax de ranking — rejeitada: CSS nativo entrega o que precisa, zero custo de bundle mobile.
+- Key por rodada + setTimeout para reveal escalonado — rejeitado: `animate-emergir` já tem delays estáticos no CSS; o key sozinho dispara tudo no mount, e o timing por delay é mais previsível.
+
+**Consequência:** dois momentos de micro-delight sem overhead de bundle/JS: seleção de opção (pop visual confirma a ação do aluno); transição de rodada no projetor (slide-up cinemático para a sala inteira). Gate: typecheck + lint + 170 testes + build verdes; zero novo CSS/keyframe/token/dep.
+
 ## 2026-09-11 · D-01: Redesign visual V6 "Amanhecer do Cerrado"
 
 **Contexto:** V5 "Painel de Silo" aprovada pelo usuário, mas feedback: "está legal, não brilha meus olhos; quero mais animações, sem pesar no celular (foco mobile, 100 usuários simultâneos)". Brief extenso pede estética cinematográfica CERRADO + AGRICULTURA + TECNOLOGIA + ESTRATÉGIA, luz de 06:20 ("BRASÍLIA · 06:20"), premium, não genérica.

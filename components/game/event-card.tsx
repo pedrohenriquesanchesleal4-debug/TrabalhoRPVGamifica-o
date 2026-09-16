@@ -160,7 +160,7 @@ export function EventCard({
                   {isSelected ? (
                     <span
                       aria-hidden="true"
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-azul-300 text-azul-800"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-azul-300 text-azul-800 animate-eclode"
                     >
                       <Check size={12} strokeWidth={3} />
                     </span>

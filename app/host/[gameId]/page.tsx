@@ -317,7 +317,7 @@ export default function HostProjectionPage() {
         </header>
 
         {focusEntry ? (
-          <section aria-live="polite" className="animate-emergir" style={{ animationDelay: '100ms' }}>
+          <section key={view.game.currentRound} aria-live="polite" className="animate-emergir" style={{ animationDelay: '100ms' }}>
             <FocusTeamBoard
               team={focusEntry.team}
               initialBudget={game.config.initialBudget}
@@ -327,7 +327,7 @@ export default function HostProjectionPage() {
         ) : null}
 
         {classificados.length > 0 ? (
-          <section className="flex flex-col gap-3 animate-emergir" style={{ animationDelay: '200ms' }} aria-live="polite">
+          <section key={view.game.currentRound} className="flex flex-col gap-3 animate-emergir" style={{ animationDelay: '200ms' }} aria-live="polite">
             <Rotulo>
               <span className="inline-flex items-center gap-1.5">
                 <Trophy size={12} aria-hidden />
