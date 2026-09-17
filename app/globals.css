@@ -377,6 +377,15 @@
     font-family: var(--font-sans);
     font-weight: 500;
     /*
+      O viewport cobre a tela inteira (viewportFit: cover) para que o
+      `env(safe-area-inset-*)` exista: sem esse padding, o CTA inferior e o
+      rodapé ficam sob a barra de gestos do iPhone / notch do Android.
+      `0px` como fallback para navegadores sem env().
+    */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    /*
       Três camadas, todas custo zero e nenhuma requisição:
 
       1. Um brilho de amanhecer no canto superior (dourado da safra, bem

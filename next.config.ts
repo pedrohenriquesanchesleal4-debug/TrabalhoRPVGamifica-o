@@ -57,6 +57,8 @@ const nextConfig: NextConfig = {
      */
     root: path.resolve(import.meta.dirname),
   },
+  // Não anuncia a stack no header X-Powered-By: hardening de informação.
+  poweredByHeader: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

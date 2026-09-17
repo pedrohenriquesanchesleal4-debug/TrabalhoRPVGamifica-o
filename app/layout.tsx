@@ -89,6 +89,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   // O aluno joga no celular com uma mão: zoom liberado é acessibilidade.
   maximumScale: 5,
+  // Cobre telas com notch/barra de gestos: habilita env(safe-area-inset-*).
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
