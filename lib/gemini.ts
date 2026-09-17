@@ -398,18 +398,25 @@ async function generateAndSave(
   const roteiro = await callGeminiWithRetry(material ? `${snapshot}\n\n${material}` : snapshot);
   const modelo = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
-  const saved = await adminClient()
-    .from('debate_prep')
-    .upsert(
-      { game_id: gameId, roteiro, modelo, material_usado: material !== '' },
-      { onConflict: 'game_id' },
-    );
+  // A chamada de IA já foi paga: o rascunho PRECISA ir para o banco, senão o
+  // singleflight morre e o próximo clique regera (e gasta a cota de novo).
+  // Falha de rede/banco é transitória: uma única retentativa cobre. Esgotadas
+  // as duas tentativas, o erro é honesto — nada de prometer "virá do cache".
+  const payload = { game_id: gameId, roteiro, modelo, material_usado: material !== '' };
+
+  let saved = await adminClient().from('debate_prep').upsert(payload, { onConflict: 'game_id' });
+  if (saved.error) {
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    saved = await adminClient().from('debate_prep').upsert(payload, { onConflict: 'game_id' });
+  }
 
   if (saved.error) {
-    console.error('[safra-df] falha ao salvar roteiro:', saved.error.message);
+    console.error('[safra-df] falha ao salvar roteiro (2 tentativas):', saved.error.message);
     throw new ApiError(
       'server_error',
-      'O roteiro foi gerado, mas não pôde ser salvo. Clique em "Preparar" de novo: ele virá do cache.',
+      'O roteiro foi gerado, mas não pôde ser salvo no servidor. ' +
+        'Se a falha era passageira, ele já aparece salvo ao reabrir o resultado; ' +
+        'senão, será gerado de novo na próxima tentativa.',
     );
   }
 
