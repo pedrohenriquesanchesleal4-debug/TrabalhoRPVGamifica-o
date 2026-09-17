@@ -48,10 +48,38 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SAFRA DF · Decisões que Alimentam',
+  applicationName: 'SAFRA DF',
+  title: {
+    default: 'SAFRA DF · Decisões que Alimentam',
+    template: '%s · SAFRA DF',
+  },
   description:
     'Jogo multiplayer sobre agricultura familiar no Distrito Federal: cada equipe administra uma propriedade e decide sob orçamento limitado.',
-  applicationName: 'SAFRA DF',
+  keywords: [
+    'agricultura familiar',
+    'Distrito Federal',
+    'Cerrado',
+    'jogo educativo',
+    'segurança alimentar',
+    'sustentabilidade',
+  ],
+  authors: [{ name: 'SAFRA DF' }],
+  creator: 'SAFRA DF',
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    siteName: 'SAFRA DF',
+    title: 'SAFRA DF · Decisões que Alimentam',
+    description:
+      'Uma propriedade. Recursos limitados. Cinco decisões que alimentam. Jogo multiplayer sobre agricultura familiar no Distrito Federal.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'SAFRA DF · Decisões que Alimentam',
+    description:
+      'Jogo multiplayer sobre agricultura familiar no Distrito Federal: cada equipe administra uma propriedade e decide sob orçamento limitado.',
+  },
 };
 
 export const viewport: Viewport = {
