@@ -519,13 +519,45 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
     throw new ApiError('server_error', 'Falha ao registrar ação.', insertError.message);
   }
 
-  // Aplica efeitos nos indicadores (só na primeira execução).
-  const { data: acaoRow } = await db()
+  // Aplica efeitos nos indicadores (só na primeira execução). O filtro
+  // `acoes_usadas = base lida` é um CAS: se outra ação da MESMA equipe (dois
+  // celulares do time, por exemplo) gravou efeitos entre a nossa leitura e
+  // este update, nenhuma linha bate e o state dela NÃO é sobrescrito.
+  const { data: acaoRow, error: aplicarError } = await db()
     .from('oficina_equipes')
     .update({ indicadores: novosIndicadores, acoes_usadas: equipe.acoes_usadas + 1 })
     .eq('team_id', teamId)
+    .eq('acoes_usadas', equipe.acoes_usadas)
     .select()
-    .single();
+    .maybeSingle();
+
+  if (aplicarError) {
+    // Ação já foi logada lá em cima: sem efeitos aplicados, o log é mentira.
+    // Rola para trás e devolve erro honesto — o cliente tenta de novo com o
+    // estado fresco.
+    const undo = await db().from('oficina_acoes').delete().eq('id', acaoInserida.id);
+    if (undo.error) {
+      console.error('[safra-df] falha ao desfazer ação órfã:', undo.error.message);
+    }
+    throw new ApiError(
+      'server_error',
+      'Falha ao aplicar os efeitos da ação. Tente de novo.',
+      aplicarError.message,
+    );
+  }
+
+  if (!acaoRow) {
+    // CAS perdeu: ação concorrente da mesma equipe venceu. Desfaz o log e
+    // pede retry; a releitura do cliente revalida do estado novo.
+    const undo = await db().from('oficina_acoes').delete().eq('id', acaoInserida.id);
+    if (undo.error) {
+      console.error('[safra-df] falha ao desfazer ação órfã:', undo.error.message);
+    }
+    throw new ApiError(
+      'conflict',
+      'Outra ação desta equipe foi registrada no mesmo instante. Tente de novo.',
+    );
+  }
 
   // Ação de investigação com alvo: tenta descobrir a pista associada ao alvo.
   let pistaDescoberta: OficinaPistaRow | undefined;
@@ -580,10 +612,14 @@ async function marcarTagsPista(teamId: string, tags: TagOficina[]) {
   if (tags.includes('capacitacao')) novosMarcadores.add('capacitacao_feita');
 
   if (novosMarcadores.size !== equipe.marcadores.length) {
-    await db()
+    const { error } = await db()
       .from('oficina_equipes')
       .update({ marcadores: [...novosMarcadores] })
       .eq('team_id', teamId);
+
+    if (error) {
+      console.error('[safra-df] falha ao marcar tags da equipe:', error.message);
+    }
   }
 }
 
