@@ -873,7 +873,7 @@ function Solucao({
                   rows={2}
                   maxLength={280}
                   placeholder="No que a equipe acredita para este bloco..."
-                  className="w-full resize-y rounded-[5px] border border-terra-300 bg-white px-3 py-2 text-sm text-terra-900 outline-none placeholder:text-terra-400 focus:border-verde-600"
+                  className="w-full resize-y rounded-[5px] border border-terra-300 bg-white px-3 py-2 text-sm text-terra-900 outline-none placeholder:text-terra-400 focus:outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--color-foco-papel)]"
                 />
               </div>
             ) : null}

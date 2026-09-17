@@ -112,6 +112,14 @@
   */
   --color-foco: #e5a93c;
 
+  /*
+    Foco sobre PAPEL (superfícies brancas fixas, tipo o campo livre da
+    Oficina): o dourado claro do `--color-foco` não fecha contraste em
+    branco (1.9:1). Esse é o dourado-escuro do amanhecer, que nunca
+    inverte — a superfície branca também nunca inverte.
+  */
+  --color-foco-papel: #7a4d0b;
+
   /* Entradas únicas de ação (contação de rodada, decisão, crescimento). */
   --animate-emergir: emergir 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-nascente: nascente 1.8s ease-out infinite;
