@@ -128,7 +128,7 @@ export default function JogarPage() {
     };
   }, [hydrated, session, router, refresh]);
 
-  useGameChannel({
+  const { realtimeStatus } = useGameChannel({
     gameId: view?.game.id ?? null,
     onEvent: () => {
       void refresh();
@@ -137,6 +137,8 @@ export default function JogarPage() {
       void refresh();
     },
   });
+
+  const offline = realtimeStatus === 'reconnecting';
 
   useEffect(() => {
     if (!session || session.mode !== 'diagnostico') return undefined;
@@ -199,6 +201,18 @@ export default function JogarPage() {
 
       {/* Conteúdo acima da paisagem. */}
       <div className="relative z-10 flex flex-1 flex-col gap-5">
+        {offline ? (
+          <div role="status" aria-live="polite" className="flex items-center justify-center gap-2 py-1">
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-alerta motion-safe:animate-pulse"
+            />
+            <p className="rotulo text-alerta-texto">
+              Conexão instável — reconectando. Os dados desta tela podem estar parados.
+            </p>
+          </div>
+        ) : null}
+
         {showOpening && view ? (
           <OpeningSequence
             budget={view.team.state.cash}
@@ -468,7 +482,7 @@ function LobbyScreen({ view }: { view: PlayerView }) {
 
 function PausedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" aria-live="polite">
       <div className="degrau mirante terr-azul animate-emergir flex items-start gap-3 p-5">
         <PauseCircle size={22} className="mt-0.5 shrink-0 text-azul-300" aria-hidden="true" />
         <div className="flex flex-col gap-1">
@@ -504,7 +518,8 @@ function LockedScreen({ view }: { view: PlayerView }) {
         <RoundTimer endsAt={view.game.roundEndsAt} active size="destaque" />
       </div>
 
-      <div className="degrau mirante terr-financas animate-emergir relative flex flex-col gap-3 p-5">
+      {/* aria-live aqui, fora do timer: anuncia o registro sem ecoar o tique. */}
+      <div className="degrau mirante terr-financas animate-emergir relative flex flex-col gap-3 p-5" aria-live="polite">
         <CircleCheck size={22} className="absolute right-4 top-4 text-financas-texto" aria-hidden="true" />
         <Rotulo className="text-financas-texto">DECISÃO REGISTRADA</Rotulo>
         <p className="relevo-sm pr-8 text-financas-texto">{view.decision?.optionLabel}</p>
@@ -631,7 +646,7 @@ function WaitingRoundScreen({ view }: { view: PlayerView }) {
 
 function FinishedScreen({ view }: { view: PlayerView }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" aria-live="polite">
       <div className="degrau mirante terr-fundo-verde animate-emergir flex flex-col gap-2 p-5">
         <Rotulo className="text-(--cor-tinta-panel-verde)">Partida encerrada</Rotulo>
         <p className="relevo-md text-white">
