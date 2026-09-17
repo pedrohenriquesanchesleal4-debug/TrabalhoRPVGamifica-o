@@ -1064,6 +1064,13 @@ export async function submitDecision(
   if (!round) {
     throw new ApiError('conflict', 'A rodada atual não foi aberta.');
   }
+  // Guard fresco no resolved_at da RODADA, não só no round_status da partida
+  // (lido no início da chamada): fecha a janela em que o host reivindica o
+  // fechamento entre a leitura antiga e este insert — decisão órfã entraria
+  // gravada mas sem pontuação, e as estatísticas mentiriam.
+  if (round.resolved_at) {
+    throw new ApiError('conflict', 'A rodada está fechada. Aguarde a próxima.');
+  }
 
   const event = unwrap(
     await db()
@@ -1182,10 +1189,29 @@ export async function resolveRound(
   if (!round) {
     throw new ApiError('conflict', 'A rodada atual não existe.');
   }
-  if (round.resolved_at) {
+
+  // Reivindicação ATÔMICA da rodada: quem primeiro gravar resolved_at fecha.
+  // O guard antigo (ler resolved_at e depois agir) deixava duas execuções
+  // concorrentes pasarem juntas — duplo clique do professor ou retry de rede
+  // aplicavam o fechamento DUAS vezes: renda/multa dobrada por equipe.
+  const resolvedAt = new Date().toISOString();
+  const claimed = await db()
+    .from('rounds')
+    .update({ resolved_at: resolvedAt })
+    .eq('id', round.id)
+    .is('resolved_at', null)
+    .select('id')
+    .maybeSingle();
+
+  if (claimed.error) {
+    throw new ApiError('server_error', 'Falha ao fechar a rodada.', claimed.error.message);
+  }
+  if (!claimed.data) {
     throw new ApiError('conflict', 'Esta rodada já foi resolvida.');
   }
 
+  // Decisões lidas DEPOIS da reivindicação: qualquer insert que entre depois
+  // deste ponto encontra resolved_at preenchido no submit e é recusado.
   const teams = await teamsOf(gameId);
 
   const decisions = unwrap(
@@ -1221,7 +1247,11 @@ export async function resolveRound(
       .eq('id', team.id);
 
     if (update.error) {
-      throw new ApiError('server_error', 'Falha ao atualizar os indicadores da equipe.', update.error.message);
+      throw new ApiError(
+        'server_error',
+        'Falha ao atualizar os indicadores da equipe. A rodada já foi marcada como resolvida: recarregue a tela e confira o estado das equipes.',
+        update.error.message,
+      );
     }
 
     outcomes.push({
@@ -1233,17 +1263,6 @@ export async function resolveRound(
       effects: decision?.effects ?? [],
       state: closing.state,
     });
-  }
-
-  const resolvedAt = new Date().toISOString();
-
-  const roundUpdate = await db()
-    .from('rounds')
-    .update({ resolved_at: resolvedAt })
-    .eq('id', round.id);
-
-  if (roundUpdate.error) {
-    throw new ApiError('server_error', 'Falha ao fechar a rodada.', roundUpdate.error.message);
   }
 
   const updated = unwrap(
