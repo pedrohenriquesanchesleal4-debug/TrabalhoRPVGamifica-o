@@ -821,20 +821,38 @@ export async function authenticatePlayer(token: string): Promise<PlayerSession> 
   // round-trip evitado é ~250-400ms medidos a menos por chamada de
   // /api/player/view, e essa função é chamada em toda leitura de tela do aluno.
   const [playerResult, memberResult] = await Promise.all([
-    db().from('players').select('*').eq('id', secret.player_id).single(),
-    db().from('team_members').select('*').eq('player_id', secret.player_id).single(),
+    db().from('players').select('*').eq('id', secret.player_id).maybeSingle(),
+    db().from('team_members').select('*').eq('player_id', secret.player_id).maybeSingle(),
   ]);
 
-  const player = unwrap(playerResult, 'carregar o jogador') as PlayerRow;
-  const member = unwrap(memberResult, 'carregar a equipe do jogador') as TeamMemberRow;
+  const player = unwrap(playerResult, 'carregar o jogador') as PlayerRow | null;
+  const member = unwrap(memberResult, 'carregar a equipe do jogador') as TeamMemberRow | null;
+
+  // Caminho quente (toda leitura de tela do aluno): linha órfã não pode virar
+  // 500 eterno no celular. Sessão expirada (jogador ou vínculo removidos —
+  // turma remontada, jogo resetado) é estado recuperável: recarregar e entrar
+  // de novo.
+  if (!player || !member) {
+    throw new ApiError(
+      'not_found',
+      'Sua sessão expirou. Recarregue a página e entre de novo.',
+    );
+  }
 
   const [teamResult, gameResult] = await Promise.all([
-    db().from('teams').select('*').eq('id', member.team_id).single(),
-    db().from('games').select('*').eq('id', player.game_id).single(),
+    db().from('teams').select('*').eq('id', member.team_id).maybeSingle(),
+    db().from('games').select('*').eq('id', player.game_id).maybeSingle(),
   ]);
 
-  const team = unwrap(teamResult, 'carregar a equipe') as TeamRow;
-  const game = unwrap(gameResult, 'carregar a partida') as GameRow;
+  const team = unwrap(teamResult, 'carregar a equipe') as TeamRow | null;
+  const game = unwrap(gameResult, 'carregar a partida') as GameRow | null;
+
+  if (!team || !game) {
+    throw new ApiError(
+      'not_found',
+      'Sua partida não existe mais. Recarregue a página.',
+    );
+  }
 
   return { player, member, team, game };
 }
@@ -854,10 +872,16 @@ export async function authenticateHost(gameId: string, token: string): Promise<G
     throw new ApiError('forbidden', 'Este acesso de professor não vale para esta partida.');
   }
 
-  return unwrap(
-    await db().from('games').select('*').eq('id', gameId).single(),
+  const game = unwrap(
+    await db().from('games').select('*').eq('id', gameId).maybeSingle(),
     'carregar a partida',
-  ) as GameRow;
+  ) as GameRow | null;
+
+  if (!game) {
+    throw new ApiError('not_found', 'A partida não existe ou já foi apagada.');
+  }
+
+  return game;
 }
 
 // ---------------------------------------------------------------------------
@@ -1078,9 +1102,18 @@ export async function submitDecision(
       .select('*')
       .eq('round_id', round.id)
       .eq('team_id', team.id)
-      .single(),
+      .maybeSingle(),
     'carregar o evento da equipe',
-  ) as EventRow;
+  ) as EventRow | null;
+
+  if (!event) {
+    // startRound pode ter falhado no meio (uma equipe sem carta sorteada): o
+    // aluno não pode ficar preso num 500. O professor reabre a rodada.
+    throw new ApiError(
+      'conflict',
+      'Sua carta desta rodada não foi sorteada. Avise o professor para reabrir a rodada.',
+    );
+  }
 
   const card = EVENT_BY_KEY[event.event_key];
   if (!card) {
@@ -1733,9 +1766,13 @@ export async function getHostView(gameId: string, hostToken: string): Promise<Ho
 /** Projeção pública: mesma visão, sem exigir token, para /host/[gameId]. */
 export async function getProjectionView(gameId: string): Promise<HostView> {
   const game = unwrap(
-    await db().from('games').select('*').eq('id', gameId).single(),
+    await db().from('games').select('*').eq('id', gameId).maybeSingle(),
     'carregar a partida',
-  ) as GameRow;
+  ) as GameRow | null;
+
+  if (!game) {
+    throw new ApiError('not_found', 'A partida não existe ou já foi apagada.');
+  }
 
   return buildHostView(game);
 }
