@@ -154,9 +154,14 @@ export default function ResultadoPage() {
       {/* Conteúdo acima da paisagem. */}
       <div className="relative z-[2] flex flex-col gap-8">
         <nav className="flex items-center justify-between gap-4">
-          <Rotulo>
-            Bloco {block + 1} de {BLOCK_COUNT}
-          </Rotulo>
+          {/* Anúncio único e curto da troca de bloco. As seções abaixo NÃO
+              devem carregar aria-live: despejar o bloco inteiro no leitor de
+              telas trocaria um anúncio de 2 palavras por um muro de texto. */}
+          <span aria-live="polite">
+            <Rotulo>
+              Bloco {block + 1} de {BLOCK_COUNT}
+            </Rotulo>
+          </span>
           <div className="flex items-center gap-4">
             <RealtimePill status={realtimeStatus} />
             <div className="flex gap-3">
@@ -188,7 +193,7 @@ export default function ResultadoPage() {
             campeã em mirante.
             ---------------------------------------------------------------- */}
         {block === 0 ? (
-          <section className="flex flex-col gap-6 animate-emergir" aria-live="polite">
+          <section className="flex flex-col gap-6 animate-emergir">
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <Rotulo className="text-financas-texto">Resultado final</Rotulo>
               <h1 className="titulo-amanhecer text-6xl font-bold uppercase leading-[0.9] tracking-[0.004em] sm:text-7xl lg:text-8xl">
@@ -206,7 +211,7 @@ export default function ResultadoPage() {
             Quem se destacou em quê — eixo a eixo.
             ---------------------------------------------------------------- */}
         {block === 1 ? (
-          <section className="flex flex-col gap-6 animate-emergir" aria-live="polite">
+          <section className="flex flex-col gap-6 animate-emergir">
             <SectionHeading
               overline="Bloco 2"
               title="Quem se destacou em quê"
@@ -222,7 +227,7 @@ export default function ResultadoPage() {
             O que a turma fez, sem apontar equipe certa ou errada.
             ---------------------------------------------------------------- */}
         {block === 2 ? (
-          <section className="flex flex-col gap-8 animate-emergir" aria-live="polite">
+          <section className="flex flex-col gap-8 animate-emergir">
             <SectionHeading
               overline="Bloco 3"
               title="Mas o que realmente aprendemos?"
@@ -256,7 +261,7 @@ export default function ResultadoPage() {
             Ponte entre o que a turma fez e os programas reais.
             ---------------------------------------------------------------- */}
         {block === 3 ? (
-          <section className="flex flex-col gap-8 animate-emergir" aria-live="polite">
+          <section className="flex flex-col gap-8 animate-emergir">
             <SectionHeading
               overline="Bloco 4"
               title="Onde política pública e tecnologia entram"
@@ -324,6 +329,16 @@ export default function ResultadoPage() {
 
             {/* Roteiro de debate gerado por IA: apoio para o professor mediar a
                 roda de conversa com fatos reais da partida. */}
+            {/* Feedback de estado para leitores de tela: anúncio curto, sem
+                despejar o roteiro inteiro (texto longo lido de uma vez
+                viraria ruído). */}
+            <span role="status" aria-live="polite" className="sr-only">
+              {debateLoading
+                ? 'Preparando roteiro de debate.'
+                : debate && !debateError
+                  ? 'Roteiro de debate pronto.'
+                  : ''}
+            </span>
             <div className="flex w-full max-w-3xl flex-col gap-4">
               {debate === null ? (
                 <div className="degrau terraco terr-verde flex flex-col items-center gap-4 p-6 text-center">
