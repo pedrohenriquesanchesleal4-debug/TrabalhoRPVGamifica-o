@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Check, Loader2, TriangleAlert, Users } from 'lucide-react';
 import { fetchLobby, joinGame, RequestError, type LobbyResponse, type LobbyTeamResponse } from '@/lib/client-api';
@@ -62,6 +62,14 @@ export default function EntrarPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isOficina = lobby?.mode === 'oficina';
+
+  // Mudança de passo troca o conteúdo inteiro (key="passo-*"): sem mover o
+  // foco, ele cai no <body> e o leitor de tela perde a posição. Foca o título
+  // do passo novo (tabIndex=-1: alvo programático, nunca parada de Tab).
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    if (step !== 'codigo') headingRef.current?.focus();
+  }, [step]);
 
   function handleCodeChange(raw: string) {
     const normalized = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
@@ -289,7 +297,10 @@ export default function EntrarPage() {
             <Button
               type="button"
               variant="secundario"
-              onClick={() => setStep('codigo')}
+              onClick={() => {
+                setError(null);
+                setStep('codigo');
+              }}
             >
               <ArrowLeft size={16} aria-hidden="true" />
               Trocar código
@@ -297,7 +308,11 @@ export default function EntrarPage() {
 
             <header className="flex flex-col gap-1.5 px-1">
               <Rotulo>Etapa 02 · {isOficina ? 'Perfil de atuação' : 'Propriedade e função'}</Rotulo>
-              <h1 className="relevo-lg text-terra-900">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="relevo-lg text-terra-900 focus:outline-none"
+              >
                 {isOficina ? 'Qual perfil sua equipe vai assumir?' : 'Qual propriedade sua equipe vai tocar?'}
               </h1>
             </header>
@@ -449,7 +464,10 @@ export default function EntrarPage() {
             <Button
               type="button"
               variant="secundario"
-              onClick={() => setStep('lobby')}
+              onClick={() => {
+                setError(null);
+                setStep('lobby');
+              }}
             >
               <ArrowLeft size={16} aria-hidden="true" />
               Trocar propriedade ou função
@@ -501,7 +519,13 @@ export default function EntrarPage() {
             >
               <header className="flex flex-col gap-1.5">
                 <Rotulo>Etapa 03 · Identidade</Rotulo>
-                <h1 className="relevo-lg text-terra-900">Como o time vai te chamar?</h1>
+                <h1
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="relevo-lg text-terra-900 focus:outline-none"
+                >
+                  Como o time vai te chamar?
+                </h1>
               </header>
 
               <div className="filete-amanhecer" />
