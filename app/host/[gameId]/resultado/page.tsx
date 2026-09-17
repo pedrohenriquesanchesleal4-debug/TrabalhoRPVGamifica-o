@@ -7,6 +7,7 @@ import { fetchDebateRoteiro, fetchProjection, RequestError } from '@/lib/client-
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { hostSession } from '@/lib/client-session';
 import { Button, Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
+import { RealtimePill } from '@/components/ui/realtime-pill';
 import { MarkdownLite } from '@/components/ui/markdown-lite';
 import { RankingTable } from '@/components/host/ranking-table';
 import { IndicatorComparison } from '@/components/host/indicator-comparison';
@@ -97,7 +98,7 @@ export default function ResultadoPage() {
     };
   }, [load]);
 
-  useGameChannel({
+  const { realtimeStatus } = useGameChannel({
     gameId,
     onEvent: () => void load(),
     onTeamUpdate: () => void load(),
@@ -156,25 +157,28 @@ export default function ResultadoPage() {
           <Rotulo>
             Bloco {block + 1} de {BLOCK_COUNT}
           </Rotulo>
-          <div className="flex gap-3">
-            <Button
-              variant="secundario"
-              size="grande"
-              onClick={() => setBlock((value) => Math.max(0, value - 1))}
-              disabled={block === 0}
-            >
-              <ArrowLeft size={18} aria-hidden />
-              Anterior
-            </Button>
-            <Button
-              variant="principal"
-              size="grande"
-              onClick={() => setBlock((value) => Math.min(BLOCK_COUNT - 1, value + 1))}
-              disabled={block === BLOCK_COUNT - 1}
-            >
-              Próximo
-              <ArrowRight size={18} aria-hidden />
-            </Button>
+          <div className="flex items-center gap-4">
+            <RealtimePill status={realtimeStatus} />
+            <div className="flex gap-3">
+              <Button
+                variant="secundario"
+                size="grande"
+                onClick={() => setBlock((value) => Math.max(0, value - 1))}
+                disabled={block === 0}
+              >
+                <ArrowLeft size={18} aria-hidden />
+                Anterior
+              </Button>
+              <Button
+                variant="principal"
+                size="grande"
+                onClick={() => setBlock((value) => Math.min(BLOCK_COUNT - 1, value + 1))}
+                disabled={block === BLOCK_COUNT - 1}
+              >
+                Próximo
+                <ArrowRight size={18} aria-hidden />
+              </Button>
+            </div>
           </div>
         </nav>
 

@@ -11,6 +11,7 @@ import {
 } from '@/lib/client-api';
 import { useGameChannel, useRoundTimer, formatClock } from '@/hooks/use-game-channel';
 import { Pill, Rotulo } from '@/components/ui/primitives';
+import { RealtimePill } from '@/components/ui/realtime-pill';
 import { FocusTeamBoard, TeamRow, DenseTeamCard, useFlipRows } from '@/components/host/team-board';
 import { OficinaProjection } from '@/components/oficina/oficina-projection';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
@@ -282,25 +283,7 @@ export default function HostProjectionPage() {
           <div className="flex flex-wrap items-center gap-6">
             {/* Estado da conexão realtime: os dados do telão dependem dela.
                 Quando cai, o Supabase religa sozinho — a UI só avisa. */}
-            {realtimeStatus === 'connected' ? (
-              <span title="Conexão em tempo real ativa">
-                <Pill tone="pronto" className="text-sm">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-success" />
-                    AO VIVO
-                  </span>
-                </Pill>
-              </span>
-            ) : (
-              <span role="status" aria-live="polite">
-                <Pill tone="alerta" className="text-sm">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-alerta motion-safe:animate-pulse" />
-                    {realtimeStatus === 'connecting' ? 'CONECTANDO…' : 'RECONECTANDO…'}
-                  </span>
-                </Pill>
-              </span>
-            )}
+            <RealtimePill status={realtimeStatus} />
 
             <Pill tone={game.status === 'paused' ? 'alerta' : 'neutro'} className="text-sm">
               {STATUS_LABEL[game.status]}

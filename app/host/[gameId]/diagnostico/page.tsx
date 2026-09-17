@@ -6,6 +6,7 @@ import { AlertTriangle, Lightbulb } from 'lucide-react';
 import { fetchProjection, RequestError } from '@/lib/client-api';
 import { useGameChannel } from '@/hooks/use-game-channel';
 import { Degrau, Rotulo, SectionHeading } from '@/components/ui/primitives';
+import { RealtimePill } from '@/components/ui/realtime-pill';
 import { DiagnosticBars } from '@/components/host/diagnostic-bars';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { POLICY_DISCLAIMER } from '@/data/policies';
@@ -65,7 +66,7 @@ export default function DiagnosticoPage() {
     };
   }, [load]);
 
-  useGameChannel({
+  const { realtimeStatus } = useGameChannel({
     gameId,
     onEvent: () => void load(),
     onTeamUpdate: () => void load(),
@@ -99,10 +100,13 @@ export default function DiagnosticoPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10">
       {/* Cabeçalho do console: identidade + título. */}
-      <header className="flex flex-col gap-2 animate-emergir">
-        <Rotulo>SAFRA DF · Diagnóstico da turma</Rotulo>
-        <h1 className="relevo-lg text-terra-900">O que a turma fez</h1>
-        <div className="filete-amanhecer mt-1 w-24" />
+      <header className="flex flex-wrap items-start justify-between gap-4 animate-emergir">
+        <div className="flex flex-col gap-2">
+          <Rotulo>SAFRA DF · Diagnóstico da turma</Rotulo>
+          <h1 className="relevo-lg text-terra-900">O que a turma fez</h1>
+          <div className="filete-amanhecer mt-1 w-24" />
+        </div>
+        <RealtimePill status={realtimeStatus} />
       </header>
 
       {/* Pergunta-gancho: mirante em destaque, entrada com atraso. */}
