@@ -35,7 +35,7 @@ import {
 import { ApiError } from './http';
 import { adminClient } from './supabase';
 import { generateGameCode, generateToken, hashToken, normalizeGameCode, tokenMatches } from './tokens';
-import { criarEstruturaOficina } from './oficina-service';
+import { criarEstruturaOficina, reiniciarOficina } from './oficina-service';
 import type { GameMode, OficinaPerfil } from '@/types/oficina';
 
 /**
@@ -1415,7 +1415,10 @@ export async function finishGame(
 export async function resetGame(gameId: string, hostToken: string): Promise<GameRow> {
   const game = await authenticateHost(gameId, hostToken);
 
-  for (const table of ['scores', 'decisions', 'events', 'rounds'] as const) {
+  // debate_prep entra na lista: sem isso, o roteiro da primeira turma fica em
+  // cache keyed pelo game_id e a SEGUNDA turma do dia recebe o roteiro da
+  // primeira — a sala inteira mediaria o debate dos fatos errados.
+  for (const table of ['scores', 'decisions', 'events', 'rounds', 'debate_prep'] as const) {
     const { error } = await db().from(table).delete().eq('game_id', gameId);
     if (error) {
       throw new ApiError('server_error', `Falha ao limpar ${table}.`, error.message);
@@ -1439,6 +1442,14 @@ export async function resetGame(gameId: string, hostToken: string): Promise<Game
     console.error('[safra-df] falha ao resetar jogadores:', reset.error.message);
   }
 
+  // Modo oficina: o loop acima não toca nas tabelas da oficina. O reinício
+  // dedicado zera indicadores do caderno, sorteio e sessão (aguardando +
+  // briefing) e volta o jogo para lobby. Sem ele, a turma 2 herdaria a sessão
+  // 'ativa' com eventos resolvidos da turma 1.
+  if (game.mode === 'oficina') {
+    await reiniciarOficina(gameId);
+  }
+
   const updated = unwrap(
     await db()
       .from('games')
@@ -1456,7 +1467,11 @@ export async function resetGame(gameId: string, hostToken: string): Promise<Game
     'reiniciar a partida',
   ) as GameRow;
 
-  await emit(gameId, 'GAME_RESET', {});
+  // Modo oficina já emitiu o reset próprio (reiniciarOficina) e voltou o jogo
+  // para lobby: evitar evento duplicado no barramento.
+  if (game.mode !== 'oficina') {
+    await emit(gameId, 'GAME_RESET', {});
+  }
   return updated;
 }
 
