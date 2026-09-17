@@ -103,6 +103,15 @@
   /* JetBrains Mono: todo número e rótulo técnico. Ligadura desligada. */
   --font-mono: var(--font-jetbrains), ui-monospace, 'Courier New', monospace;
 
+  /*
+    Foco de teclado: o mesmo dourado do sistema no tema escuro; no tema claro
+    inverte para o dourado-escuro (financas-texto), porque o dourado claro
+    sobre creme fecha ~1.9:1 — abaixo do 3:1 que a WCAG exige para indicador
+    de foco. Superfícies que NUNCA invertem (consoles escuros do host, mapa
+    da oficina) continuam usando `financas` direto.
+  */
+  --color-foco: #e5a93c;
+
   /* Entradas únicas de ação (contação de rodada, decisão, crescimento). */
   --animate-emergir: emergir 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-nascente: nascente 1.8s ease-out infinite;
@@ -415,9 +424,10 @@
     text-wrap: balance;
   }
 
-  /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade. */
+  /* Foco visível sempre, em qualquer superfície. Requisito de acessibilidade.
+     A cor vem de `--color-foco`, que inverte no tema claro (ver @theme). */
   :focus-visible {
-    outline: 3px solid var(--color-financas);
+    outline: 3px solid var(--color-foco);
     outline-offset: 2px;
   }
 
@@ -910,6 +920,9 @@
   --color-sustentabilidade-texto: #2f6e4a;
   --color-alerta-texto: #8a3d14;
   --color-sucesso: #3f5a16;
+
+  /* Indicador de foco legível sobre o creme: dourado fino do amanhecer. */
+  --color-foco: #7a4d0b;
 
   /* Tintas adaptáveis: escuras sobre o fundo claro. */
   --cor-tinta-financas: #7a4d0b;

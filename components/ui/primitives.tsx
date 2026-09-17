@@ -194,7 +194,7 @@ export function Field({
           'min-h-14 rounded-[10px] border-0 bg-nevoa-100 px-4 text-terra-900',
           'shadow-[inset_0_2px_2px_0_rgba(0,0,0,0.45)]',
           'placeholder:text-terra-500/60 focus:outline-none',
-          'focus-visible:shadow-[inset_0_0_0_3px_var(--color-financas)]',
+          'focus-visible:shadow-[inset_0_0_0_3px_var(--color-foco)]',
           codigo ? 'dado text-3xl font-bold uppercase tracking-[0.3em]' : 'text-lg',
           error && 'shadow-[inset_0_0_0_2px_var(--color-alerta-texto)]',
           className,
