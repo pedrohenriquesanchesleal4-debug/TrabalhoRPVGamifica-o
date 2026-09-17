@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { browserClient } from '@/lib/supabase';
 import type { RealtimeEventType } from '@/types/game';
 
@@ -15,7 +15,14 @@ import type { RealtimeEventType } from '@/types/game';
  *
  * A conexão também vigia mudanças em `teams`, porque indicador é o dado que a
  * interface precisa refletir na hora, sem esperar uma releitura completa.
+ *
+ * O hook devolve `realtimeStatus`: o estado do canal. O Supabase religa
+ * sozinho (reconnectAfterMs) e a interface consegue dizer "RECONECTANDO…"
+ * em vez de desenhar dados velhos como se fossem vivos — o Wi-Fi de sala de
+ * aula cai, a honestidade sobre a conexão não cai junto.
  */
+
+export type RealtimeStatus = 'connecting' | 'connected' | 'reconnecting';
 
 export interface GameChannelEvent {
   id: number;
@@ -36,6 +43,11 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
   // Callbacks em ref: mudar handler não deve derrubar e recriar o canal.
   const eventRef = useRef(onEvent);
   const teamRef = useRef(onTeamUpdate);
+
+  // Estado da conexão: quem assina decide o que desenhar (AO VIVO /
+  // RECONECTANDO…). Só muda dentro do callback do `.subscribe`, que é evento
+  // assíncrono — nunca setState síncrono no corpo do efeito.
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
 
   // Coalesce: evita rajada de refreshes (resolve_round → 6 updates de team).
   // Um timer único agrupa todos os onTeamUpdate em 1 chamada em ~400ms.
@@ -106,7 +118,15 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
           }
         },
       )
-      .subscribe(() => {});
+      .subscribe((status) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // O Supabase tenta religar sozinho; aqui avisamos quem está olhando.
+          setRealtimeStatus('reconnecting');
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -117,6 +137,10 @@ export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
       void supabase.removeChannel(channel);
     };
   }, [gameId]);
+
+  // Os consumidores existentes ignoram o retorno: adicionar o objeto não
+  // quebra nenhum caller (`useGameChannel({...})` sem destruturação).
+  return { realtimeStatus };
 }
 
 /**

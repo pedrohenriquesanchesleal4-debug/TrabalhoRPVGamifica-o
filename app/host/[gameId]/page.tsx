@@ -194,7 +194,7 @@ export default function HostProjectionPage() {
     };
   }, [load]);
 
-  useGameChannel({
+  const { realtimeStatus } = useGameChannel({
     gameId,
     onEvent: () => void load(),
     onTeamUpdate: () => void load(),
@@ -280,6 +280,28 @@ export default function HostProjectionPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-6">
+            {/* Estado da conexão realtime: os dados do telão dependem dela.
+                Quando cai, o Supabase religa sozinho — a UI só avisa. */}
+            {realtimeStatus === 'connected' ? (
+              <span title="Conexão em tempo real ativa">
+                <Pill tone="pronto" className="text-sm">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-success" />
+                    AO VIVO
+                  </span>
+                </Pill>
+              </span>
+            ) : (
+              <span role="status" aria-live="polite">
+                <Pill tone="alerta" className="text-sm">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-alerta motion-safe:animate-pulse" />
+                    {realtimeStatus === 'connecting' ? 'CONECTANDO…' : 'RECONECTANDO…'}
+                  </span>
+                </Pill>
+              </span>
+            )}
+
             <Pill tone={game.status === 'paused' ? 'alerta' : 'neutro'} className="text-sm">
               {STATUS_LABEL[game.status]}
             </Pill>
