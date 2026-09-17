@@ -57,8 +57,23 @@ const nextConfig: NextConfig = {
      */
     root: path.resolve(import.meta.dirname),
   },
+  /*
+   * React Compiler (estável no Next 16, não ligado por padrão): memoiza
+   * componentes automaticamente. Trinta celulares re-renderizando a cada
+   * evento realtime é exatamente o caso de uso. Requer o devDependency
+   * `babel-plugin-react-compiler`. Se algum componente violar uma regra
+   * do compilador, o BUILD falha na hora — erro ruidoso, nunca silencioso.
+   */
+  reactCompiler: true,
   // Não anuncia a stack no header X-Powered-By: hardening de informação.
   poweredByHeader: false,
+  experimental: {
+    /*
+     * `lucide-react` é carregado por barrel (named exports): com a
+     * otimização, só os ícones realmente usados entram no bundle.
+     */
+    optimizePackageImports: ['lucide-react'],
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
