@@ -62,16 +62,27 @@ function AxisRow({
         <Rotulo>{axisLabel}</Rotulo>
       </div>
 
-      <div className="flex items-end gap-5 overflow-x-auto pb-1">
+      {/*
+        Grade responsiva em vez de fileira com rolagem.
+
+        Antes eram 6 colunas de `w-28` com `shrink-0` dentro de um `flex` com
+        `overflow-x-auto`: 772px de largura mínima, ou seja, no celular e em
+        notebook estreito o professor tinha que arrastar a fileira de lado para
+        ver as 6 equipes, e no projetor a rolagem horizontal aparecia sem
+        motivo. Agora são 3 colunas no celular, 6 a partir de `sm`, e as barras
+        ocupam a largura disponível (`w-full` com teto) — a comparação cabe
+        inteira sem gesto.
+      */}
+      <div className="grid grid-cols-3 items-end gap-4 sm:grid-cols-6 sm:gap-5">
         {ordered.map((score) => {
           const value = clampPercent(score[axisKey]);
           const isBest = score[axisKey] === maxValue;
           const region = PROPERTY_BY_KEY[propertyByTeam[score.teamId] ?? '']?.region;
 
           return (
-            <div key={score.teamId} className="flex w-28 shrink-0 flex-col items-center gap-2">
+            <div key={score.teamId} className="flex min-w-0 flex-col items-center gap-2">
               <div
-                className="relative flex h-28 w-10 items-end overflow-hidden rounded-t-[8px]"
+                className="relative flex h-28 w-full max-w-10 items-end overflow-hidden rounded-t-[8px]"
                 style={{ backgroundColor: 'var(--color-nevoa-200)' }}
               >
                 <div
@@ -94,7 +105,7 @@ function AxisRow({
               </div>
 
               {isBest ? (
-                <Pill tone="pronto" className="normal-case tracking-normal">
+                <Pill tone="pronto" className="max-w-full truncate normal-case tracking-normal">
                   <span aria-hidden="true">Maior</span>
                   <span className="sr-only">Maior {axisLabel.toLowerCase()} da turma</span>
                 </Pill>

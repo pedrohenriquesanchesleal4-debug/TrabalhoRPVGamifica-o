@@ -76,8 +76,8 @@ export function OficinaProjection({ projecao }: { projecao: OficinaProjecaoRespo
 
   if (!sessao || sessao.status === 'aguardando') {
     return (
-      <main className="relative flex min-h-dvh flex-col items-center justify-center gap-10 px-6 py-12 text-center overflow-hidden">
-        <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 opacity-15">
+      <main className="relative flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-12 text-center sm:gap-10 sm:px-6 overflow-x-clip">
+        <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-15">
           <CerradoLandscape />
         </div>
         <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/50" />
@@ -126,8 +126,8 @@ export function OficinaProjection({ projecao }: { projecao: OficinaProjecaoRespo
     : undefined;
 
   return (
-    <main className="relative mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-8 px-10 py-8 overflow-hidden">
-      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 opacity-10">
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 overflow-x-clip">
+      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-10">
         <CerradoLandscape />
       </div>
       <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/60" />

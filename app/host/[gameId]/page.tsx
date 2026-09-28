@@ -258,15 +258,15 @@ export default function HostProjectionPage() {
   const revealDecision = game.roundStatus !== 'active';
 
   return (
-    <main className="relative mx-auto flex min-h-dvh max-w-[1600px] flex-col gap-10 px-10 py-8 overflow-hidden">
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:gap-10 lg:px-10 overflow-x-clip">
       {/* Paisagem atmosférica ao fundo: amanhecer sutil, sem competir com dados. */}
-      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 opacity-10">
+      <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-10">
         <CerradoLandscape />
       </div>
       <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/60" />
 
       {/* Conteúdo sobre a paisagem. */}
-      <div className="relative z-[2] flex flex-col gap-10">
+      <div className="relative z-[2] flex flex-col gap-6 sm:gap-8 lg:gap-10">
         <header className="flex flex-wrap items-center justify-between gap-6 pt-4 animate-emergir">
           <div className="flex flex-col gap-1">
             <Rotulo>SAFRA DF · Decisões que Alimentam</Rotulo>

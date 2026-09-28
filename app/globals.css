@@ -377,6 +377,23 @@
   html {
     -webkit-text-size-adjust: 100%;
     color-scheme: dark;
+
+    /*
+      Rede de segurança do transbordo horizontal.
+
+      `clip` e não `hidden`: os dois impedem a barra de rolagem lateral, mas
+      `hidden` transforma o elemento em contêiner de scroll — o que quebra
+      `position: sticky` (cabeçalho da partida, abas do painel) e ainda cria um
+      contexto de rolagem que o dedo arrasta sem querer. `clip` recorta sem
+      gerar contêiner: é o que o problema pede e nada mais.
+
+      Isto é REDE, não o conserto. A causa raiz de cada transbordo é corrigida
+      na origem (número que não cabe, fileira de barras com largura fixa,
+      padding de desktop sem variante responsiva). Aqui fica o que garante que
+      nenhum elemento decorativo futuro — um SVG full-bleed, um rótulo longo,
+      um nome de equipe gigante — volte a dar ao usuário a barra lateral.
+    */
+    overflow-x: clip;
   }
 
   body {

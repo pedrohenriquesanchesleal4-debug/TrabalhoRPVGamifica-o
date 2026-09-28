@@ -333,7 +333,7 @@ export function Meter({
   if (size === 'projecao') {
     return (
       <div
-        className="flex min-w-0 items-center gap-5"
+        className="flex min-w-0 flex-wrap items-center gap-5"
         role="meter"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -344,6 +344,12 @@ export function Meter({
           <CanalIcone kind={kind} size="projecao" />
         </CanalArco>
 
+        {/*
+          `flex-wrap` no pai + `whitespace-nowrap` aqui: a coluna do número só
+          desce para baixo do anel quando não cabe ao lado. Sem o wrap, uma
+          cifra como "R$ 76.000" a 64px fixava a largura mínima do filho e
+          empurrava a linha inteira para fora da tela.
+        */}
         <div className="flex min-w-0 flex-col gap-1">
           <span className="rotulo">{label}</span>
           <span className="dado-xl whitespace-nowrap text-terra-900">{displayAnimado}</span>
@@ -366,9 +372,16 @@ export function Meter({
         <CanalIcone kind={kind} size="aluno" />
       </CanalArco>
 
+      {/*
+        O `whitespace-nowrap` foi retirado do número: aqui a coluna é estreita
+        (anel pequeno + rótulo), e um número indivisível de 32px era largura
+        mínima garantida dentro de um `flex` — a causa mais comum de barra
+        lateral no celular, que é onde 30 dos 31 usuários estão. O separador de
+        milhar pode quebrar linha; o número continua legível e tabular.
+      */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="rotulo min-w-0 truncate">{label}</span>
-        <span className="dado-lg whitespace-nowrap text-terra-900">{displayAnimado}</span>
+        <span className="dado-lg min-w-0 break-words text-terra-900">{displayAnimado}</span>
         {variacao}
       </div>
     </div>

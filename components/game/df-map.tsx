@@ -160,7 +160,24 @@ export function DfMap({ className }: { className?: string }) {
             <span
               aria-hidden="true"
               className={[
-                'pointer-events-none absolute left-1/2 w-max max-w-[9.5rem] -translate-x-1/2 rounded-[8px] bg-nevoa-100 px-2.5 py-1.5 text-center shadow-[0_4px_0_0_rgba(0,0,0,0.35)] transition-opacity duration-150',
+                'pointer-events-none absolute w-max max-w-[8.5rem] rounded-[8px] bg-nevoa-100 px-2.5 py-1.5 text-center shadow-[0_4px_0_0_rgba(0,0,0,0.35)] transition-opacity duration-150',
+                /*
+                  Ancoragem por proximidade da borda, e não uma âncora só.
+
+                  O botão do ponto tem 44px e está centrado no ponto (`-translate-x-1/2`).
+                  Centralizar a etiqueta nele punha `boa-esperanca` (11% da largura) e
+                  `cerrado-vivo` (77%) parcialmente fora do cartão — e o cartão não tem
+                  `overflow-hidden`, então o transbordo virava barra de rolagem lateral
+                  na home. Nos pontos de borda a etiqueta passa a se alinhar pela borda
+                  do próprio botão, para dentro; no miolo, segue centrada. Como cada
+                  variante traz `left` e o `translate` que usa, não há duas classes
+                  disputando a mesma propriedade.
+                */
+                point.x / VIEW_W < 0.25
+                  ? 'left-0'
+                  : point.x / VIEW_W > 0.75
+                    ? 'right-0'
+                    : 'left-1/2 -translate-x-1/2',
                 labelAbove ? 'bottom-full mb-3' : 'top-full mt-3',
                 active ? 'opacity-100' : 'opacity-0',
               ].join(' ')}
