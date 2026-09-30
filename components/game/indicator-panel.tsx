@@ -1,5 +1,7 @@
 import { Meter, formatMoney } from '@/components/ui/primitives';
-import { financeIndex } from '@/game/engine';
+// Módulo folha de propósito: importar a engine arrastaria `data/events.ts`
+// (44 KB de narrativa) para o celular do aluno só por causa de `financeIndex`.
+import { financeIndex } from '@/game/finance-index';
 import { INDICATOR_LABEL } from '@/types/game';
 import type { IndicatorKey, TeamIndicators } from '@/types/game';
 

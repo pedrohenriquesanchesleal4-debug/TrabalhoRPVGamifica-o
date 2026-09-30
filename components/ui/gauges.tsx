@@ -203,6 +203,10 @@ export function CanalIcone({
   `ease-out` simples, sem overshoot, "parada seca" de instrumento mecânico,
   não elástico. `prefers-reduced-motion` já é coberto pela regra global em
   `globals.css` (zera toda `transition-duration`).
+
+  Tamanho `compacto`: NÃO usa mostrador. Ver o bloco dentro de `CanalArco` —
+  o raciocínio inteiro da troca, e o que foi conferido para não apagar
+  informação, está lá. Resumo: 12 nós → 0, com os mesmos três canais de leitura.
 */
 
 interface DialDimensao {
@@ -212,19 +216,20 @@ interface DialDimensao {
   raioTicksMenor: number;
   raioPonteiro: number;
   raioCubo: number;
-  comTicksMenores: boolean;
 }
 
-const DIAL_DIMENSAO: Record<CanalSize, DialDimensao> = {
-  compacto: {
-    diametro: 32,
-    espessura: 3,
-    raioTicksMaior: 13,
-    raioTicksMenor: 10,
-    raioPonteiro: 11,
-    raioCubo: 2.2,
-    comTicksMenores: false,
-  },
+/**
+ * Tamanhos desenhados como mostrador de verdade, em SVG.
+ *
+ * `compacto` NÃO entra aqui: ele é medido em HTML, com `CanalTrilha` (ver
+ * `CanalArco`). O mostrador completo custa 20 nós por instância, e na encosta do
+ * ranking ele aparecia 20 vezes — 400 nós para uma leitura que o número impresso
+ * ao lado já entrega. A forma do mostrador é o que dá escala de leitura a seis
+ * metros; a 40px de uma linha de ranking, ela só consumia orçamento.
+ */
+type DialSize = Exclude<CanalSize, 'compacto'>;
+
+const DIAL_DIMENSAO: Record<DialSize, DialDimensao> = {
   aluno: {
     diametro: 58,
     espessura: 4,
@@ -232,7 +237,6 @@ const DIAL_DIMENSAO: Record<CanalSize, DialDimensao> = {
     raioTicksMenor: 19,
     raioPonteiro: 20,
     raioCubo: 3.4,
-    comTicksMenores: true,
   },
   // Grosso e grande de propósito: o professor lê isto do fundo da sala.
   projecao: {
@@ -242,7 +246,6 @@ const DIAL_DIMENSAO: Record<CanalSize, DialDimensao> = {
     raioTicksMenor: 36,
     raioPonteiro: 38,
     raioCubo: 6,
-    comTicksMenores: true,
   },
 };
 
@@ -261,6 +264,16 @@ function anguloDoValor(pct: number): number {
   return ANGULO_INICIO + (pct / 100) * VARREDURA;
 }
 
+/**
+ * Largura da trilha no tamanho `compacto`.
+ *
+ * Fixa, e não `w-full`: dentro de um `inline-flex` de encolhimento (é assim
+ * que o `Meter` monta o canal), `width: 100%` numa `div` interna resolve contra
+ * uma caixa que ainda está sendo calculada e colapsa para zero. Largura fixa
+ * resolve o problema na origem e mantém a linha da encosta com ritmo estável.
+ */
+const TRILHA_COMPACTA = 'w-10';
+
 export function CanalArco({
   kind,
   value,
@@ -276,7 +289,49 @@ export function CanalArco({
   children?: ReactNode;
 }) {
   const pct = clamp(value);
-  const { diametro, espessura, raioTicksMaior, raioTicksMenor, raioPonteiro, raioCubo, comTicksMenores } =
+
+  /*
+    Tamanho compacto: o mostrador sai de cena, a trilha em HTML entra.
+
+    O que foi conferido antes de trocar, porque "é só um mostrador pequeno" é
+    exatamente o tipo de raciocínio que apaga informação sem querer. No
+    compacto o `CanalArco` desenhava: silhueta de domo, 5 marcações de escala
+    (0/25/50/75/100), ponteiro e cubo do eixo. E o quecommunicava que a
+    `CanalTrilha` NÃO comunica:
+
+    · MARCADOR DE LIMIAR/ALVO — não existe. As cinco marcações são uma escala
+      uniforme, não um alvo destacado: nenhum elemento do `compacto` marca
+      onde seria o valor desejado. Nada a preservar nesse sentido, e nada foi
+      inventado no lugar (uma marca de 50% seria um limiar que o jogo não tem).
+
+    · REFERÊNCIA ABSOLUTA 0..100 — existia, e é a única coisa que a barra não
+      repete com elemento. Continua presente sem custar nó nenhum: a própria
+      extremidade arredondada da trilha é o 100% e o vazio é o 0%, e o
+      `role="meter"` com `aria-valuemin`/`aria-valuemax` declara o mesmo
+      intervalo para leitor de tela.
+
+    · METÁFORA DE "SUBIDA" (o arco girando em direção ao ponteiro) — é
+      metáfora, não dado: uma barra preenchendo da esquerda para a direita
+      comunica a mesma proporção. A leitura por FORMA + PROPORÇÃO + NÚMERO do
+      contrato (regra 6 de `docs/CONTRATO-VISUAL.md`) fica inteira, com o
+      ícone, a trilha e o número impresso que `Meter` já monta.
+
+    Ganho: 12 → 0 nós de mostrador (o ícone lucide continua, 4 nós), e a
+    transição de `scaleX` do preenchimento é a mesma que o resto do sistema usa.
+  */
+  if (size === 'compacto') {
+    return (
+      <span
+        aria-hidden="true"
+        className={['inline-flex shrink-0 items-center gap-1.5', className].filter(Boolean).join(' ')}
+      >
+        {children}
+        <CanalTrilha kind={kind} value={pct} size="compacto" className={TRILHA_COMPACTA} />
+      </span>
+    );
+  }
+
+  const { diametro, espessura, raioTicksMaior, raioTicksMenor, raioPonteiro, raioCubo } =
     DIAL_DIMENSAO[size];
 
   // O eixo do ponteiro mora no terço inferior do quadrado, não no centro: é o
@@ -292,9 +347,7 @@ export function CanalArco({
   const offset = perimetro * (1 - pct / 100);
 
   const ticksMaiores = [0, 25, 50, 75, 100];
-  const ticksMenores = comTicksMenores
-    ? [10, 20, 30, 40, 60, 70, 80, 90].filter((tick) => !ticksMaiores.includes(tick))
-    : [];
+  const ticksMenores = [10, 20, 30, 40, 60, 70, 80, 90];
 
   const ponteiroAngulo = anguloDoValor(pct);
   // O ponteiro é desenhado apontando para cima (270°, base = topo do quadro) e

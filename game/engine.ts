@@ -21,6 +21,7 @@ import {
   type TeamTraits,
 } from '@/types/game';
 import { hashSeed, seededRandom, pickDeterministic } from './rng';
+import { clampIndex, financeIndex } from './finance-index';
 
 /**
  * A engine do SAFRA DF: regras puras, sem I/O.
@@ -40,20 +41,19 @@ import { hashSeed, seededRandom, pickDeterministic } from './rng';
 // Limites e normalização
 // ---------------------------------------------------------------------------
 
-/** Piso e teto usados para converter caixa em índice financeiro 0..100. */
-export const FINANCE_FLOOR = -20_000;
-export const FINANCE_CEILING = 120_000;
-
-/** Mantém um índice dentro de 0..100 e inteiro. */
-export function clampIndex(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-/** Converte caixa em reais para índice financeiro comparável aos demais. */
-export function financeIndex(cash: number): number {
-  const range = FINANCE_CEILING - FINANCE_FLOOR;
-  return clampIndex(((cash - FINANCE_FLOOR) / range) * 100);
-}
+/**
+ * A matemática de índice financeiro mora em `./finance-index` (módulo folha,
+ * sem import nenhum) para que a tela do aluno não arraste `data/events.ts`
+ * só para converter caixa em número. Aqui a engine usa `clampIndex` e
+ * `financeIndex` internamente e reexporta as quatro para que nenhum chamador
+ * existente — servidor, testes, componentes — precise mudar de endereço.
+ */
+export {
+  FINANCE_FLOOR,
+  FINANCE_CEILING,
+  clampIndex,
+  financeIndex,
+} from './finance-index';
 
 // ---------------------------------------------------------------------------
 // Estado inicial

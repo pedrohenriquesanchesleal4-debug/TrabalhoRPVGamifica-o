@@ -259,9 +259,15 @@ export default function HostProjectionPage() {
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:gap-10 lg:px-10 overflow-x-clip">
-      {/* Paisagem atmosférica ao fundo: amanhecer sutil, sem competir com dados. */}
+      {/*
+        Paisagem atmosférica ao fundo: amanhecer sutil, sem competir com dados.
+        Estática de propósito — esta tela fica aberta 40+ minutos com dado ao
+        vivo e realtime, e a 10% de opacidade o vaivém não é percebido. O lobby
+        logo abaixo (linha ~374) MANTÉM a animação: ali a expectativa é o
+        produto, e é uma tela só, não 30 celulares.
+      */}
       <div className="paralaxe-cena pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-10">
-        <CerradoLandscape />
+        <CerradoLandscape animado={false} />
       </div>
       <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/60" />
 

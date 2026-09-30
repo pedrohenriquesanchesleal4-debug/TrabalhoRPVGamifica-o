@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   CircleCheck,
@@ -24,7 +25,7 @@ import {
   TOTAL_ROUNDS,
   phaseForRound,
 } from '@/types/game';
-import { Button, Meter, Pill, Rotulo, formatMoney } from '@/components/ui/primitives';
+import { Button, Degrau, Meter, Pill, Rotulo, formatMoney } from '@/components/ui/primitives';
 import { IndicatorPanel } from '@/components/game/indicator-panel';
 import { TeamRoster } from '@/components/game/team-roster';
 import { EventCard } from '@/components/game/event-card';
@@ -33,8 +34,31 @@ import { OpeningSequence } from '@/components/game/opening-sequence';
 import { PropertyScene } from '@/components/game/property-scene';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 import { PROPERTY_BY_KEY } from '@/data/properties';
-import { financeIndex } from '@/game/engine';
-import { OficinaPlayerApp } from '@/components/oficina/oficina-player';
+import { financeIndex } from '@/game/finance-index';
+
+/*
+ * A Oficina é um MODO DE JOGO, não um pedaço desta tela: ela só é desenhada
+ * quando `session.mode === 'oficina'`, e a partida Diagnóstico — o caso comum,
+ * trinta alunos por turma — nunca chega nesse ramo. Mesmo assim o import
+ * estático mandava o painel do aluno (42 KB) mais `oficina-map` e
+ * `data/oficina-content` (38 KB) para o bundle de quem ia decidir sobre
+ * irrigação. Carregar sob demanda tira esse peso do caminho comum.
+ *
+ * `ssr: false` aqui não custa LCP nenhum, e a checagem é objetiva: esta rota é
+ * CLIENT-ONLY desde antes. `playerSession` lê `localStorage`, então no
+ * servidor `session` é `null`, o `if (!session) return null` (linha abaixo)
+ * encerra a página, e o HTML servido sai com 13,1 KB e ZERO `<svg>` — medido,
+ * não presumido. Ou seja: não havia conteúdo de Oficina no SSR para ser
+ * perdido. (A paisagem realmente SSR'd vive em `/` e `/entrar`, que têm 15 e
+ * 3 SVGs no HTML e não foram tocados aqui.)
+ */
+const OficinaPlayerApp = dynamic(
+  () => import('@/components/oficina/oficina-player').then((mod) => mod.OficinaPlayerApp),
+  {
+    ssr: false,
+    loading: () => <OficinaLoading />,
+  },
+);
 
 /**
  * SAFRA DF · Tela do aluno — direção V6 "Amanhecer do Cerrado".
@@ -51,6 +75,15 @@ import { OficinaPlayerApp } from '@/components/oficina/oficina-player';
  */
 
 const HEARTBEAT_MS = 45_000;
+
+/**
+ * Janela de coalescência do barramento.
+ *
+ * O mesmo 400 ms que `hooks/use-game-channel.ts` já usa para `teams`: abaixo
+ * disso a tela não ganha nada (a resposta traz o estado inteiro, não um
+ * delta), acima disso o aluno passa tempo demais vendo rodada velha.
+ */
+const EVENT_COALESCE_MS = 400;
 
 function classes(...values: (string | false | null | undefined)[]): string {
   return values.filter(Boolean).join(' ');
@@ -88,18 +121,45 @@ export default function JogarPage() {
   const [showOpening, setShowOpening] = useState(false);
   const openingCheckedRef = useRef(false);
 
+  /*
+   * Guarda de request em voo.
+   *
+   * `onEvent` e `onTeamUpdate` podem disparar dois GETs antes do primeiro
+   * responder, e o que chegasse por último pintava na tela — inclusive a
+   * resposta VELHA, que chegava depois. Cada refresh toma um número de
+   * sequência; só a resposta do número ainda vigente é desenhada. É o mesmo
+   * contrato do "último a chegar vence" que já existia, corrigido para
+   * "o mais NOVO vence".
+   *
+   * `AbortController` seria o complemento ideal (gasta menos banda), mas
+   * `fetchPlayerView` não aceita `signal` e o `request` de `lib/client-api.ts`
+   * é privado: dar o sinal exigiria mexer naquele arquivo. Fica registrado
+   * aqui como pendência em vez de espalhar um `fetch` cru pela tela e duplicar
+   * o tratamento de erro do `RequestError`.
+   */
+  const requestSeqRef = useRef(0);
+
   const refresh = useCallback(async () => {
     if (!session || session.mode !== 'diagnostico') return;
+
+    const seq = requestSeqRef.current + 1;
+    requestSeqRef.current = seq;
+
     try {
       const next = await fetchPlayerView(session.token);
+      // Respondeu uma requisição que já foi substituída: o estado dela é velho
+      // por construção, então descartá-lo é o que evita o dado regredir na tela.
+      if (seq !== requestSeqRef.current) return;
       setView(next);
       setLoadError(null);
     } catch (err) {
       if (err instanceof RequestError && (err.code === 'unauthorized' || err.code === 'not_found')) {
+        // Fato de sessão, não de estado: vale mesmo que a resposta seja antiga.
         playerSession.clear();
         router.replace('/entrar');
         return;
       }
+      if (seq !== requestSeqRef.current) return;
       setLoadError(
         err instanceof Error ? err.message : 'Não foi possível carregar a partida.',
       );
@@ -128,10 +188,48 @@ export default function JogarPage() {
     };
   }, [hydrated, session, router, refresh]);
 
+  /*
+   * Coalesce de `onEvent`, no mesmo formato do `use-game-channel.ts`.
+   *
+   * `game_events` é um ASSINTE de fatos, não de estado: uma rodada aberta,
+   * resolvida e o registro de nota chegam como linhas separadas, e o heartbeat
+   * dos outros alunos aparece no mesmo canal. Buscar por evento_transformava
+   * uma rajada em uma rajada de GETs para a mesma tela. Agendar em 400 ms
+   * (o mesmo prazo que o hook já usa para `teams`) reduz o número de buscas
+   * sem mudar o que é desenhado: a última ainda traz o estado completo.
+   */
+  const eventTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshRef = useRef(refresh);
+
+  // O handler vai para ref para que agendar o timer não dependa da identidade
+  // de `refresh`, que muda a cada `session`/`router`.
+  useEffect(() => {
+    refreshRef.current = refresh;
+  });
+
+  const scheduleRefresh = useCallback(() => {
+    if (eventTimerRef.current) return;
+    eventTimerRef.current = setTimeout(() => {
+      eventTimerRef.current = null;
+      void refreshRef.current();
+    }, EVENT_COALESCE_MS);
+  }, []);
+
+  // Timer pendente não pode sobreviver ao desmonte: ele dispararia um GET
+  // numa tela que já saiu.
+  useEffect(() => {
+    return () => {
+      if (eventTimerRef.current) {
+        clearTimeout(eventTimerRef.current);
+        eventTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const { realtimeStatus } = useGameChannel({
     gameId: view?.game.id ?? null,
     onEvent: () => {
-      void refresh();
+      scheduleRefresh();
     },
     onTeamUpdate: () => {
       void refresh();
@@ -180,6 +278,12 @@ export default function JogarPage() {
     async (optionKey: string) => {
       if (!session) return;
       await submitDecision(session.token, optionKey);
+      // A releitura do aluno suprema o refresh já agendado: deixar os dois
+      // dispararia um GET inútil 400 ms depois.
+      if (eventTimerRef.current) {
+        clearTimeout(eventTimerRef.current);
+        eventTimerRef.current = null;
+      }
       await refresh();
     },
     [session, refresh],
@@ -194,10 +298,24 @@ export default function JogarPage() {
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-5 px-4 py-5 sm:px-6">
-      {/* Paisagem ao fundo: opacidade baixa, só nos primeiros 1/3, não compete com decisão. */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-20">
-        <CerradoLandscape />
-      </div>
+      {/*
+        Paisagem ao fundo: opacidade baixa, não compete com a decisão.
+
+        `animado={false}`: aqui a paisagem é AMBIÊNCIA, não produto — 30 celulares
+        por turma pagariam 19 animações em laço infinito por um fundo a 20% de
+        opacidade. A home e a abertura mantêm a animação, que é onde a
+        ambiência é o que se está vendendo.
+
+        `{!showOpening && …}`: a `OpeningSequence` é `fixed inset-0 z-50` com
+        `bg-nevoa-50` opaco e traz a PRÓPRIA paisagem a 40%. Durante os 4,2s
+        da abertura, esta cópia aqui fica 100% encoberta — 68 nós e 19
+        animações renderizando atrás de um fundo opaco. some de graça.
+      */}
+      {!showOpening ? (
+        <div className="pointer-events-none fixed inset-0 z-0 opacity-20">
+          <CerradoLandscape animado={false} />
+        </div>
+      ) : null}
 
       {/* Conteúdo acima da paisagem. */}
       <div className="relative z-10 flex flex-1 flex-col gap-5">
@@ -230,6 +348,43 @@ export default function JogarPage() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+/**
+ * Espera do chunk da Oficina.
+ *
+ * Mesma gramática visual de `app/loading.tsx` (prato `degrau` no meio do breu,
+ * rótulo em mono, três barras em `motion-safe:animate-pulse`) para que a troca
+ * de tela não seja um salto de idioma. Sem laço infinito de JS: a animação é
+ * CSS, então o custo enquanto o chunk viaja é zero.
+ */
+function OficinaLoading() {
+  return (
+    <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center gap-6 px-4">
+      <Degrau nivel="terraco" familia="neutro" className="flex flex-col items-center gap-5 px-10 py-9">
+        <p className="dado text-xs uppercase tracking-[0.22em] text-financas-texto">
+          Carregando oficina
+        </p>
+
+        <div className="flex items-end gap-1.5" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="block h-4 w-1.5 bg-financas motion-safe:animate-pulse"
+              style={{ animationDelay: `${i * 180}ms` }}
+            />
+          ))}
+        </div>
+
+        <Rotulo className="text-terra-500">SAFRA DF · OFICINA</Rotulo>
+      </Degrau>
+
+      {/* O aluno precisa saber que a tela está viva, não travada. */}
+      <p role="status" className="text-sm text-terra-500">
+        Preparando a comunidade da propriedade...
+      </p>
+    </div>
   );
 }
 

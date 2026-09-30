@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   Activity,
@@ -29,7 +30,6 @@ import {
 } from '@/lib/client-api';
 import { hostSession } from '@/lib/client-session';
 import { useGameChannel } from '@/hooks/use-game-channel';
-import { OficinaTeacherPanel } from '@/components/oficina/oficina-teacher-panel';
 import { Button, Degrau, Field, Pill, Rotulo, SectionHeading } from '@/components/ui/primitives';
 import { DenseTeamCard } from '@/components/host/team-board';
 import { PropertyScene } from '@/components/game/property-scene';
@@ -53,6 +53,63 @@ import type { HostView } from '@/lib/game-service';
  */
 
 type Phase = 'checking' | 'no_session' | 'ready' | 'session_invalid';
+
+/*
+ * O painel de Oficina do professor (674 linhas, e ele puxa
+ * `IndicadoresMini` de `oficina-player`, que puxa o mapa e o conteúdo da
+ * Oficina) só é desenhado com `mode === 'oficina'`. Quem abre `/admin` para a
+ * aula comum — o cenário de todo dia — pagava esse peso inteiro sem nunca ver
+ * um byte dele. Carregar sob demanda corta esse caminho.
+ *
+ * `ssr: false` não custa LCP aqui: `mode` só é conhecido depois de `loadView`
+ * responder, ou seja, no cliente. No servidor esta rota cai sempre em
+ * `phase === 'checking'`, e o header do `ControlPanel` (o LCP de verdade) não
+ * está neste ramo.
+ */
+const OficinaTeacherPanel = dynamic(
+  () =>
+    import('@/components/oficina/oficina-teacher-panel').then((mod) => mod.OficinaTeacherPanel),
+  {
+    ssr: false,
+    loading: () => <OficinaTeacherLoading />,
+  },
+);
+
+/**
+ * Espera do chunk da Oficina do professor.
+ *
+ * Mesmo prato e mesmos rótulos do resto do painel do professor, com as três
+ * barras de `app/loading.tsx` como sinal de vida. A animação é CSS
+ * (`motion-safe:animate-pulse`), então o professor não paga JS enquanto o
+ * chunk viaja.
+ */
+function OficinaTeacherLoading() {
+  return (
+    <main className="relative mx-auto flex min-h-dvh max-w-6xl flex-col items-center justify-center gap-6 px-6">
+      <Degrau nivel="terraco" familia="neutro" className="flex flex-col items-center gap-5 px-10 py-9">
+        <p className="dado text-xs uppercase tracking-[0.22em] text-financas-texto">
+          Carregando oficina
+        </p>
+
+        <div className="flex items-end gap-1.5" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="block h-4 w-1.5 bg-financas motion-safe:animate-pulse"
+              style={{ animationDelay: `${i * 180}ms` }}
+            />
+          ))}
+        </div>
+
+        <Rotulo className="text-terra-500">SAFRA DF · OFICINA</Rotulo>
+      </Degrau>
+
+      <p role="status" className="text-sm text-terra-500">
+        Montando o painel da comunidade...
+      </p>
+    </main>
+  );
+}
 
 export default function AdminPage() {
   const [phase, setPhase] = useState<Phase>('checking');

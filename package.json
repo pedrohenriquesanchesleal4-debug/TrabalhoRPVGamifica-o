@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "simulate": "tsx scripts/simulate.ts",
+    "svg:budget": "tsx scripts/svg-node-budget.tsx",
+    "svg:shots": "tsx scripts/svg-node-budget.tsx --shots",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "smoke": "node --env-file=.env.local scripts/smoke-live.mjs",
     "embed:corpus": "node scripts/embed-corpus.mjs",

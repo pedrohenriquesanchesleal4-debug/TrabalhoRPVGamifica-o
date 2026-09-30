@@ -24,7 +24,13 @@
  * Uso: `<CerradoLandscape className="...">` dentro de um contêiner com
  * overflow-hidden; `preserveAspectRatio="xMidYMid slice"` corta o cenário
  * para caber em qualquer proporção (celular 9:19, projetor 16:9).
+ *
+ * `animado={false}` é a variante ESTÁTICA: a mesma composição, os mesmos
+ * elementos, nenhuma classe `animate-*` e nenhum laço. Ver a nota da prop.
  */
+
+/** Opacidade de repouso da glória do sol: a média do vaivém de 9s (0.45..0.85). */
+const GLORIA_EM_REPOUSO = 0.65;
 
 const VIEW_W = 1440;
 const VIEW_H = 760;
@@ -49,10 +55,14 @@ const FILEIRAS = Array.from({ length: 9 }, (_, i) => {
 });
 
 /** Pássaros: um caminho em V por ave, desenhados no espaço local do grupo. */
-function Bando() {
+function Bando({ animado }: { animado: boolean }) {
   return (
     <>
-      <g className="bando animate-voo" style={{ animationDelay: '-3s' }} aria-hidden="true">
+      <g
+        className={['bando', animado ? 'animate-voo' : ''].join(' ')}
+        style={animado ? { animationDelay: '-3s' } : undefined}
+        aria-hidden="true"
+      >
         <path
           d="M0 0 q 5 -8 11 -1 q 6 -7 12 1 M0 14 q 5 -8 11 -1 q 6 -7 12 1"
           fill="none"
@@ -63,7 +73,11 @@ function Bando() {
           transform="translate(60, 190)"
         />
       </g>
-      <g className="bando animate-voo" style={{ animationDelay: '-12s' }} aria-hidden="true">
+      <g
+        className={['bando', animado ? 'animate-voo' : ''].join(' ')}
+        style={animado ? { animationDelay: '-12s' } : undefined}
+        aria-hidden="true"
+      >
         <path
           d="M0 0 q 4 -6 9 -1 q 5 -6 10 1"
           fill="none"
@@ -79,11 +93,27 @@ function Bando() {
 }
 
 /** Touceira de capim: um único traço em V composto, balançando na base. */
-function Touceira({ x, y, s = 1, delay = '0s' }: { x: number; y: number; s?: number; delay?: string }) {
+function Touceira({
+  x,
+  y,
+  s = 1,
+  delay = '0s',
+  animado,
+}: {
+  x: number;
+  y: number;
+  s?: number;
+  delay?: string;
+  animado: boolean;
+}) {
   return (
     <g
-      className="folhagem animate-balanco"
-      style={{ transformBox: 'fill-box', transformOrigin: 'bottom', animationDelay: delay }}
+      className={['folhagem', animado ? 'animate-balanco' : ''].join(' ')}
+      style={
+        animado
+          ? { transformBox: 'fill-box', transformOrigin: 'bottom', animationDelay: delay }
+          : undefined
+      }
       aria-hidden="true"
     >
       <path
@@ -99,7 +129,44 @@ function Touceira({ x, y, s = 1, delay = '0s' }: { x: number; y: number; s?: num
   );
 }
 
-export function CerradoLandscape({ className }: { className?: string }) {
+/**
+ * Paisagem do amanhecer, com ou sem os laços de ambiência.
+ *
+ * `animado` (padrão `true`) é o comportamento de sempre: a paisagem é o produto
+ * na home e na abertura, e aí o vaivém é a ambiência.
+ *
+ * `animado={false}` é para a paisagem que existe só como ATMOSFERA ATRÁS de uma
+ * decisão ou de um painel de dado — `/jogar` e `/host`. Ali ela fica a 10-20% de
+ * opacidade, atrás de uma tela que não é sobre ela, e mesmo assim arrastava 19
+ * laços infinitos (`animate-amanhecer`, 9× `animate-cintilar`, 2× `animate-nuvem`,
+ * 2× `animate-voo`, 5× `animate-balanco`): trabalho de quadro contínuo em
+ * background, num celular 2019 com 30 aparelhos na mesma rede de escola.
+ *
+ * A variante estática NÃO mexe em `prefers-reduced-motion`: as classes de estado
+ * (`ceu-respiro`, `luz-pisca`, `nuvem-painel`, `bando`, `folhagem`) continuam
+ * aplicadas, e o bloco global de reduce em `globals.css` continua definindo o
+ * estado delas. Como essas regras só mexem em `animation-duration` /
+ * `animation-iteration-count` (mais `opacity`/`transform` pontual), e aqui não há
+ * `animation-name` nenhuma, elas não têm o que religar: a cena estática
+ * permanece estática também para quem pediu redução. Os dois casos são
+ * independentes e nenhum duplica o outro.
+ *
+ * O que muda em relação à versão animada é só o movimento: a composição, os
+ * elementos, as cores e as posições são as mesmas. A glória do sol ganha a
+ * opacidade de repouso (média do vaivém) para a cena parada não abrir mais clara
+ * que a cena em movimento.
+ */
+export function CerradoLandscape({
+  className,
+  animado = true,
+}: {
+  className?: string;
+  /**
+   * `false` remove as classes `animate-*` e zera os `animation-delay`: cena
+   * estática, mesma composição, zero laço de quadro contínuo.
+   */
+  animado?: boolean;
+}) {
   return (
     <div className={['pointer-events-none absolute inset-0 overflow-hidden', className ?? ''].join(' ')} aria-hidden="true">
       <svg
@@ -129,12 +196,13 @@ export function CerradoLandscape({ className }: { className?: string }) {
 
         {/* Glória do amanhecer: único laço de luz do sistema, opacity-only. */}
         <rect
-          className="ceu-respiro animate-amanhecer"
+          className={['ceu-respiro', animado ? 'animate-amanhecer' : ''].join(' ')}
           x="0"
           y="0"
           width={VIEW_W}
           height={VIEW_H}
           fill="url(#gloria-v6)"
+          {...(animado ? {} : { opacity: GLORIA_EM_REPOUSO })}
         />
 
         {/* Estrelas e janelas distantes, apagando com o dia. */}
@@ -144,19 +212,25 @@ export function CerradoLandscape({ className }: { className?: string }) {
             cx={luz.x}
             cy={luz.y}
             r={luz.r}
-            className="luz-pisca animate-cintilar"
-            style={{ animationDelay: luz.delay }}
+            className={['luz-pisca', animado ? 'animate-cintilar' : ''].join(' ')}
+            style={animado ? { animationDelay: luz.delay } : undefined}
 fill="var(--cor-tinta-panel-dourado)"
             opacity="0.5"
           />
         ))}
 
         {/* Nuvens à deriva (46s, transform-only). */}
-        <g className="nuvem-painel animate-nuvem" style={{ animationDelay: '-9s' }}>
+        <g
+          className={['nuvem-painel', animado ? 'animate-nuvem' : ''].join(' ')}
+          style={animado ? { animationDelay: '-9s' } : undefined}
+        >
           <ellipse cx="250" cy="128" rx="132" ry="15" fill="var(--cor-cena-po)" opacity="0.14" />
           <ellipse cx="196" cy="143" rx="78" ry="11" fill="var(--cor-cena-po)" opacity="0.1" />
         </g>
-        <g className="nuvem-painel animate-nuvem" style={{ animationDelay: '-31s' }}>
+        <g
+          className={['nuvem-painel', animado ? 'animate-nuvem' : ''].join(' ')}
+          style={animado ? { animationDelay: '-31s' } : undefined}
+        >
           <ellipse cx="940" cy="96" rx="158" ry="17" fill="var(--cor-cena-po)" opacity="0.12" />
           <ellipse cx="1000" cy="110" rx="88" ry="12" fill="var(--cor-cena-po)" opacity="0.09" />
         </g>
@@ -188,7 +262,7 @@ fill="var(--cor-tinta-panel-dourado)"
         </g>
 
         {/* Pássaros. */}
-        <Bando />
+        <Bando animado={animado} />
 
         {/* Ocupação: fileiras de plantio em perspectiva, ecoando a produção. */}
         {FILEIRAS.map((linha) => (
@@ -231,16 +305,31 @@ fill="var(--cor-tinta-panel-dourado)"
           <rect x="1026" y="500" width="48" height="26" fill="var(--cor-cena-serra)" stroke="var(--cor-cena-estrada)" strokeWidth="1.2" />
           <path d="M1022 502 L1050 484 L1078 502 Z" fill="var(--cor-cena-fundo)" />
           {/* Janelas acesas: os olhos da fazenda. */}
-          <rect x="1036" y="508" width="7" height="7" className="luz-pisca animate-cintilar" fill="var(--cor-tinta-panel-dourado)" />
-          <rect x="1052" y="508" width="7" height="7" className="luz-pisca animate-cintilar" style={{ animationDelay: '-1.6s' }} fill="var(--cor-tinta-panel-dourado)" />
+          <rect
+            x="1036"
+            y="508"
+            width="7"
+            height="7"
+            className={['luz-pisca', animado ? 'animate-cintilar' : ''].join(' ')}
+            fill="var(--cor-tinta-panel-dourado)"
+          />
+          <rect
+            x="1052"
+            y="508"
+            width="7"
+            height="7"
+            className={['luz-pisca', animado ? 'animate-cintilar' : ''].join(' ')}
+            style={animado ? { animationDelay: '-1.6s' } : undefined}
+            fill="var(--cor-tinta-panel-dourado)"
+          />
         </g>
 
         {/* Capim do primeiro plano: balanço na base, defasado. */}
-        <Touceira x={96} y={632} s={1.15} delay="-1.2s" />
-        <Touceira x={330} y={690} s={0.9} delay="-3.1s" />
-        <Touceira x={640} y={606} s={1} delay="-2s" />
-        <Touceira x={1232} y={666} s={1.25} delay="-0.4s" />
-        <Touceira x={1360} y={600} s={0.85} delay="-2.7s" />
+        <Touceira x={96} y={632} s={1.15} delay="-1.2s" animado={animado} />
+        <Touceira x={330} y={690} s={0.9} delay="-3.1s" animado={animado} />
+        <Touceira x={640} y={606} s={1} delay="-2s" animado={animado} />
+        <Touceira x={1232} y={666} s={1.25} delay="-0.4s" animado={animado} />
+        <Touceira x={1360} y={600} s={0.85} delay="-2.7s" animado={animado} />
       </svg>
     </div>
   );
