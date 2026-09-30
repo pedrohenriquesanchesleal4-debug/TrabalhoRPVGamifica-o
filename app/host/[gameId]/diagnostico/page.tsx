@@ -12,6 +12,7 @@ import { PROPERTY_BY_KEY } from '@/data/properties';
 import { POLICY_DISCLAIMER } from '@/data/policies';
 import { ROUND_META } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
+import { CerradoLandscape } from '@/components/game/cerrado-landscape';
 
 /**
  * Diagnóstico da turma: a peça central da aula.
@@ -98,7 +99,10 @@ export default function DiagnosticoPage() {
   const openingHook = view.teachingHooks[0] ?? null;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10">
+    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-8 py-10 relative">
+      {/* Paisagem atmosférica estática: cenário de amanhecer como atmosfera, sem laços de animação. */}
+      <CerradoLandscape animado={false} className="opacity-15 fixed inset-0 -z-10" />
+
       {/* Cabeçalho do console: identidade + título. */}
       <header className="flex flex-wrap items-start justify-between gap-4 animate-emergir">
         <div className="flex flex-col gap-2">

@@ -563,7 +563,7 @@ export function OficinaTeacherPanel({
                           {pista.compartilhada_em ? (
                             <Share2 size={11} className="text-verde-600" aria-hidden />
                           ) : (
-                            <Activity size={11} className="text-terra-400" aria-hidden />
+                            <Activity size={11} className="text-terra-500" aria-hidden />
                           )}
                           {def?.titulo ?? 'Pista'}
                         </li>
@@ -601,7 +601,7 @@ export function OficinaTeacherPanel({
                   ) : achada ? (
                     <Check size={13} className="text-verde-600" aria-hidden />
                   ) : (
-                    <Activity size={13} className="text-terra-400" aria-hidden />
+                    <Activity size={13} className="text-terra-500" aria-hidden />
                   )}
                   {pista.titulo}
                 </span>

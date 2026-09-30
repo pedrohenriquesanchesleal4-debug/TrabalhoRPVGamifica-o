@@ -1,4 +1,4 @@
-import { CanalIcone, GAUGE_LABEL, type IndicatorKind } from '@/components/ui/gauges';
+import { CanalIcone, CanalTrilha, GAUGE_LABEL, type IndicatorKind } from '@/components/ui/gauges';
 import { Degrau, Pill, Rotulo } from '@/components/ui/primitives';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import { PROFILE_META, TEAM_PROFILES, type TeamProfile } from '@/types/game';
@@ -37,11 +37,13 @@ function AxisRow({
   axisLabel,
   scores,
   propertyByTeam,
+  isFirstAxis = false,
 }: {
   axisKind: IndicatorKind;
   axisLabel: string;
   scores: HostView['scores'];
   propertyByTeam: Record<string, string>;
+  isFirstAxis?: boolean;
 }) {
   const axisKey: AxisKey =
     axisKind === 'financas'
@@ -57,6 +59,7 @@ function AxisRow({
 
   return (
     <Degrau nivel="banco" familia="neutro" className="flex flex-col gap-4 p-5">
+      {isFirstAxis && <div className="filete-amanhecer" />}
       <div className="flex items-center gap-2.5">
         <CanalIcone kind={axisKind} size="aluno" />
         <Rotulo>{axisLabel}</Rotulo>
@@ -65,13 +68,9 @@ function AxisRow({
       {/*
         Grade responsiva em vez de fileira com rolagem.
 
-        Antes eram 6 colunas de `w-28` com `shrink-0` dentro de um `flex` com
-        `overflow-x-auto`: 772px de largura mínima, ou seja, no celular e em
-        notebook estreito o professor tinha que arrastar a fileira de lado para
-        ver as 6 equipes, e no projetor a rolagem horizontal aparecia sem
-        motivo. Agora são 3 colunas no celular, 6 a partir de `sm`, e as barras
-        ocupam a largura disponível (`w-full` com teto) — a comparação cabe
-        inteira sem gesto.
+        Cada eixo usa `CanalTrilha` (transform-only via `scaleX`) para a barra
+        comparativa: movimento só em `transform`, sem reflow de layout, e a
+        trilha já traz a parede da valeta (`shadow inset`) e a cor do indicador.
       */}
       <div className="grid grid-cols-3 items-end gap-4 sm:grid-cols-6 sm:gap-5">
         {ordered.map((score) => {
@@ -81,15 +80,12 @@ function AxisRow({
 
           return (
             <div key={score.teamId} className="flex min-w-0 flex-col items-center gap-2">
-              <div
-                className="relative flex h-28 w-full max-w-10 items-end overflow-hidden rounded-t-[8px]"
-                style={{ backgroundColor: 'var(--color-nevoa-200)' }}
-              >
-                <div
-                  className="w-full rounded-t-[6px] transition-[height] duration-700 ease-out"
-                  style={{ height: `${value}%`, backgroundColor: `var(--color-${axisKind})` }}
-                />
-              </div>
+              <CanalTrilha
+                kind={axisKind}
+                value={value}
+                size="projecao"
+                className="w-full max-w-[240px]"
+              />
 
               <span className="dado text-sm font-bold text-terra-900">{Math.round(score[axisKey])}</span>
 
@@ -105,10 +101,12 @@ function AxisRow({
               </div>
 
               {isBest ? (
-                <Pill tone="pronto" className="max-w-full truncate normal-case tracking-normal">
-                  <span aria-hidden="true">Maior</span>
-                  <span className="sr-only">Maior {axisLabel.toLowerCase()} da turma</span>
-                </Pill>
+                <span
+                  className={`rotulo text-[${axisKind}]-texto max-w-full truncate normal-case tracking-normal`}
+                  aria-label={`Maior ${axisLabel.toLowerCase()} da turma`}
+                >
+                  Maior
+                </span>
               ) : null}
             </div>
           );
@@ -135,13 +133,14 @@ export function IndicatorComparison({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        {AXES.map((axis) => (
+        {AXES.map((axis, index) => (
           <AxisRow
             key={axis.key}
             axisKind={axis.kind}
             axisLabel={GAUGE_LABEL[axis.kind]}
             scores={scores}
             propertyByTeam={propertyByTeam}
+            isFirstAxis={index === 0}
           />
         ))}
       </div>

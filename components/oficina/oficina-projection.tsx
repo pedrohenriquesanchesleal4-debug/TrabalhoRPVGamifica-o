@@ -63,7 +63,9 @@ function StageEmblem({ stage }: { stage: OficinaStage }) {
       <Flag size={26} aria-hidden />
     );
   return (
-    <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-filete-amanhecer bg-nevoa-50 text-terra-800">
+    // Disco escavado no prato do painel: sem borda nos quatro lados (o contrato
+    // proíbe) e sem `filete-*`, que é separador de 1px, não cor de borda.
+    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-nevoa-50 text-terra-900">
       {icon}
     </span>
   );
@@ -148,15 +150,19 @@ export function OficinaProjection({ projecao }: { projecao: OficinaProjecaoRespo
               <Sprout size={14} aria-hidden />
               {equipes.length} equipes no território
             </Pill>
-            <span className="dado text-2xl font-bold uppercase tracking-[0.2em] text-terra-900">
+            <span className="dado-lg uppercase tracking-[0.06em] text-terra-900">
               {game.code}
             </span>
           </div>
         </header>
 
-        <div className="flex items-center gap-5 rounded-3xl border-2 border-borda-amanhecer bg-nevoa-50 p-6 animate-emergir" style={{ animationDelay: '80ms' }}>
+        {/* Bloco de informação geral da tela: degrau neutro, parede sólida, sem borda. */}
+        <div
+          className="degrau terraco terr-neutro flex flex-col items-start gap-5 p-6 animate-emergir sm:flex-row sm:items-center"
+          style={{ animationDelay: '80ms' }}
+        >
           <StageEmblem stage={sessao.stage} />
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <span className="text-xs font-bold uppercase tracking-[0.14em] text-terra-500">A comunidade está neste momento</span>
             <span className="relevo-md text-terra-900">
               {sessao.status === 'pausada'
@@ -196,8 +202,9 @@ export function OficinaProjection({ projecao }: { projecao: OficinaProjecaoRespo
                     ) : null}
                   </div>
                   <span className="text-sm font-bold text-terra-900">{equipe.nome}</span>
-                  <span className="text-xs text-terra-500">{perfil?.rotulo ?? 'Perfil'}</span>
-                  <span className="mt-auto text-[11px] text-terra-600">{pistasDa} pista{pistasDa === 1 ? '' : 's'} descoberta{pistasDa === 1 ? '' : 's'}</span>
+                  {/* `terra-500` sobre o prato `terr-verde` dá 3.4:1 — abaixo de AA em 11px. */}
+                  <span className="text-xs text-terra-700">{perfil?.rotulo ?? 'Perfil'}</span>
+                  <span className="mt-auto text-[11px] text-terra-700">{pistasDa} pista{pistasDa === 1 ? '' : 's'} descoberta{pistasDa === 1 ? '' : 's'}</span>
                 </div>
               );
             })}
@@ -247,7 +254,12 @@ function EventoProjecao({ evento, status }: { evento: OficinaEventoRow | undefin
           Evento coletivo
         </span>
       </Rotulo>
-      <div className="flex flex-col gap-3 rounded-3xl border-2 border-borda-amanhecer bg-nevoa-50 p-6">
+      {/*
+        O ÚNICO console escuro da tela (a parede da sala aponta para ele). Só o
+        evento abre no estágio `eventos`, então nunca divide o foco com outro
+        bloco: a regra do `mirante` por tela continua valendo.
+      */}
+      <div className="degrau terraco terr-fundo-azul flex flex-col gap-3 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="relevo-md text-terra-900">{def?.titulo ?? 'Nenhum evento aberto'}</h2>
           <Pill tone={resolvido ? 'pronto' : 'ativo'} className="text-sm">
@@ -256,7 +268,7 @@ function EventoProjecao({ evento, status }: { evento: OficinaEventoRow | undefin
         </div>
         {def ? <p className="max-w-4xl text-base leading-relaxed text-terra-700">{def.desfecho}</p> : null}
         {evento ? (
-          <p className="flex items-center gap-2 text-sm font-medium text-terra-600">
+          <p className="flex items-center gap-2 text-sm font-medium text-terra-500">
             <HeartHandshake size={15} className="text-verde-600" aria-hidden />
             {contribuidores} {contribuidores === 1 ? 'equipe já contribuiu' : 'equipes já contribuíram'} com a resposta da comunidade
           </p>
@@ -280,16 +292,17 @@ function ReflexaoProjecao({ stage }: { stage: OficinaStage }) {
           Para fechar em roda — reflexão do território
         </span>
       </Rotulo>
-      <div className="flex flex-col gap-2 rounded-3xl border-2 border-borda-amanhecer bg-nevoa-50 p-6">
+      {/* Lista numerada de perguntas: `banco`, o nível mais baixo de altitude. */}
+      <div className="degrau banco terr-neutro flex flex-col gap-2 p-6">
         {destaques.map((pergunta, index) => (
           <div key={index} className="flex items-start gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-terra-800 text-xs font-bold text-terra-900">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-nevoa-200 text-xs font-bold text-terra-900">
               {index + 1}
             </span>
             <p className="text-base leading-[1.5] text-terra-900">{pergunta}</p>
           </div>
         ))}
-        <p className="mt-2 flex items-center gap-2 text-sm font-medium text-terra-600">
+        <p className="mt-2 flex items-center gap-2 text-sm font-medium text-terra-500">
           <Lightbulb size={15} className="text-financas" aria-hidden />
           O professor gera a reflexão final após o resultado — o círculo se fecha com a memória do que foi vivido.
         </p>
@@ -324,10 +337,19 @@ function ProjecaoPistas({
           return (
             <div
               key={pista.id}
-              className={['degrau banco flex flex-col gap-1 p-3.5', achada ? 'terr-claro' : 'opacity-40'].join(' ')}
+              // Pista não descoberta escava o prato em vez de aplicar opacidade:
+              // `opacity` no contêiner derruba o título a 3.4:1 e o "Ainda por
+              // descobrir" a 1.9:1 — abaixo de AA. A hierarquia continua no
+              // par texto apagado (5.5:1) sobre prato `terr-neutro`.
+              className={['degrau banco flex flex-col gap-1 p-3.5', achada ? 'terr-claro' : 'terr-neutro'].join(' ')}
             >
-              <span className="flex items-center gap-2 text-sm font-bold text-terra-900">
-                {achada ? <Check size={13} className="text-verde-600" aria-hidden /> : <Hourglass size={13} className="text-terra-400" aria-hidden />}
+              <span
+                className={[
+                  'flex items-center gap-2 text-sm font-bold',
+                  achada ? 'text-terra-900' : 'text-terra-500',
+                ].join(' ')}
+              >
+                {achada ? <Check size={13} className="text-verde-600" aria-hidden /> : <Hourglass size={13} className="text-terra-500" aria-hidden />}
                 {pista.titulo}
               </span>
               <span className="text-xs text-terra-500">{achada ? pista.origem : 'Ainda por descobrir'}</span>
@@ -335,7 +357,7 @@ function ProjecaoPistas({
           );
         })}
       </div>
-      <p className="flex items-center gap-2 text-sm font-medium text-terra-600">
+      <p className="flex items-center gap-2 text-sm font-medium text-terra-500">
         <Share2 size={15} className="text-verde-600" aria-hidden />
         {pistasDescobertas.length} pistas descobertas · {compartilhadas} compartilhadas no território
       </p>

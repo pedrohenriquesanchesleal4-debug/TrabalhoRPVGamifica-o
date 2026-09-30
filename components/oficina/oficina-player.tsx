@@ -355,7 +355,9 @@ function PerfilCard({ perfil }: { perfil: OficinaPerfil }) {
   return (
     <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-3 p-5">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-terra-800 text-white">
+        {/* `verde-800` é a parede de painel escuro do sistema: o badge do avatar
+            fica legível com `text-white` nos dois temas. */}
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-verde-800 text-white">
           <Users size={18} aria-hidden="true" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -392,7 +394,7 @@ function BriefingAtivo({
 
       <article className="degrau terraco terr-claro animate-emergir flex flex-col gap-4 p-5">
         {texto.split('\n\n').map((paragrafo, index) => (
-          <p key={index} className="text-[15px] leading-[1.75] text-terra-800">
+          <p key={index} className="text-[15px] leading-[1.75] text-terra-700">
             {paragrafo}
           </p>
         ))}
@@ -454,7 +456,7 @@ function Investigacao({
 
       <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-3 p-5">
         <Rotulo>Mover a comunidade</Rotulo>
-        <p className="text-xs text-terra-600">
+        <p className="text-xs text-terra-500">
           Ações que mudam a vida do lugar. Algumas pedem uma pista antes de serem possíveis.
         </p>
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -485,7 +487,7 @@ function Investigacao({
                         {acao.custo_acoes} ação
                       </span>
                     </div>
-                    <p className="text-xs leading-[1.5] text-terra-600">{acao.descricao}</p>
+                    <p className="text-xs leading-[1.5] text-terra-500">{acao.descricao}</p>
                     {!liberada ? (
                       <span className="flex items-center gap-1 text-[11px] font-bold text-alerta-texto">
                         <Lock size={11} aria-hidden="true" />
@@ -526,7 +528,7 @@ function SecaoPistas({
           <Rotulo>Descobertas da equipe</Rotulo>
         </div>
         {itens(minhas).length === 0 ? (
-          <p className="text-sm text-terra-600">
+          <p className="text-sm text-terra-500">
             Nenhuma pista ainda. Investigar e conversar pelo mapa é o caminho.
           </p>
         ) : (
@@ -534,7 +536,7 @@ function SecaoPistas({
             {itens(minhas).map((pista) => (
               <li key={pista.id} className="degrau terraco terr-claro flex flex-col gap-1 p-3">
                 <span className="text-sm font-bold text-terra-900">{pista.titulo}</span>
-                <p className="text-xs leading-[1.5] text-terra-600">{pista.texto}</p>
+                <p className="text-xs leading-[1.5] text-terra-500">{pista.texto}</p>
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <span className="text-[11px] text-terra-500">{pista.origem}</span>
                   {!minhas.find((m) => m.pista_id === pista.id)?.compartilhada_em ? (
@@ -572,9 +574,9 @@ function SecaoPistas({
           </div>
           <ul className="flex flex-col gap-2">
             {itens(compartilhadas).map((pista) => (
-              <li key={pista.id} className="flex flex-col gap-0.5 rounded-[5px] bg-terra-50 p-3">
+              <li key={pista.id} className="flex flex-col gap-0.5 rounded-[5px] bg-nevoa-100 p-3">
                 <span className="text-sm font-bold text-terra-900">{pista.titulo}</span>
-                <p className="text-xs leading-[1.5] text-terra-600">{pista.texto}</p>
+                <p className="text-xs leading-[1.5] text-terra-500">{pista.texto}</p>
               </li>
             ))}
           </ul>
@@ -617,7 +619,7 @@ function EventosComunidade({
         <Aviso notice={notice} />
         <div className="degrau banco terr-claro animate-emergir flex flex-col gap-2 p-5 text-center">
           <Hourglass size={20} className="mx-auto text-terra-500" aria-hidden="true" />
-          <p className="text-sm text-terra-600">
+          <p className="text-sm text-terra-500">
             O professor ainda não abriu o primeiro evento da comunidade.
           </p>
         </div>
@@ -694,7 +696,7 @@ function EventosComunidade({
                     <CircleCheck size={17} className="shrink-0 text-verde-700" aria-hidden="true" />
                   ) : null}
                 </div>
-                <p className="text-xs leading-[1.5] text-terra-600">{opcao.detalhe}</p>
+                <p className="text-xs leading-[1.5] text-terra-500">{opcao.detalhe}</p>
               </button>
             );
           })}
@@ -718,12 +720,12 @@ function EventosComunidade({
                   key={key}
                   className={
                     indice === 0
-                      ? 'rounded-[5px] bg-verde-100 px-3 py-2'
-                      : 'rounded-[5px] bg-terra-50 px-3 py-2'
+                      ? 'rounded-[5px] bg-verde-600/25 px-3 py-2'
+                      : 'rounded-[5px] bg-nevoa-100 px-3 py-2'
                   }
                 >
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className={indice === 0 ? 'font-bold text-verde-800' : 'text-terra-700'}>
+                    <span className={indice === 0 ? 'font-bold text-verde-300' : 'text-terra-700'}>
                       {rotulo}
                     </span>
                     <span className="font-bold text-terra-500">{total} voto(s)</span>
@@ -848,12 +850,12 @@ function Solucao({
                         'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
                         selecionada
                           ? 'border-verde-700 bg-verde-700 text-white'
-                          : 'border-terra-300',
+                          : 'border-nevoa-200',
                       )}
                     >
                       {selecionada ? <Check size={11} aria-hidden="true" /> : null}
                     </span>
-                    <span className="text-sm leading-[1.5] text-terra-800">{opcao.rotulo}</span>
+                    <span className="text-sm leading-[1.5] text-terra-900">{opcao.rotulo}</span>
                   </button>
                 );
               })}
@@ -864,6 +866,18 @@ function Solucao({
                 <label className="text-[11px] font-bold uppercase tracking-wide text-terra-500" htmlFor={`livre-${cartao.bloco}`}>
                   Ou escrever do próprio jeito
                 </label>
+                {/*
+                  Campo livre: a superfície e a tinta saem do mesmo tema, senão o
+                  rascunho some. `min-h-11` fecha o alvo de toque de 44px.
+
+                  O foco usa `--color-foco`, e não `--color-foco-papel`: este
+                  campo deixou de ser papel fixo (era `bg-white`) e passou a ser
+                  `nevoa-100`, que INVERTE com o tema. `foco-papel` é o dourado
+                  escuro que só funciona sobre branco; medida em 2.43:1 sobre a
+                  noite, abaixo dos 3:1 que a WCAG exige de indicador de foco.
+                  `foco` dá 8.45:1 no escuro e reancora em `#7a4d0b` no claro,
+                  então é o único token que fecha nos DOIS temas.
+                */}
                 <textarea
                   id={`livre-${cartao.bloco}`}
                   value={rascunho[cartao.bloco]?.livre ?? ''}
@@ -873,7 +887,7 @@ function Solucao({
                   rows={2}
                   maxLength={280}
                   placeholder="No que a equipe acredita para este bloco..."
-                  className="w-full resize-y rounded-[5px] border border-terra-300 bg-white px-3 py-2 text-sm text-terra-900 outline-none placeholder:text-terra-400 focus:outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--color-foco-papel)]"
+                  className="w-full min-h-11 resize-y rounded-[5px] border border-nevoa-200 bg-nevoa-100 px-3 py-2 text-sm text-terra-900 outline-none placeholder:text-terra-500 focus:outline-none focus-visible:shadow-[inset_0_0_0_3px_var(--color-foco)]"
                 />
               </div>
             ) : null}
@@ -968,7 +982,7 @@ function Resultado({
       <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-3 p-5">
         <Rotulo>Painel da comunidade</Rotulo>
         {view.equipes.map((equipe) => (
-          <div key={equipe.team_id} className="border-b border-terra-200 pb-2 last:border-0">
+          <div key={equipe.team_id} className="border-b border-nevoa-200 pb-2 last:border-0">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-bold text-terra-900">{equipe.nome}</span>
               <span className="text-xs text-terra-500">
@@ -1018,7 +1032,7 @@ function Fechamento({
       {feedback ? (
         <div className="degrau terraco terr-claro animate-emergir flex flex-col gap-2 p-5">
           <Rotulo>O que o olhar de {OFICINA_PERFIS_INFO[perfil!].rotulo} deixou</Rotulo>
-          <p className="text-sm leading-[1.7] text-terra-800">{feedback}</p>
+          <p className="text-sm leading-[1.7] text-terra-700">{feedback}</p>
         </div>
       ) : null}
 
@@ -1082,11 +1096,11 @@ function Destaques({
       <Rotulo>Resultados da oficina</Rotulo>
       <ul className="flex flex-col gap-2">
         {interessesPorIr.map((result) => (
-          <li key={result.team_id} className="rounded-[5px] bg-terra-50 p-3">
+          <li key={result.team_id} className="rounded-[5px] bg-nevoa-100 p-3">
             <span className="text-sm font-bold text-terra-900">
               {view.equipes.find((e) => e.team_id === result.team_id)?.nome ?? 'Equipe'}
             </span>
-            <span className="block text-xs text-terra-600">
+            <span className="block text-xs text-terra-500">
               {result.categorias.map((c) => c.razao).join(' · ')}
             </span>
           </li>
@@ -1138,10 +1152,15 @@ export function IndicadoresMini({ indicadores }: { indicadores: OficinaIndicador
         <div key={chave} className="flex flex-col gap-0.5">
           <span className="text-[11px] text-terra-500">{OFICINA_INDICADORES_INFO[chave].rotulo}</span>
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-terra-200">
+            {/*
+              Contrato proíbe animar `width` (reflow a cada quadro): a barra
+              cresce por `scaleX` a partir da esquerda, no compositor.
+              `transform` também cobre `p` de 0, então a transição dobra no zero.
+            */}
+            <div className="h-1.5 w-full origin-left overflow-hidden rounded-full bg-nevoa-200">
               <div
-                className="h-full rounded-full bg-verde-600 transition-all duration-700"
-                style={{ width: `${Math.max(0, Math.min(100, valor))}%` }}
+                className="h-full w-full origin-left rounded-full bg-verde-600 transition-transform duration-700"
+                style={{ transform: `scaleX(${Math.max(0, Math.min(100, valor)) / 100})` }}
               />
             </div>
             <span className="w-6 text-right text-[11px] font-bold text-terra-700">

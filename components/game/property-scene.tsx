@@ -54,8 +54,8 @@ const GOLDEN_ANGLE_RAD = (137.50776 * Math.PI) / 180;
 /**
  * Pontos fixos da textura pontilhada do anel externo, gerados uma única vez
  * (sem `Math.random`, sem divergência entre servidor e cliente). A ordem é
- * estável: crescer a contagem só acrescenta pontos novos, nunca reposiciona
- * os existentes.
+ * estável: crescer a contagem só acrescenta pontos novos, nunca reposiciona os
+ * existentes.
  */
 function gerarPontosVegetacao(n: number): { x: number; y: number }[] {
   return Array.from({ length: n }, (_, i) => {
@@ -65,9 +65,63 @@ function gerarPontosVegetacao(n: number): { x: number; y: number }[] {
     return { x: 100 + r * Math.cos(angle), y: 104 + r * Math.sin(angle) * 0.62 };
   });
 }
-const VEGETATION_POINTS = gerarPontosVegetacao(24);
+
+/**
+ * Teto da vegetação nativa: 24 pontos -> 10.
+ *
+ * O que este número NÃO é, porque dá para achar o contrário e partir para o
+ * lado errado: com 24 os pontos NUNCA se tocavam. A menor distância entre dois
+ * pontos era 13.5 unidades, contra 4.2 de diâmetro (r = 2.1): três diâmetros
+ * de folga. Não havia hachura, não havia pontilhado que virasse linha, e a
+ * densidade não "colapsava" em parte nenhuma da escala.
+ *
+ * O que muda é o seguinte, e é o que vale medir: com 10, a menor distância vai
+ * a 26.4 unidades, doze diâmetros. O anel deixa de ser uma ESTIPULA e passa a
+ * ser um conjunto de marcas isoladas, e é isso que sustenta a leitura de
+ * densidade: quem olha não conta 10 marcas (ninguém conta), mas perceive um
+ * anel vazio e um anel cheio, que é o que `descreverSustentabilidade` nomeia
+ * ("rala" / "em recuperação" / "densa").
+ *
+ * Nenhum canal de leitura foi cortado. A contagem continua atrelada à
+ * sustentabilidade: `round(s/100 * teto)` vai de 25 valores distintos (0 a 24)
+ * para 11 (0 a 10), e a opacidade continua varrendo 0.3 -> 1.0. Os 14 nós que
+ * saem são da granulação, não da informação.
+ *
+ * A troca de 25 degraus para 11 é o único ponto onde a resolução cai de
+ * propósito, e o preço é pequeno justamente porque os dois canais se movem
+ * juntos: entre s = 40 e s = 50 muda um ponto E a opacidade muda 0.07.
+ */
+const VEGETATION_POINTS = gerarPontosVegetacao(10);
 const VEGETATION_TETO = VEGETATION_POINTS.length;
-const CROP_TETO = 12;
+
+/**
+ * Fileiras do anel de plantio: 12 -> 7, e o degrau cai de 2 fileiras por faixa
+ * de 20 pontos para 1.
+ *
+ * A escada de leitura fica INTEIRA, e é aqui que vale conferir em vez de
+ * supor: são seis faixas de produção (0-19, 20-39, 40-59, 60-79, 80-99, 100) e
+ * seis fileiras distintas em qualquer uma das duas escadas — 2/4/6/8/10/12
+ * antes, 2/3/4/5/6/7 agora. Nenhum degrau colapsa no vizinho, e o teto de 12
+ * nunca era alcançado por engano: a última faixa batia exatamente nele.
+ *
+ * O que muda é a separação. A borda de cima do anel tem 72 unidades de largura
+ * (`MID.topX0`..`MID.topX1`), e as fileiras têm espessura 2:
+ *
+ *   · 12 fileiras -> passo 6.0u, vãos de 4.0u. A 200px de largura (a cena na
+ *     tela de decisão, o maior uso real) isso é passo 6.0px e vão 4.0px: ainda
+ *     legível, mas é a leitura mais apertada do anel.
+ *   · 7 fileiras  -> passo 10.3u, vãos de 8.3u. A 200px: passo 10.3px, vão
+ *     8.3px. As fileiras voltam a ser contadas como fileiras.
+ *
+ * Ou seja: a redução não curou hachura que existia. Ela tira o anel do limite
+ * apertado para o tamanho em que a cena é mostrada, e paga isso em nós (5 no
+ * estado máximo, e 5 é o que faltava para o orçamento de cena fechar).
+ *
+ * `scripts/svg-node-budget.tsx --shots` confere estes números e a distância
+ * mínima entre os pontos de vegetação; o comentário não é a evidência, a
+ * medição é.
+ */
+const CROP_TETO = 7;
 
 /** Patamares de tecnologia, cumulativos: nunca somem depois de aparecer. */
 const TECH_TIERS = [
@@ -240,9 +294,9 @@ export function PropertyScene({
   const HighlightIcon = highlightKind ? GAUGE_ICON[highlightKind] : null;
   const highlightColorToken = highlightKind ?? 'terra-700';
 
-  // Anel de plantio: fileiras sobem em degraus de +2 a cada faixa de 20 pontos de produção, teto 12.
+  // Anel de plantio: uma fileira a cada faixa de 20 pontos de produção, de 2 a 7.
   const plantioTier = Math.floor(p / 20);
-  const cropCount = clamp(2 + plantioTier * 2, 2, CROP_TETO);
+  const cropCount = clamp(2 + plantioTier, 2, CROP_TETO);
 
   // Anel de vegetação nativa: contagem e opacidade crescem com a sustentabilidade, teto de 24 pontos.
   const vegetationCount = clamp(Math.round((s / 100) * VEGETATION_TETO), 0, VEGETATION_TETO);
@@ -283,6 +337,24 @@ export function PropertyScene({
     );
   }
 
+  /*
+    Luz ambiente da V6: a parcela respira num breu levemente quente, não num
+    vazio chapado. Vai no `background` do próprio `<svg>`, e não num
+    `<rect>` + `<radialGradient>` + três `<stop>` dentro de `<defs>`: são os
+    mesmos pixels pintados na mesma caixa (o elemento já é `aspect-square`, e o
+    `viewBox` é quadrado, então o retângulo 0..200 preenchia exatamente a área
+    útil), com 5 nós a menos e sem nada de `<defs>` para o navegador resolver.
+    Os `var()` continuam valendo, então o tema claro inverte o breu como antes.
+
+    Uma diferença real e aceita: a parada de 72% estava em `stop-opacity 0.9`,
+    e aqui vai opaca. As 10% de transparência deixavam o prato da cena vazar por
+    trás numa faixa estreita do anel externo; opaca, o chão da parcela fecha.
+    Nenhuma cor muda, só a transparência de uma borda que ficava sob um `degrau`
+    de qualquer forma.
+  */
+  const breu =
+    'radial-gradient(85% 85% at 50% 42%, var(--color-nevoa-100) 0%, var(--color-nevoa-50) 72%, var(--color-nevoa-50) 100%)';
+
   return (
     <svg
       role="img"
@@ -291,25 +363,22 @@ export function PropertyScene({
       viewBox={`0 0 ${VIEW} ${VIEW}`}
       preserveAspectRatio="xMidYMid meet"
       className={`block w-full aspect-square ${className ?? ''}`}
+      style={{ background: breu }}
     >
       <defs>
         <TechDefs idPrefix={`${uid}-ico`} />
-        {/* Luz ambiente da V6: a parcela respira num breu levemente quente, não num vazio chapado. */}
-        <radialGradient id={`${uid}-breu`} cx="0.5" cy="0.42" r="0.85">
-          <stop offset="0%" style={{ stopColor: 'var(--color-nevoa-100)' }} />
-          <stop offset="72%" style={{ stopColor: 'var(--color-nevoa-50)', stopOpacity: '0.9' }} />
-          <stop offset="100%" style={{ stopColor: 'var(--color-nevoa-50)' }} />
-        </radialGradient>
-        {/* Afago da produção alta: brilho dourado atrás da sede quando a safra está boa. */}
+        {/*
+          Afago da produção alta: brilho dourado atrás da sede quando a safra está
+          boa. Duas paradas, não três: a parada do meio (70% / opacidade 0.1)
+          caía praticamente em cima da reta entre 0.34 e 0, então removê-la muda
+          o brilho em menos de 0.002 de alfa e economiza um nó.
+        */}
         <radialGradient id={`${uid}-colheita`} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0.34' }} />
-          <stop offset="70%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0.1' }} />
           <stop offset="100%" style={{ stopColor: 'var(--color-financas)', stopOpacity: '0' }} />
         </radialGradient>
       </defs>
 
-      {/* Fundo: breu com luz de 06:20, atrás de tudo. */}
-      <rect width={VIEW} height={VIEW} fill={`url(#${uid}-breu)`} />
       {/* Colheita em andamento: só acende em produção alta, transição única (nunca laço). */}
       <circle
         cx={CORE_CX}

@@ -71,8 +71,20 @@ const nextConfig: NextConfig = {
     /*
      * `lucide-react` é carregado por barrel (named exports): com a
      * otimização, só os ícones realmente usados entram no bundle.
+     *
+     * `@supabase/supabase-js` foi medido e NÃO ganhou nada: o chunk em
+     * `/jogar` ficou byte a byte igual (239,8 KB) com e sem a linha. A
+     * otimização reescreve barrel em import por módulo, mas aqui o gargalo
+     * não é o índice do pacote: `createClient` constrói GoTrue (auth-js) e
+     * Realtime (Phoenix) no construtor, e construção de classe não é removida
+     * por tree-shaking. O `exports` do pacote só expõe `.`, `./cors`,
+     * `./tracing` e `./dist/*` — não existe entrada estreita e suportada.
+     *
+     * A linha fica porque é inofensiva e cobre o caso de o pacote virar
+     * elegível; o ganho de verdade exigiria não mandar supabase-js ao cliente
+     * (realtime via servidor), que é decisão de arquitetura, não de config.
      */
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

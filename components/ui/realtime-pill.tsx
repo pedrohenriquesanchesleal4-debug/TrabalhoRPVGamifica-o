@@ -12,10 +12,11 @@ import type { RealtimeStatus } from '@/hooks/use-game-channel';
 export function RealtimePill({ status }: { status: RealtimeStatus }) {
   if (status === 'connected') {
     return (
-      <span title="Conexão em tempo real ativa">
+      <span aria-label="Conexão em tempo real ativa">
         <Pill tone="pronto" className="text-sm">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-success" />
+            {/* `--color-sucesso`, sem o "c" duplo: `bg-success` não gerava regra. */}
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-sucesso" />
             AO VIVO
           </span>
         </Pill>

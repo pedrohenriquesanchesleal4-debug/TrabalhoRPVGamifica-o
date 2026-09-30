@@ -140,6 +140,7 @@ export function Button({
       className={classes(
         'inline-flex items-center justify-center gap-2 font-bold tracking-[0.01em]',
         'disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-foco',
         BUTTON_VARIANT[variant],
         BUTTON_SIZE[size],
         className,
@@ -315,6 +316,7 @@ export function Meter({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
+        aria-valuetext={display}
       >
         <CanalArco kind={kind} value={pct} size="compacto">
           <CanalIcone kind={kind} size="compacto" />
@@ -339,6 +341,7 @@ export function Meter({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${label}: ${display}`}
+        aria-valuetext={display}
       >
         <CanalArco kind={kind} value={pct} size="projecao">
           <CanalIcone kind={kind} size="projecao" />
@@ -367,6 +370,7 @@ export function Meter({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={`${label}: ${display}`}
+      aria-valuetext={display}
     >
       <CanalArco kind={kind} value={pct} size="aluno">
         <CanalIcone kind={kind} size="aluno" />

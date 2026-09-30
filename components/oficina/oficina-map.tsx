@@ -154,7 +154,13 @@ export function OficinaMap({
       </Rotulo>
 
       <div className="degrau terraco terr-claro overflow-hidden">
-        <div className="relative aspect-[1000/640] w-full select-none">
+        {/*
+          `@container` é o que permite ao marcador escalar com o mapa em `cqw`:
+          em `%` o pai do marcador é um absoluto de largura shrink-to-fit, e
+          porcentagem contra caixa indefinida resolve como `auto` — o `clamp`
+          cairia no piso de 32px em toda largura e o mapa nunca escalaria.
+        */}
+        <div className="@container relative aspect-[1000/640] w-full select-none">
           {/* Cenário puro: estradas, quintais, mata, riacho — só decoração. */}
           <svg
             viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -162,7 +168,8 @@ export function OficinaMap({
             aria-hidden="true"
             focusable="false"
           >
-            <rect x="0" y="0" width={VIEW_W} height={VIEW_H} className="fill-terra-800 opacity-[0.06]" />
+            {/* Tom do mapa: verde-800 é a parede de degrau — a textura que faz o território. */}
+            <rect x="0" y="0" width={VIEW_W} height={VIEW_H} className="fill-verde-800 opacity-[0.06]" />
 
             {/* Riacho: duas margens e a lâmina d'água. */}
             <path
@@ -276,7 +283,11 @@ export function OficinaMap({
               >
                 <span
                   className={[
-                    'flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-[0_2px_0_rgba(0,0,0,0.35)] transition-transform duration-200',
+                    // Escala junto com o mapa: 32px no celular, 44px no projetor.
+                    // O `::after` invisível devolve os 44px de alvo de toque do
+                    // contrato sem alterar o desenho do marcador.
+                    'relative flex size-[clamp(32px,11cqw,44px)] items-center justify-center rounded-full border-2 shadow-[0_2px_0_rgba(0,0,0,0.35)] transition-transform duration-200',
+                    'after:absolute after:-inset-1.5 after:content-[""]',
                     ativo ? 'scale-110' : 'hover:scale-105',
                     achei
                       ? 'border-terra-900/40 bg-verde-600 text-verde-800'
@@ -284,7 +295,8 @@ export function OficinaMap({
                     'focus-visible:shadow-[inset_0_0_0_3px_var(--color-financas)]',
                   ].join(' ')}
                 >
-                  <Icone size={16} aria-hidden />
+                  {/* Ícone em % do marcador: acompanha o clamp sem mudar a proporção do desenho. */}
+                  <Icone size={16} className="h-2/5 w-2/5" aria-hidden />
                 </span>
                 {achei ? (
                   <span className="flex items-center gap-0.5 rounded-full bg-verde-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-verde-800">
@@ -314,7 +326,15 @@ export function OficinaMap({
             <h3 className="relevo-md text-terra-900">{local.nome}</h3>
             <p className="text-xs leading-[1.5] text-terra-500">{local.situacao}</p>
           </div>
-          <span className="shrink-0 rounded-[5px] bg-terra-800/60 px-2.5 py-1 text-xs font-bold text-terra-900">
+          {/*
+            Contador de ações: `degrau banco terr-neutro` e não uma pílula de
+            cor chapada. O painel que o contém é `terr-claro` (prato `nevoa-200`),
+            então um fundo `nevoa-200` aqui seria cor sobre cor: a pílula
+            simplesmente não existe, medida em 1.27:1. No sistema do projeto a
+            separação vem do PAREDÃO — degrau um nível abaixo, com a parede
+            sólida de 4px legível contra o prato do painel.
+          */}
+          <span className="degrau banco terr-neutro shrink-0 px-2.5 py-1 text-xs font-bold text-terra-900">
             {restantes}/{MAX_ACOES_UI} ações
           </span>
         </div>
@@ -326,7 +346,7 @@ export function OficinaMap({
         </p>
 
         {personagem ? (
-          <div className="flex flex-col gap-1 rounded-[5px] bg-terra-800/50 p-3">
+          <div className="flex flex-col gap-1 rounded-[5px] bg-nevoa-100 p-3">
             <Rotulo>{personagem.nome} · {personagem.papel}</Rotulo>
             <p className="text-[13px] italic leading-[1.6] text-terra-700">“{personagem.fala}”</p>
           </div>
