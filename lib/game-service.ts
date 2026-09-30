@@ -1223,28 +1223,24 @@ export async function resolveRound(
     throw new ApiError('conflict', 'A rodada atual não existe.');
   }
 
-  // Reivindicação ATÔMICA da rodada: quem primeiro gravar resolved_at fecha.
-  // O guard antigo (ler resolved_at e depois agir) deixava duas execuções
-  // concorrentes pasarem juntas — duplo clique do professor ou retry de rede
-  // aplicavam o fechamento DUAS vezes: renda/multa dobrada por equipe.
-  const resolvedAt = new Date().toISOString();
-  const claimed = await db()
-    .from('rounds')
-    .update({ resolved_at: resolvedAt })
-    .eq('id', round.id)
-    .is('resolved_at', null)
-    .select('id')
-    .maybeSingle();
+  /*
+    Fechamento da rodada em três tempos, na ordem que não trava a partida.
 
-  if (claimed.error) {
-    throw new ApiError('server_error', 'Falha ao fechar a rodada.', claimed.error.message);
-  }
-  if (!claimed.data) {
-    throw new ApiError('conflict', 'Esta rodada já foi resolvida.');
-  }
+    O defeito antigo: `resolved_at` era gravado PRIMEIRO (é a reivindicação
+    atômica que impede duplo fechamento) e os updates por equipe vinham depois,
+    um a um. Se o terceiro update falhasse, a rodada ficava com `resolved_at`
+    gravado, `games.round_status` ainda `active` e só parte das equipes fechada
+    — e o retry do professor caía no 409 "esta rodada já foi resolvida". Não
+    existia caminho de volta: a partida travava para o resto da aula.
 
-  // Decisões lidas DEPOIS da reivindicação: qualquer insert que entre depois
-  // deste ponto encontra resolved_at preenchido no submit e é recusado.
+    A ordem agora é: calcula tudo sem escrever (falha aqui não deixa nada
+    gravado), reivindica, escreve as equipes em paralelo, e se qualquer escrita
+    falhar DESFAZ o que foi aplicado e devolve a reivindicação. O professor
+    recebe "tente de novo" e o retry funciona de verdade.
+  */
+
+  // 1 · Cálculo puro. Nenhuma escrita até aqui: se algo estiver errado na
+  //     entrada, o banco não viu nada.
   const teams = await teamsOf(gameId);
 
   const decisions = unwrap(
@@ -1253,6 +1249,16 @@ export async function resolveRound(
   ) as DecisionRow[];
 
   const decisionByTeam = new Map(decisions.map((decision) => [decision.team_id, decision]));
+
+  interface FechamentoPendente {
+    teamId: string;
+    /** Estado antes do fechamento — é o que desfaz a escrita se algo falhar. */
+    antes: TeamState;
+    depois: TeamState;
+    outcome: RoundOutcome;
+  }
+
+  const pendentes: FechamentoPendente[] = [];
   const outcomes: RoundOutcome[] = [];
 
   for (const team of teams) {
@@ -1274,19 +1280,6 @@ export async function resolveRound(
     const closing = calculateRoundResult(stateAfterDecision, round.phase);
     notes.push(...closing.notes);
 
-    const update = await db()
-      .from('teams')
-      .update(teamUpdateFrom(closing.state))
-      .eq('id', team.id);
-
-    if (update.error) {
-      throw new ApiError(
-        'server_error',
-        'Falha ao atualizar os indicadores da equipe. A rodada já foi marcada como resolvida: recarregue a tela e confira o estado das equipes.',
-        update.error.message,
-      );
-    }
-
     outcomes.push({
       teamId: team.id,
       teamName: team.name,
@@ -1296,17 +1289,109 @@ export async function resolveRound(
       effects: decision?.effects ?? [],
       state: closing.state,
     });
+
+    pendentes.push({
+      teamId: team.id,
+      antes: teamStateOf(team),
+      depois: closing.state,
+      outcome: outcomes[outcomes.length - 1],
+    });
   }
 
-  const updated = unwrap(
-    await db()
-      .from('games')
-      .update({ round_status: 'resolved' })
-      .eq('id', gameId)
-      .select('*')
-      .single(),
-    'marcar a rodada como resolvida',
-  ) as GameRow;
+  // 2 · Reivindicação atômica: quem primeiro gravar `resolved_at` fecha. O
+  //     guard antigo (ler `resolved_at` e depois agir) deixava duas execuções
+  //     concorrentes passarem juntas — duplo clique do professor ou retry de
+  //     rede aplicavam o fechamento DUAS vezes: renda/multa dobrada por equipe.
+  const resolvedAt = new Date().toISOString();
+  const claimed = await db()
+    .from('rounds')
+    .update({ resolved_at: resolvedAt })
+    .eq('id', round.id)
+    .is('resolved_at', null)
+    .select('id')
+    .maybeSingle();
+
+  if (claimed.error) {
+    throw new ApiError('server_error', 'Falha ao fechar a rodada.', claimed.error.message);
+  }
+  if (!claimed.data) {
+    throw new ApiError('conflict', 'Esta rodada já foi resolvida.');
+  }
+
+  /*
+    3 · Escrita com compensação.
+
+    `devolveAReivindicacao` roda em qualquer falha depois da reivindicação: sem
+    ela, um erro de rede no meio do caminho deixava a rodada num estado em que
+    nem o retry nem o professor consegiam sair.
+  */
+  const devolveAReivindicacao = async (motivo: string, detalhe: string): Promise<never> => {
+    const { error: erroAoDevolver } = await db()
+      .from('rounds')
+      .update({ resolved_at: null })
+      .eq('id', round.id)
+      .eq('resolved_at', resolvedAt);
+
+    if (erroAoDevolver) {
+      // A devolução falhou: o estado ficou preso e o professor precisa saber
+      // que um reset é o caminho. Dizer "tente de novo" aqui seria mentira.
+      throw new ApiError(
+        'server_error',
+        `Falha ao fechar a rodada E ao desfazer a alteração (${motivo}). Esta rodada precisa ser reiniciada pelo professor.`,
+        `${detalhe} · devolução: ${erroAoDevolver.message}`,
+      );
+    }
+
+    throw new ApiError('server_error', `${motivo} Nada foi gravado: pode tentar de novo.`, detalhe);
+  };
+
+  // As equipes vão em paralelo: 6 updates sequenciais numa sala com rede ruim
+  // eram 6 voltas de ida e ida. O estado anterior de cada uma vai junto, para
+  // que a compensação saiba o que restaurar.
+  const escritas = await Promise.all(
+    pendentes.map((pendente) =>
+      db()
+        .from('teams')
+        .update(teamUpdateFrom(pendente.depois))
+        .eq('id', pendente.teamId)
+        .select('id'),
+    ),
+  );
+
+  const falhou = escritas.findIndex((escrita) => escrita.error);
+  if (falhou >= 0) {
+    // Restaura só as que chegaram a gravar, na ordem inversa.
+    await Promise.all(
+      escritas
+        .map((escritura, indice) => (escritura.error || !escritura.data ? null : pendentes[indice]))
+        .filter((pendente): pendente is FechamentoPendente => pendente !== null)
+        .reverse()
+        .map((pendente) => db().from('teams').update(teamUpdateFrom(pendente.antes)).eq('id', pendente.teamId)),
+    );
+
+    return devolveAReivindicacao(
+      'Falha ao atualizar os indicadores de uma equipe.',
+      escritas[falhou]!.error?.message ?? 'erro desconhecido',
+    );
+  }
+
+  const updated = await db()
+    .from('games')
+    .update({ round_status: 'resolved' })
+    .eq('id', gameId)
+    .select('*')
+    .maybeSingle();
+
+  if (updated.error || !updated.data) {
+    // `games` não mudou, então basta devolver a reivindicação: nada a
+    // compensar, porque a única escrita de estado que resta é este update.
+    return devolveAReivindicacao(
+      'Falha ao marcar a rodada como resolvida.',
+      updated.error?.message ?? 'Partida não encontrada.',
+    );
+  }
+
+  const gameResolvida = updated.data as GameRow;
 
   await emit(gameId, 'EVENT_RESOLVED', { roundIndex: round.index, phase: round.phase });
   await emit(gameId, 'ROUND_ENDED', {
@@ -1314,7 +1399,7 @@ export async function resolveRound(
     isLastRound: round.index >= TOTAL_ROUNDS,
   });
 
-  return { game: updated, outcomes };
+  return { game: gameResolvida, outcomes };
 }
 
 // ---------------------------------------------------------------------------
