@@ -1,168 +1,101 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { browserClient } from '@/lib/supabase';
-import type { RealtimeEventType } from '@/types/game';
 
 /**
- * Assinatura realtime da partida.
+ * Polling leve para substituir o canal Realtime no plano gratuito do Supabase.
  *
- * Arquitetura de eventos, não de estado: o servidor grava um fato em
- * `game_events` ("a rodada 2 começou") e quem está assinando reage buscando o
- * que precisa. Não existe polling e não se transmite a partida inteira a cada
- * mudança, que é justamente o que estoura a cota do plano gratuito com trinta
- * alunos conectados.
+ * O limite de 50 conexões WebSocket simultâneas estourava com 30–60 alunos.
+ * Esta versão faz GET /api/player/view a cada 5 s (configurável) e expõe o
+ * mesmo `realtimeStatus` que a UI já consome ('connected' | 'reconnecting').
  *
- * A conexão também vigia mudanças em `teams`, porque indicador é o dado que a
- * interface precisa refletir na hora, sem esperar uma releitura completa.
- *
- * O hook devolve `realtimeStatus`: o estado do canal. O Supabase religa
- * sozinho (reconnectAfterMs) e a interface consegue dizer "RECONECTANDO…"
- * em vez de desenhar dados velhos como se fossem vivos — o Wi-Fi de sala de
- * aula cai, a honestidade sobre a conexão não cai junto.
+ * Callbacks `onEvent` / `onTeamUpdate` são invocados a cada ciclo bem‑sucedido
+ * para que a página continue chamando `scheduleRefresh()` – zero mudança
+ * na camada de apresentação.
  */
 
 export type RealtimeStatus = 'connecting' | 'connected' | 'reconnecting';
 
 export interface GameChannelEvent {
   id: number;
-  type: RealtimeEventType;
+  type: string;
   payload: Record<string, unknown>;
   createdAt: string;
 }
 
 interface Options {
   gameId: string | null;
-  /** Chamado a cada evento novo do barramento. */
   onEvent?: (event: GameChannelEvent) => void;
-  /** Chamado quando qualquer indicador de equipe muda. */
   onTeamUpdate?: () => void;
+  /** Intervalo de polling em ms (default 5 s). */
+  intervalMs?: number;
 }
 
-export function useGameChannel({ gameId, onEvent, onTeamUpdate }: Options) {
-  // Callbacks em ref: mudar handler não deve derrubar e recriar o canal.
+export function useGameChannel({
+  gameId,
+  onEvent,
+  onTeamUpdate,
+  intervalMs = 5000,
+}: Options) {
   const eventRef = useRef(onEvent);
   const teamRef = useRef(onTeamUpdate);
-
-  // Estado da conexão: quem assina decide o que desenhar (AO VIVO /
-  // RECONECTANDO…). Só muda dentro do callback do `.subscribe`, que é evento
-  // assíncrono — nunca setState síncrono no corpo do efeito.
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
 
-  // Coalesce: evita rajada de refreshes (resolve_round → 6 updates de team).
-  // Um timer único agrupa todos os onTeamUpdate em 1 chamada em ~400ms.
-  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingTeamRef = useRef(false);
-
-  // A sincronização das refs acontece depois da renderização, nunca durante.
+  // mantém callbacks atuais sem recriar efeito
   useEffect(() => {
     eventRef.current = onEvent;
     teamRef.current = onTeamUpdate;
-  });
+  }, [onEvent, onTeamUpdate]);
 
   useEffect(() => {
     if (!gameId) return;
 
     let cancelled = false;
-    const supabase = browserClient();
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const flushTeam = () => {
-      if (cancelled || !pendingTeamRef.current) return;
-      pendingTeamRef.current = false;
-      teamRef.current?.();
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        // A página já sabe o token (via playerSession) e fará a leitura real
+        // ao receber o callback. Aqui só avisamos que "há dado novo".
+        eventRef.current?.({
+          id: Date.now(),
+          type: 'poll',
+          payload: {},
+          createdAt: new Date().toISOString(),
+        });
+        teamRef.current?.();
+        setRealtimeStatus('connected');
+      } catch {
+        setRealtimeStatus('reconnecting');
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(tick, intervalMs);
+        }
+      }
     };
 
-    const channel = supabase
-      .channel(`game:${gameId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'game_events',
-          filter: `game_id=eq.${gameId}`,
-        },
-        (message) => {
-          const row = message.new as {
-            id: number;
-            type: RealtimeEventType;
-            payload: Record<string, unknown>;
-            created_at: string;
-          };
-
-          if (cancelled) return;
-          eventRef.current?.({
-            id: row.id,
-            type: row.type,
-            payload: row.payload ?? {},
-            createdAt: row.created_at,
-          });
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'teams',
-          filter: `game_id=eq.${gameId}`,
-        },
-        () => {
-          if (cancelled) return;
-          pendingTeamRef.current = true;
-          if (!refreshTimerRef.current) {
-            refreshTimerRef.current = setTimeout(() => {
-              refreshTimerRef.current = null;
-              flushTeam();
-            }, 400);
-          }
-        },
-      )
-      .subscribe((status) => {
-        if (cancelled) return;
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('connected');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          // O Supabase tenta religar sozinho; aqui avisamos quem está olhando.
-          setRealtimeStatus('reconnecting');
-        }
-      });
+    // primeira execução imediata
+    tick();
 
     return () => {
       cancelled = true;
-      if (refreshTimerRef.current) {
-        clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-      void supabase.removeChannel(channel);
+      if (timer) clearTimeout(timer);
     };
-  }, [gameId]);
+  }, [gameId, intervalMs]);
 
-  // Os consumidores existentes ignoram o retorno: adicionar o objeto não
-  // quebra nenhum caller (`useGameChannel({...})` sem destruturação).
   return { realtimeStatus };
 }
 
 /**
- * Cronômetro da rodada.
- *
- * O relógio de referência é o do servidor (`endsAt`), não o do dispositivo:
- * celular com hora errada não ganha nem perde tempo de decisão. O tique local
- * só serve para desenhar a contagem.
+ * Cronômetro da rodada (inalterado).
  */
 export function useRoundTimer(endsAt: string | null, active: boolean) {
   const enabled = Boolean(endsAt) && active;
 
-  /**
-   * O relógio é uma fonte externa mutável, e é assim que o React quer que ele
-   * seja lido: `useSyncExternalStore` assina o tique e devolve o instante atual
-   * sem guardar contagem em estado (que envelheceria) e sem ler o relógio
-   * durante a renderização (que não é função pura).
-   */
   const subscribe = useCallback(
     (onChange: () => void) => {
       if (!enabled) return () => undefined;
-
       const interval = window.setInterval(onChange, 1000);
       return () => window.clearInterval(interval);
     },
@@ -172,7 +105,6 @@ export function useRoundTimer(endsAt: string | null, active: boolean) {
   const nowSeconds = useSyncExternalStore(
     subscribe,
     () => Math.floor(Date.now() / 1000),
-    // No servidor não existe relógio do cliente: 0 sinaliza "ainda sem tempo".
     () => 0,
   );
 
@@ -189,3 +121,4 @@ export function formatClock(seconds: number | null): string {
   const rest = seconds % 60;
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
+

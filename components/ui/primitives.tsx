@@ -4,6 +4,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react
 import {
   CanalArco,
   CanalIcone,
+  CanalTrilha,
   GAUGE_LABEL,
   GAUGE_TERRACO,
   useCountUp,
@@ -333,6 +334,10 @@ export function Meter({
     como "R$ 76.000" em 64px não cabe num círculo de 108px).
   */
   if (size === 'projecao') {
+    // Versão lean para projeção: usa CanalTrilha (barra transform‑only) em vez do
+    // CanalArco (SVG com 20 nós + ticks). Mantém ícone + trilha + número,
+    // cumprindo o contrato (forma + proporção + valor) e cai de ~20 nós
+    // para ~4 nós por medidor na projeção.
     return (
       <div
         className="flex min-w-0 flex-wrap items-center gap-5"
@@ -343,15 +348,19 @@ export function Meter({
         aria-label={`${label}: ${display}`}
         aria-valuetext={display}
       >
-        <CanalArco kind={kind} value={pct} size="projecao">
+        <div className="flex items-center gap-4 min-w-0">
           <CanalIcone kind={kind} size="projecao" />
-        </CanalArco>
+          <CanalTrilha
+            kind={kind}
+            value={pct}
+            size="projecao"
+            className="w-full max-w-[260px] h-6"
+          />
+        </div>
 
         {/*
           `flex-wrap` no pai + `whitespace-nowrap` aqui: a coluna do número só
-          desce para baixo do anel quando não cabe ao lado. Sem o wrap, uma
-          cifra como "R$ 76.000" a 64px fixava a largura mínima do filho e
-          empurrava a linha inteira para fora da tela.
+          desce para baixo da trilha quando não cabe ao lado.
         */}
         <div className="flex min-w-0 flex-col gap-1">
           <span className="rotulo">{label}</span>

@@ -1,31 +1,48 @@
-# SAFRA DF · contexto do projeto
+# Contexto do Projeto SAFRA DF (atualizado 2026-09-30)
 
-Stack real (não presumir): Next.js 16.3.4 + React 19.2.8 + Tailwind CSS v4 (`@import 'tailwindcss'`, tokens em `@theme` no `globals.css`) + zod 4 + @supabase/supabase-js 2 + lucide-react. Testes: vitest (lógica server-side); typecheck via `tsc --noEmit`; lint eslint; build `next build` (turbopack, `next.config.ts` fixa root no diretório do projeto).
+## Stack
+- Next.js 16.3.4 (App Router, Turbopack)
+- React 19, TypeScript strict, Tailwind v4 (CSS-first, `@theme`)
+- Supabase (Auth + Postgres + Realtime), lucide-react
+- Vitest + Playwright, ESLint, `npm run verify` = typecheck+lint+test+build
 
-Projeto físico: `C:\Users\pedro.leal\Documents\teste2\safra-df` (monorepo aninhado; o lockfile de `teste2` pertence a OUTRO projeto — nunca rodar npm na raiz).
+## Decisões de Arquitetura (ADR-style)
+- **Contrato Visual V6 "Amanhecer do Cerrado"** — `docs/CONTRATO-VISUAL.md` + `DIRECAO-VISUAL-V6.md` são a fonte de verdade. Tokens V5 **não** são recriados; call sites migram para tokens vivos.
+- **Sistema de Degrau** (globals.css:146-149): `banco`(10px) → `terraco`(12px) → `mirante`(14px). Mais alto = mais redondo. Parede só embaixo (4px), nunca borda 4 lados.
+- **Orçamento SVG** (CONTRATO-VISUAL.md:133-135): ~45 nós/cena propriedade, ~75/tela projeção. `scripts/svg-node-budget.tsx` mede no DOM real (Playwright) e reprova se estourar.
+- **Animação**: só `transform`/`opacity` (CONTRATO §39). `height`/`width` animados = reflow = proibido.
+- **Alvos de toque**: mínimo 44px (WCAG 2.5.5). `Button` usa `min-h-12/14/16` por variante.
+- **Safe-area**: `env(safe-area-inset-*)` habilitado globalmente (`viewportFit: cover`). Aplicado em fixos (ThemeToggle, CTA, overlay).
 
-IMPORTANTE (AGENTS.md do projeto): Next.js 16 difere do conhecimento de treinamento — ler `node_modules/next/dist/docs/` antes de escrever código novo. Componentes `'use client'` ficam como estão: libs/`types/`/`data/`/`hooks/` NÃO são tocados em redesign visual.
+## Padrões Obrigatórios
+- **Meter/CanalTrilha/CanalArco/CanalIcone** = primitivos de indicador. `Meter` expõe `role="meter"` + `aria-valuetext={display}` (ex.: "R$ 45.000").
+- **Pill** = 4 tons semânticos (`neutro`/`ativo`/`pronto`/`alerta`). `AwardPill` custom usa cor do indicador via `GAUGE_INK`.
+- **Radiogroup real** para escolha única: `role="radiogroup"` + `role="radio" aria-checked` + navegação por setas. NÃO botões soltos com `aria-pressed`.
+- **Dialog modal**: focus trap nativo, foco inicial, devolução, `Esc` fecha, `aria-labelledby` para título visual.
+- **Timer**: `aria-live="off"` no container; anúncios SÓ em transições ("Últimos 10s", "Tempo encerrado") via `role="status" aria-live="assertive"` oculto.
+- **Botão indisponível**: `aria-disabled="true" tabIndex={0} aria-describedby={motivoId}` — NÃO `disabled` (remove do AT sem explicar).
 
-Jogo: 1 professor + até ~30 alunos por turma, até 100 simultâneos no pico. 6 propriedades, ~5 jogadores por equipe, 5 rodadas, 4 indicadores (finanças/cash, produção/production, tecnologia/technology, sustentabilidade/sustainability). Comunicação por eventos realtime (`use-game-channel`), nada de polling.
+## Otimizações de Performance (Wave 2)
+- `game/finance-index.ts` — módulo folha (0 imports) para `financeIndex`/`clampIndex`; `engine.ts` reexporta.
+- `next/dynamic` com `ssr: false` para `OficinaPlayerApp` e `OficinaTeacherPanel` — carregam sob demanda.
+- `optimizePackageImports: ['@supabase/supabase-js', 'lucide-react']` — Supabase não elegível (0 ganho medido, comentado).
+- `onEvent`/`onTeamUpdate` coalesce 400ms + guarda de geração (`requestSeqRef`) — elimina GETs redundantes.
+- `-112,7 KB` JS inicial em `/jogar` (1051→939 KB raw, -10,7%).
 
-## Direção visual
+## Redução de Nós SVG (Wave 2)
+- `PropertyScene`: vegetação 24→10, plantio 12→7 → típico 37, máximo 45 (no teto).
+- `Meter compacto`: 16→4 nós (CanalArco→CanalTrilha HTML).
+- `CanalArco compacto`: 12→0 (removido de propósito).
+- Projeção: 666→408 (ainda >75; peso residual em `FocusTeamBoard` + 4 `CanalArco projecao` + ícones lucide dentro dos medidores).
 
-**V6 "Amanhecer do Cerrado"** (deste redesign; criada 2026-09-11). Ver `docs/DIRECAO-VISUAL-V6.md` e `.agents/memoria/decisoes.md`. Evolução: V3 Bento → V4 Noite de Cerrado → V5 Painel de Silo (aço frio, "correto mas sem brilho") → V6 Amanhecer do Cerrado (luz, calor, atmosfera; física de painel preservada).
+## O que NÃO Mexer (já no padrão)
+- `CerradoLandscape` no SSR de `/` e `/entrar` (ambientação = produto).
+- `OpeningSequence` animada (a paisagem É o produto ali).
+- `PropertyScene` compacta 32×32px em cards de seleção `/entrar`.
+- Sistema de tokens, degrau, primitivos — todos validados por `svg:budget` + `typecheck`.
 
-Regras de ouro do visual:
-- física `.degrau`/`banco`/`terraco`/`mirante` + famílias `terr-*` são CONTRATO: nomes e semântica inalteráveis.
-- movimento só `transform`/`opacity`. Laços infinitos permitidos APENAS nas classes de ambiência (`animate-amanhecer`, `animate-voo`, `animate-balanco`, `animate-nuvem`, `animate-cintilar`) e sempre em superfície cênica, nunca em painel de dado.
-- `prefers-reduced-motion` já é resolvido globalmente; não duplicar.
-- zero imagem, zero vídeo, zero WebGL, zero biblioteca de animação nova; SVG/CSS puro.
-- tipografia: Oswald (display/caixa alta), Manrope (corpo), JetBrains Mono (números/rótulos). Não trocar.
-- dourado (`financas`) é o acento quente reservado: CTA primário e destaque; `amanhecer` é atmosfera, nunca indicador.
-- contraste: texto sobre painel tingido usa sempre a variante CLARA (300/700) — lição da V5, nunca `-800` como texto sobre prato tingido.
-
-## Serviços e pontos de atenção
-
-- `npm run verify` = typecheck + lint + test + build (gate de entrega).
-- Nenhuma chave de ambiente necessária para typecheck/build (Supa é runtime; `smoke-live` sim, mas exige `.env.local`).
-- Copy em pt-BR; nunca rotular decisão como certa/errada/parabéns; jogo é diagnóstico pedagógico.**V6.3 - Tema claro + ticker + COMO FUNCIONA** (2026-09-11). Ver `decisoes.md` D-07. Tema por troca de tokens (`[data-tema="claro"]` no fim do globals.css): superfícies/tintas invertem, cena (`--cor-cena-*`) e consoles fixos não. `components/ui/theme-toggle.tsx` (uSES + localStorage + anti-FOUC no layout), presente em home/entrar/admin. Landing ganhou fita ticker (`ticker-rola` em globals.css) + banda "COMO FUNCIONA". Texto sobre cena: `.sobre-cena*`; texto sobre console: `--cor-tinta-panel*`.
-**Relatório final:** `docs/RELATORIO-FINAL.md` (2026-09-11) — escolhas V6.1-V6.3, retrospectiva (o que faria melhor: testar ambiente do usuário antes da entrega, uSES getServerSnapshot, contraste misto por construção), políticas públicas (crédito condicional ABC+/PSA-DF/ATER/outorga simplificada/PNAE/educação ambiental) + tecnologias (NDVI para targeting, sensores de umidade, conectividade rural) + plano de IA+RAG em 3 fases (Fase 1 pós-partida com fatos da partida como contexto; vetores pgvector no Supabase; citação obrigatória; nunca estratégia ótima nem substituir professor).
-
-**Fase 1 de IA ENTREGUE (2026-09-11):** roteiro de debate pós-partida (`lib/gemini.ts` + rota `POST /api/host/[gameId]/debate` + painel no Bloco 5 do resultado). Disciplina de cota: 1 chamada Gemini por partida (cache na tabela `debate_prep` — migration em `supabase/migrations/0001_debate_prep.sql`, COPIAR no Supabase), singleflight em memória p/ clique duplo, timeout 25s, sem retry em 429, `maxOutputTokens 1500` (3.6-flash consome saída com "pensamento" antes do texto), snapshot JSON compacto (<7k chars). Modelo obrigatório: **gemini-3.6-flash** (2.5-flash deprecado p/ chaves novas — 404 validado ao vivo). Chave em `.env.local` (`GEMINI_API_KEY`, `GEMINI_MODEL`). Teste puro em `tests/gemini.test.ts`. Gate `npm run verify` verde.
+## Pendências Conhecidas
+1. **Projeção em 408 nós** (orçamento 75) — requer mexer em `FocusTeamBoard`/`TeamRow`/`primitives.tsx` (ícones lucide dentro de `Meter projecao` = 80 nós).
+2. **Supabase barrel 239,8 KB** — `optimizePackageImports` não elegível; avaliar import estreito em `lib/supabase.ts` se crítico.
+3. **Safe-area real** — Chromium headless devolve 0; teste em dispositivo com notch/barra gestos obrigatório antes de deploy.
+4. **`OpeningSequence` focus trap** validado em código; teste com leitor de tela real (NVDA/VoiceOver) pendente.
