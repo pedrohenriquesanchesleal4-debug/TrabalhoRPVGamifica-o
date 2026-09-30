@@ -308,7 +308,7 @@ function CreateGameScreen({
                   mode === 'diagnostico' ? 'mirante terr-azul' : 'banco terr-claro',
                 ].join(' ')}
               >
-                <Activity size={18} className={mode === 'diagnostico' ? 'text-azul-200' : 'text-terra-500'} aria-hidden />
+                <Activity size={18} className={mode === 'diagnostico' ? 'text-azul-300' : 'text-terra-500'} aria-hidden />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className={mode === 'diagnostico' ? 'relevo-sm text-white' : 'relevo-sm text-terra-900'}>
                     Diagnóstico Safra
