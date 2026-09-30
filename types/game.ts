@@ -369,7 +369,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   initialBudget: 80_000,
   roundSeconds: 180,
   teamCount: 6,
-  maxPlayersPerTeam: 6,
+  maxPlayersPerTeam: 10,
   weights: { finances: 25, production: 25, technology: 20, sustainability: 30 },
 };
 
