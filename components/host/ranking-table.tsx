@@ -1,5 +1,6 @@
 import { Award as AwardIcon, Trophy } from 'lucide-react';
-import { Degrau, Pill, Rotulo, formatMoney } from '@/components/ui/primitives';
+import { Degrau, Rotulo, formatMoney } from '@/components/ui/primitives';
+import { GAUGE_INK, type IndicatorKind } from '@/components/ui/gauges';
 import { PROPERTY_BY_KEY } from '@/data/properties';
 import {
   AWARD_META,
@@ -10,6 +11,20 @@ import {
   type TeamProfile,
 } from '@/types/game';
 import type { HostView } from '@/lib/game-service';
+
+/**
+ * Mapeia cada prêmio ao indicador (kind) que ele representa, para tingir a
+ * pílula com a cor correta do sistema de indicadores.
+ */
+const AWARD_KIND: Record<Award, IndicatorKind> = {
+  best_finance: 'financas',
+  best_production: 'producao',
+  best_technology: 'tecnologia',
+  best_sustainability: 'sustentabilidade',
+  most_balanced: 'financas',      // dourado como "equilíbrio geral"
+  best_recovery: 'financas',      // recuperação de caixa = finanças
+  best_opportunist: 'producao',   // aproveitamento = produção
+};
 
 /**
  * Tabela de ranking final, para projeção.
@@ -65,6 +80,26 @@ function IndicatorRow({
   );
 }
 
+/** Pílula de prêmio com a cor do indicador correspondente. */
+function AwardPill({ award }: { award: Award }) {
+  const meta = AWARD_META[award];
+  const kind = AWARD_KIND[award];
+  return (
+    <span
+      className={[
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1',
+        'font-mono text-[0.6875rem] font-bold uppercase tracking-[0.12em]',
+        `bg-[var(--color-${kind}-300)]`,
+        GAUGE_INK[kind],
+        'normal-case tracking-normal',
+      ].join(' ')}
+    >
+      <AwardIcon size={13} aria-hidden />
+      {meta.label}
+    </span>
+  );
+}
+
 function AwardRow({ awards }: { awards: string[] }) {
   const known = awards.filter(isAward);
   if (known.length === 0) {
@@ -78,10 +113,7 @@ function AwardRow({ awards }: { awards: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {known.map((award) => (
-        <Pill key={award} tone="pronto" className="normal-case tracking-normal">
-          <AwardIcon size={13} aria-hidden />
-          {AWARD_META[award].label}
-        </Pill>
+        <AwardPill key={award} award={award} />
       ))}
     </div>
   );
@@ -105,67 +137,100 @@ export function RankingTable({
   return (
     <div className="flex flex-col gap-8">
       {champion ? (
-        <Degrau nivel="mirante" familia="fundo-verde" className="flex flex-col gap-5 p-6 sm:p-8">
+        <Degrau nivel="terraco" familia="financas" className="flex flex-col gap-5 p-6 sm:p-8">
           <article aria-label={`Campeã: ${champion.teamName}`} className="flex flex-col gap-5">
-            <Rotulo className="text-verde-300">
+            <Rotulo className="text-financas-texto">
               {PROPERTY_BY_KEY[propertyByTeam[champion.teamId] ?? '']?.region ?? '1º lugar'}
             </Rotulo>
-            <h2 className="relevo-xl text-white">{champion.teamName}</h2>
+            <h2 className="relevo-xl text-terra-900">{champion.teamName}</h2>
 
             <div className="flex items-baseline gap-3">
-              <Rotulo className="text-verde-300">Índice composto</Rotulo>
-              <span className="dado-xl text-white">{Math.round(champion.composite)}</span>
+              <Rotulo className="text-financas-texto">Índice composto</Rotulo>
+              <span className="dado-xl text-terra-900">{Math.round(champion.composite)}</span>
             </div>
 
             {isTeamProfile(champion.profile) ? (
-              <p className="text-lg text-verde-300">
-                <span className="font-bold text-white">{PROFILE_META[champion.profile].label}:</span>{' '}
+              <p className="text-lg text-financas-texto">
+                <span className="font-bold text-terra-900">{PROFILE_META[champion.profile].label}:</span>{' '}
                 {PROFILE_META[champion.profile].description}
               </p>
             ) : null}
 
-            <IndicatorRow score={champion} onDark />
+            <IndicatorRow score={champion} />
             <AwardRow awards={champion.awards} />
           </article>
         </Degrau>
       ) : null}
 
       {rest.length > 0 ? (
-        <ol className="flex flex-col gap-3">
-          {rest.map((score) => {
-            const property = PROPERTY_BY_KEY[propertyByTeam[score.teamId] ?? ''];
-            const profile = isTeamProfile(score.profile) ? PROFILE_META[score.profile] : null;
+        <table className="w-full border-collapse">
+          <caption className="sr-only">Ranking final da partida</caption>
+          <thead>
+            <tr className="border-b-2 border-nevoa-200">
+              <th scope="col" className="text-left py-2 px-1 text-sm font-bold text-terra-500">Pos.</th>
+              <th scope="col" className="text-left py-2 px-1 text-sm font-bold text-terra-500">Equipe</th>
+              <th scope="col" className="text-right py-2 px-1 text-sm font-bold text-terra-500">Índice</th>
+              <th scope="col" className="text-right py-2 px-1 text-sm font-bold text-terra-500">Finanças</th>
+              <th scope="col" className="text-right py-2 px-1 text-sm font-bold text-terra-500">Produção</th>
+              <th scope="col" className="text-right py-2 px-1 text-sm font-bold text-terra-500">Tecnologia</th>
+              <th scope="col" className="text-right py-2 px-1 text-sm font-bold text-terra-500">Sustentab.</th>
+              <th scope="col" className="text-left py-2 px-1 text-sm font-bold text-terra-500">Prêmios</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-nevoa-200">
+            {rest.map((score) => {
+              const property = PROPERTY_BY_KEY[propertyByTeam[score.teamId] ?? ''];
+              const profile = isTeamProfile(score.profile) ? PROFILE_META[score.profile] : null;
+              const isSecond = score.rank === 2;
+              const isThird = score.rank === 3;
 
-            return (
-              <li key={score.teamId} className="degrau banco terr-neutro flex flex-col gap-3 p-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <span className="dado-lg w-10 shrink-0 text-terra-500">{score.rank}</span>
+              return (
+                <tr key={score.teamId} className={['degrau banco', isSecond || isThird ? 'filete-amanhecer' : '', 'terr-neutro'].join(' ')}>
+                  <td className="py-3 px-1">
+                    <span className="dado-lg text-terra-500">{score.rank}</span>
+                    {(isSecond || isThird) && (
+                      <Rotulo className="text-financas-texto mt-1 block">
+                        {isSecond ? '2º LUGAR' : '3º LUGAR'}
+                      </Rotulo>
+                    )}
+                  </td>
+                  <td className="py-3 px-1">
                     <div className="flex flex-col gap-0.5">
                       <Rotulo>{property?.region ?? 'Propriedade'}</Rotulo>
                       <h3 className="relevo-sm text-terra-900">{score.teamName}</h3>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-0.5">
-                    <Rotulo>Índice composto</Rotulo>
+                  </td>
+                  <td className="py-3 px-1 text-right">
                     <span className="dado-lg text-terra-900">{Math.round(score.composite)}</span>
-                  </div>
-                </div>
-
-                {profile ? (
-                  <p className="text-sm text-terra-700">
-                    <span className="font-bold text-terra-900">{profile.label}:</span>{' '}
-                    {profile.description}
-                  </p>
-                ) : null}
-
-                <IndicatorRow score={score} />
-                <AwardRow awards={score.awards} />
-              </li>
-            );
-          })}
-        </ol>
+                  </td>
+                  <td className="py-3 px-1 text-right">
+                    <span className="dado text-terra-900">{formatMoney(score.finances)}</span>
+                  </td>
+                  <td className="py-3 px-1 text-right">
+                    <span className="dado text-terra-900">{Math.round(score.production)}</span>
+                  </td>
+                  <td className="py-3 px-1 text-right">
+                    <span className="dado text-terra-900">{Math.round(score.technology)}</span>
+                  </td>
+                  <td className="py-3 px-1 text-right">
+                    <span className="dado text-terra-900">{Math.round(score.sustainability)}</span>
+                  </td>
+                  <td className="py-3 px-1">
+                    <div className="flex flex-wrap gap-1.5">
+                      {profile ? (
+                        <p className="text-sm text-terra-700 w-full">
+                          <span className="font-bold text-terra-900">{profile.label}:</span>{' '}
+                          {profile.description}
+                        </p>
+                      ) : null}
+                      <AwardRow awards={score.awards} />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       ) : null}
     </div>
   );

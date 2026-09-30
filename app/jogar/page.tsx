@@ -423,6 +423,8 @@ function GameBody({
 
   return (
     <div className="flex flex-1 flex-col gap-5">
+      {/* h1 sr-only para leitores de tela: contexto da partida sem poluir visual. */}
+      <h1 className="sr-only">Partida SAFRA DF — Rodada {view.game.currentRound} de {TOTAL_ROUNDS}</h1>
       {/* Cabeçalho compacto: propriedade à esquerda, rodada + timer à direita. */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">

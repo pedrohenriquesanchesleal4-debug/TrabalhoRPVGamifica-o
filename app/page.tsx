@@ -41,8 +41,9 @@ export default function HomePage() {
         {/* Overlay escuro sutil para garantir leitura do texto (fixo nos dois temas) */}
         <div className="pointer-events-none absolute inset-0 z-[1] bg-[#0d0f0b]/45" />
 
-        {/* Alternador de tema: canto do hero, acima da cena. */}
-        <ThemeToggle className="absolute right-5 top-5 z-[3] sm:right-8 sm:top-7" />
+        {/* Alternador de tema: canto do hero, acima da cena.
+       safe-area-inset evita notch/barra de gestos no celular do aluno. */}
+        <ThemeToggle className="absolute right-[env(safe-area-inset-right,1.25rem)] top-[env(safe-area-inset-top,1.25rem)] z-[3] sm:right-8 sm:top-7" />
 
         {/* Conteúdo: posicionado sobre o cenário */}
         <div className="relative z-[2] flex min-h-[92dvh] flex-col justify-end px-5 pb-12 pt-24 sm:px-8 sm:pb-16 sm:pt-28 lg:mx-auto lg:max-w-6xl lg:px-8">
@@ -243,7 +244,7 @@ export default function HomePage() {
 
           <Link
             href="/admin"
-            className="rotulo text-(--cor-tinta-panel-verde) hover:opacity-80"
+            className="rotulo min-h-11 px-3 flex items-center text-(--cor-tinta-panel-verde) hover:opacity-80"
           >
             Sou professor · criar partida
           </Link>

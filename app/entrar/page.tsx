@@ -176,7 +176,7 @@ export default function EntrarPage() {
         <CerradoLandscape className="opacity-75" />
         <div aria-hidden="true" className="absolute inset-0" style={{ background: CENARIO_OVERLAY }} />
 
-        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col justify-end gap-7 px-5 py-8 sm:px-6 md:max-w-3xl md:justify-center md:py-12">
+<div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col justify-end gap-7 px-5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-8 sm:px-6 md:max-w-3xl md:justify-center md:py-12">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:gap-8">
             <div className="flex flex-col gap-3 md:w-2/5 md:shrink-0">
               <div className="degrau terraco terr-fundo-azul flex items-center gap-4 px-5 py-5 animate-emergir">
@@ -230,7 +230,7 @@ export default function EntrarPage() {
       <CerradoLandscape className="opacity-75" />
       <div aria-hidden="true" className="absolute inset-0" style={{ background: CENARIO_OVERLAY }} />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col justify-end gap-7 px-5 py-8 sm:px-6 md:max-w-3xl md:justify-center md:py-12">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col justify-end gap-7 px-5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-8 sm:px-6 md:max-w-3xl md:justify-center md:py-12">
         <div className="flex items-center gap-3">
           <span className="w-8 shrink-0 motion-safe:animate-emergir">
             <PropertyScene compact propertyKey="cerrado-vivo" production={55} technology={45} sustainability={60} />

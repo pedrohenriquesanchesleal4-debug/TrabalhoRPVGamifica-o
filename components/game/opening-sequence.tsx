@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { formatMoney } from '@/components/ui/primitives';
 import type { PropertyProfile } from '@/types/game';
 import { CerradoLandscape } from '@/components/game/cerrado-landscape';
@@ -98,12 +98,71 @@ export function OpeningSequence({
     },
   ];
 
+  // Guarda o elemento que tinha foco antes de abrir o dialog para devolver depois.
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const skipButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Focus trap nativo: captura Tab/Shift+Tab e cicla dentro do dialog.
+   * Foco inicial no botão "PULAR/SEGUIR"; Esc chama onDone().
+   */
+  useEffect(() => {
+    previousActiveElementRef.current = document.activeElement as HTMLElement;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onDone();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (!focusableElements || focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey) {
+        if (document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    const dialog = dialogRef.current;
+    dialog?.addEventListener('keydown', handleKeyDown);
+
+    // Foco inicial no botão de pular/seguir
+    skipButtonRef.current?.focus();
+
+    return () => {
+      dialog?.removeEventListener('keydown', handleKeyDown);
+      // Devolve foco ao elemento anterior ao fechar
+      if (previousActiveElementRef.current) {
+        previousActiveElementRef.current.focus();
+      }
+    };
+  }, [onDone]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-center bg-nevoa-50 overflow-hidden"
+      ref={dialogRef}
+      className="fixed inset-0 z-50 flex flex-col justify-center bg-nevoa-50 overflow-hidden pb-[env(safe-area-inset-bottom)]"
       role="dialog"
       aria-modal="true"
-      aria-label="Abertura da partida"
+      aria-labelledby="opening-title"
     >
       {/* Paisagem do Cerrado ao fundo: opacidade baixa, só atmosfera, não compete com texto. */}
       <CerradoLandscape className="opacity-40" />
@@ -113,6 +172,7 @@ export function OpeningSequence({
         {layers.map((layer, index) => (
           <p
             key={layer.text}
+            id={layer.text === 'Uma nova safra começa.' ? 'opening-title' : undefined}
             className={
               reducedMotion
                 ? layer.className
@@ -142,6 +202,7 @@ export function OpeningSequence({
         />
 
         <button
+          ref={skipButtonRef}
           type="button"
           onClick={onDone}
           className="degrau banco pisavel terr-financas mt-1 inline-flex min-h-11 items-center px-4 text-sm font-bold text-terra-900"

@@ -143,13 +143,10 @@ export default function ResultadoPage() {
 
   return (
     <main className="relative mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 px-8 py-10 overflow-hidden">
-      {/* Paisagem atmosférica: fundo cênico de amanhecer, baixa opacidade. */}
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-15">
+      {/* Paisagem atmosférica: fundo cênico de amanhecer, opacidade 25%. */}
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-25">
         <CerradoLandscape />
       </div>
-
-      {/* Overlay escuro sutil para garantir leitura do texto sobre a paisagem. */}
-      <div className="pointer-events-none fixed inset-0 z-[1] bg-nevoa-50/50" />
 
       {/* Conteúdo acima da paisagem. */}
       <div className="relative z-[2] flex flex-col gap-8">
@@ -276,7 +273,7 @@ export default function ResultadoPage() {
             ) : (
               <ul className="flex flex-col gap-4">
                 {view.policyConnections.map((connection) => (
-                  <li key={connection.tag} className="degrau terraco terr-neutro flex flex-col gap-3 p-5">
+                  <li key={connection.tag} className="degrau banco terr-neutro flex flex-col gap-3 p-5">
                     <div className="flex items-start gap-3">
                       <Landmark className="mt-1 shrink-0 text-financas-texto" size={20} aria-hidden />
                       <div className="flex flex-col gap-1">
@@ -341,8 +338,8 @@ export default function ResultadoPage() {
             </span>
             <div className="flex w-full max-w-3xl flex-col gap-4">
               {debate === null ? (
-                <div className="degrau terraco terr-verde flex flex-col items-center gap-4 p-6 text-center">
-                  <Rotulo className="text-verde-300">Apoio para a mediação</Rotulo>
+                <div className="degrau terraco terr-financas flex flex-col items-center gap-4 p-6 text-center">
+                  <Rotulo className="text-financas-texto">Apoio para a mediação</Rotulo>
                   <p className="max-w-xl text-base leading-[1.6] text-terra-900">
                     O jogo guardou tudo o que a turma decidiu. Com um clique, a IA monta um roteiro
                     de fala de abertura, pontos para sustentar e perguntas para a sala — ancorado
@@ -368,9 +365,9 @@ export default function ResultadoPage() {
                   </p>
                 </div>
               ) : (
-                <div className="degrau terraco terr-verde flex flex-col gap-5 p-6 text-left">
+                <div className="degrau terraco terr-financas flex flex-col gap-5 p-6 text-left">
                   <div className="flex flex-col gap-2">
-                    <Rotulo className="text-verde-300">Roteiro do professor</Rotulo>
+                    <Rotulo className="text-financas-texto">Roteiro do professor</Rotulo>
                     <p className="text-xs text-terra-700">
                       Gerado por {debate.modelo} com os dados desta partida · usado uma única vez.
                       {debate.materialUsado
