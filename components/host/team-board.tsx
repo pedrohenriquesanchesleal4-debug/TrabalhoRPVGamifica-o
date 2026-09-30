@@ -150,6 +150,7 @@ export function FocusTeamBoard({
           production={team.state.production}
           technology={team.state.technology}
           sustainability={team.state.sustainability}
+          compact
           className="w-full"
         />
 
