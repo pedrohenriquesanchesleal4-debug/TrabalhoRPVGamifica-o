@@ -6,6 +6,7 @@ import {
   Building2,
   Check,
   Home,
+  Lock,
   MessageCircle,
   Search,
   ShoppingBag,
@@ -16,15 +17,24 @@ import {
   Wrench,
   Warehouse,
 } from 'lucide-react';
-import {
-  executarOficinaAcao,
-  type OficinaPanelResponse,
-} from '@/lib/client-api';
+import { executarOficinaAcao, type OficinaAcaoResult, type OficinaEu } from '@/lib/client-api';
 import { playerSession } from '@/lib/client-session';
 import { Button, Pill, Rotulo } from '@/components/ui/primitives';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
-import { MAX_ACOES_UI } from '@/components/oficina/oficina-player';
-import type { OficinaLocal } from '@/types/oficina';
+/*
+ * Só tipos atravessam este import, e isso é deliberado: o mapa é renderizado pelo
+ * `oficina-player`, então importar valor de lá criaria um ciclo de runtime que
+ * só funciona por sorte da ordem de avaliação dos módulos. `SaldoAcoes` e
+ * `ExecutarOficina` somem no build (`import type` é apagado), o ciclo não
+ * existe e o contrato continua compartilhado.
+ */
+import type { ExecutarOficina, OficinaAviso, SaldoAcoes } from '@/components/oficina/oficina-player';
+import {
+  OFICINA_INDICADORES_INFO,
+  type OficinaAlunoView,
+  type OficinaIndicador,
+  type OficinaLocal,
+} from '@/types/oficina';
 
 /**
  * Mapa do território · Oficina Safra DF.
@@ -108,13 +118,13 @@ const MATAS = [
 export function OficinaMap({
   eu,
   view,
-  busyKey,
+  saldo,
   run,
 }: {
-  eu: OficinaPanelResponse['eu'];
-  view: OficinaPanelResponse['view'];
-  busyKey: string | null;
-  run: (key: string, action: () => Promise<unknown>) => Promise<void>;
+  eu: OficinaEu;
+  view: OficinaAlunoView;
+  saldo: SaldoAcoes;
+  run: ExecutarOficina;
 }) {
   const locais = OFICINA_CONTENT.locais;
   const pontos: Ponto[] = useMemo(
@@ -124,7 +134,6 @@ export function OficinaMap({
 
   const minhasPistas = view.pistas.filter((p) => p.team_id === eu.teamId);
   const descobertas = new Set(minhasPistas.map((p) => p.pista_id));
-  const restantes = Math.max(0, MAX_ACOES_UI - eu.acoesUsadas);
 
   const [selecionado, setSelecionado] = useState<string>(() => {
     const primeiroIndescoberto = locais.find(
@@ -143,6 +152,41 @@ export function OficinaMap({
     ? OFICINA_CONTENT.pistas.find((p) => p.id === local.pista_id)
     : null;
   const jaDescoberta = Boolean(local.pista_id && descobertas.has(local.pista_id));
+
+  /*
+   * Retorno visível da ação. O servidor devolve o delta gravado em
+   * `acao.efeitos`; formate-lo com o dicionário do contrato é o que transforma
+   * "deu certo" em "coeração +2, confiança +1". O saldo que sobra não é
+   * recalculado aqui: o contador do painel já mostra, e inventar um segundo
+   * número no texto é o caminho curto para a tela discordar de si mesma.
+   */
+  function retornoDoAcao(contexto: string): (resultado: OficinaAcaoResult) => OficinaAviso {
+    return (resultado) => {
+      const delta = resultado.acao.efeitos;
+      const partes = (Object.keys(delta) as OficinaIndicador[])
+        .filter((chave) => typeof delta[chave] === 'number' && delta[chave] !== 0)
+        .map(
+          (chave) =>
+            `${OFICINA_INDICADORES_INFO[chave].rotulo.toLowerCase()} ${
+              (delta[chave] ?? 0) > 0 ? '+' : '−'
+            }${Math.abs(delta[chave] ?? 0)}`,
+        );
+      return {
+        tipo: 'ok',
+        titulo: 'Ação registrada',
+        texto: `${contexto} ${
+          partes.length > 0
+            ? `Indicadores: ${partes.join(', ')}.`
+            : 'Os indicadores da equipe não mudaram com esta ação.'
+        }${resultado.aviso ? ` ${resultado.aviso}` : ''}`,
+      };
+    };
+  }
+
+  const semSaldo =
+    saldo.restantes <= 0
+      ? `A equipe usou as ${saldo.teto} ações deste estágio.`
+      : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -273,11 +317,11 @@ export function OficinaMap({
                 key={pontoLocal.id}
                 type="button"
                 onClick={() => setSelecionado(pontoLocal.id)}
-                aria-pressed={ativo}
+                aria-current={ativo ? 'location' : undefined}
                 aria-label={`${TIPO_ROTULO[pontoLocal.tipo]} · ${pontoLocal.nome}${achei ? ' · pista descoberta' : ''}`}
                 className={[
                   'absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1',
-                  'focus:outline-none',
+                  'rounded-full focus:outline-none',
                 ].join(' ')}
                 style={{ left: `${(x / VIEW_W) * 100}%`, top: `${(y / VIEW_H) * 100}%` }}
               >
@@ -335,7 +379,7 @@ export function OficinaMap({
             sólida de 4px legível contra o prato do painel.
           */}
           <span className="degrau banco terr-neutro shrink-0 px-2.5 py-1 text-xs font-bold text-terra-900">
-            {restantes}/{MAX_ACOES_UI} ações
+            {saldo.restantes} de {saldo.teto} ações
           </span>
         </div>
 
@@ -369,10 +413,14 @@ export function OficinaMap({
           <Button
             type="button"
             variant="principal"
-            disabled={Boolean(busyKey) || restantes === 0 || jaDescoberta}
+            disabled={Boolean(semSaldo) || jaDescoberta}
             onClick={() =>
-              void run(`investigar-${local.id}`, () =>
-                executarOficinaAcao(playerSession.get()?.token ?? '', 'investigar', local.id),
+              void run(
+                `investigar-${local.id}`,
+                () => executarOficinaAcao(playerSession.get()?.token ?? '', 'investigar', local.id),
+                retornoDoAcao(
+                  jaDescoberta ? 'A pista deste lugar já estava com a equipe.' : `Investigação de ${local.nome} registrada.`,
+                ),
               )
             }
           >
@@ -383,10 +431,12 @@ export function OficinaMap({
             <Button
               type="button"
               variant="secundario"
-              disabled={Boolean(busyKey) || restantes === 0}
+              disabled={Boolean(semSaldo)}
               onClick={() =>
-                void run(`conversar-${personagem.id}`, () =>
-                  executarOficinaAcao(playerSession.get()?.token ?? '', 'conversar', personagem.id),
+                void run(
+                  `conversar-${personagem.id}`,
+                  () => executarOficinaAcao(playerSession.get()?.token ?? '', 'conversar', personagem.id),
+                  retornoDoAcao(`Conversa com ${personagem.nome} registrada.`),
                 )
               }
             >
@@ -395,6 +445,17 @@ export function OficinaMap({
             </Button>
           ) : null}
         </div>
+
+        {/*
+          Motivo do bloqueio visível: botão desabilitado sem explicação é o
+          "deu errado sem motivo" que o aluno não consegue resolver sozinho.
+        */}
+        {semSaldo ? (
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-terra-500">
+            <Lock size={12} aria-hidden="true" />
+            {semSaldo}
+          </p>
+        ) : null}
       </div>
     </div>
   );

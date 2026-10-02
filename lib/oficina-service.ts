@@ -7,21 +7,29 @@ import {
   sortearEventos,
   eventoContribuicao,
   coerenciaSolucao,
+  derivarMarcadores,
   calcularResultados,
   calcularResultadoOficinaResumo,
+  type CoerenciaResultado,
   type EquipeInput,
 } from '@/game/oficina-engine';
 import { OFICINA_CONTENT } from '@/data/oficina-content';
 import { OFICINA_IA_FALLBACKS } from '@/data/oficina-ia';
 import {
   criarOficinaIndicadores,
+  MAX_ACOES_POR_ESTAGIO,
   OFICINA_STAGES_ORDEM,
+  type OficinaAcaoKey,
   type OficinaAcaoRow,
+  type OficinaAlunoView,
   type OficinaEquipeRow,
   type OficinaEvento,
   type OficinaEventoOpcao,
   type OficinaEventoRow,
   type OficinaIndicadores,
+  type OficinaMarcador,
+  type OficinaEquipeComNome,
+  type OficinaPublicView,
   type OficinaPista,
   type OficinaPistaRow,
   type OficinaPerfil,
@@ -44,8 +52,6 @@ import { adminClient } from './supabase';
  * - Validações de permissão, etapa, idempotência acontecem aqui.
  * - A engine pura (game/oficina-engine) faz os cálculos; este arquivo orquestra I/O.
  */
-
-const MAX_ACOES_POR_ESTAGIO = 4;
 
 function db(): SupabaseClient {
   return adminClient();
@@ -209,7 +215,29 @@ export async function iniciarOficina(gameId: string): Promise<IniciarOficinaResu
   return { sessao: sessaoAtualizada, narrativaInicial: narrativa };
 }
 
-export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSessaoRow; narrativaTransicao?: string }> {
+/**
+ * Avança um estágio da oficina.
+ *
+ * Três travas que evitam beco sem saída:
+ *
+ * 1. Sair de `eventos` com evento aberto resolvia o evento em silêncio e
+ *    descartava o `efeito_coletivo` — a turma votava, o professor clicava duas
+ *    vezes, e o impacto coletivo sumia sem aviso nem erro. Agora o evento é
+ *    resolvido de fato, com o efeito aplicado.
+ * 2. `resultado → encerrada` criava sessão zumbi: o status continuava `ativa` e
+ *    `Encerrar oficina` ficava desabilitado por já estar "encerrada" — sem
+ *    caminho para sair. A etapa final é `Encerrar oficina`, que faz o que o
+ *    nome diz (ver `encerrarOficina`).
+ * 3. Sair de `solucao` devolve quantas equipes enviaram, para o painel mostrar.
+ */
+export async function avancarStage(gameId: string): Promise<{
+  sessao: OficinaSessaoRow;
+  narrativaTransicao?: string;
+  /**só no saída de `solucao`: quantas equipes enviaram a proposta. */
+  equipesQueEnviaram?: number;
+  /** Evento resolvido automaticamente na saída de `eventos`. */
+  eventoResolvido?: string;
+}> {
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
   requireActive(sessao);
@@ -219,9 +247,34 @@ export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSes
     throw new ApiError('conflict', 'Já está no último estágio.');
   }
 
+  // Trava 2: a saída da oficina é por `Encerrar oficina`, não por avançar.
+  if (sessao.stage === 'resultado') {
+    throw new ApiError(
+      'conflict',
+      'A etapa final é "Encerrar oficina". Use esse botão para concluir.',
+    );
+  }
+
   const nextStage = OFICINA_STAGES_ORDEM[idx + 1];
   const stageProgresso = 0;
   let eventoAtual: string | null = null;
+  let eventoResolvido: string | undefined;
+
+  // Trava 1: nunca sai do estágio de eventos deixando resposta coletiva pendente.
+  if (sessao.stage === 'eventos' && sessao.evento_atual) {
+    const { data: evento } = await db()
+      .from('oficina_eventos')
+      .select('id, status')
+      .eq('game_id', gameId)
+      .eq('event_key', sessao.evento_atual)
+      .maybeSingle();
+
+    if (evento && evento.status === 'aberto') {
+      const resolvido = await resolverEventoAtual(gameId);
+      eventoResolvido = sessao.evento_atual;
+      void resolvido;
+    }
+  }
 
   if (nextStage === 'eventos') {
     eventoAtual = sessao.sorteio_eventos[0] ?? null;
@@ -248,13 +301,28 @@ export async function avancarStage(gameId: string): Promise<{ sessao: OficinaSes
       .eq('game_id', gameId);
   }
 
+  // Trava 3: contagem de propostas enviadas, para o painel do professor.
+  let equipesQueEnviaram: number | undefined;
+  if (sessao.stage === 'solucao') {
+    const { count } = await db()
+      .from('oficina_solucoes')
+      .select('team_id', { count: 'exact', head: true })
+      .eq('game_id', gameId);
+    equipesQueEnviaram = count ?? 0;
+  }
+
   const narrativaTransicao = nextStage !== 'briefing'
     ? OFICINA_IA_FALLBACKS.transicoes[nextStage] ?? ''
     : undefined;
 
   await emitOficinaEvent(gameId, 'OFICINA_STAGE_CHANGED', { stage: nextStage, evento: eventoAtual });
 
-  return { sessao: { ...sessao, stage: nextStage, stage_progresso: stageProgresso, evento_atual: eventoAtual }, narrativaTransicao };
+  return {
+    sessao: { ...sessao, stage: nextStage, stage_progresso: stageProgresso, evento_atual: eventoAtual },
+    narrativaTransicao,
+    equipesQueEnviaram,
+    eventoResolvido,
+  };
 }
 
 /** Cria a linha aberta de um evento coletivo (uma única vez, por partida). */
@@ -278,15 +346,48 @@ async function abrirEventoColetivo(gameId: string, eventKey: string): Promise<vo
   if (error) throw new ApiError('server_error', 'Falha ao abrir o evento coletivo.', error.message);
 }
 
+/**
+ * Volta um estágio.
+ *
+ * Volta não é o mesmo que desfazer. Voltar de `solucao` para `eventos` caía no
+ * ÚLTIMO evento do sorteio com `stage_progresso = 0` — índice e posição
+ * apontavam para eventos diferentes, e se o evento destino já estivesse
+ * resolvido as equipes eram colocadas numa tela morta.
+ *
+ * Aqui a volta só acontece quando o estado é reconstruível: para `eventos` só
+ * se nenhum evento foi resolvido ainda, porque desfazer o `efeito_coletivo`
+ * exigiria reverter indicador por indicador em todas as equipes — coisa que não
+ * se faz com honestidade dentro de uma aula. O professor recebe a instrução
+ * certa em vez de um estado quebrado.
+ */
 export async function reabrirStageAnterior(gameId: string): Promise<OficinaSessaoRow> {
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
+  requireActive(sessao);
 
   const idx = OFICINA_STAGES_ORDEM.indexOf(sessao.stage);
   if (idx <= 0) throw new ApiError('conflict', 'Já está no primeiro estágio.');
 
   const prevStage = OFICINA_STAGES_ORDEM[idx - 1];
-  const eventoAtual = prevStage === 'eventos' ? sessao.sorteio_eventos[sessao.sorteio_eventos.length - 1] : null;
+
+  // Voltando para eventos: só é seguro se nenhum evento foi resolvido.
+  let eventoAtual: string | null = null;
+  if (prevStage === 'eventos') {
+    const { count } = await db()
+      .from('oficina_eventos')
+      .select('id', { count: 'exact', head: true })
+      .eq('game_id', gameId)
+      .eq('status', 'resolvido');
+
+    if ((count ?? 0) > 0) {
+      throw new ApiError(
+        'conflict',
+        'Já houve resposta coletiva aplicada à turma. Não dá para voltar atrás sem desfazer o que todo mundo já votou — use "Reiniciar oficina".',
+      );
+    }
+    eventoAtual = sessao.sorteio_eventos[0] ?? null;
+    if (eventoAtual) await abrirEventoColetivo(gameId, eventoAtual);
+  }
 
   const { error } = await db()
     .from('oficina_sessoes')
@@ -357,6 +458,7 @@ export async function reiniciarOficina(gameId: string): Promise<OficinaSessaoRow
 
   // Limpa todo estado da oficina (exceto sessão e equipes).
   await db().from('oficina_pistas').delete().eq('game_id', gameId);
+  await db().from('oficina_votos').delete().eq('game_id', gameId);
   await db().from('oficina_acoes').delete().eq('game_id', gameId);
   await db().from('oficina_eventos').delete().eq('game_id', gameId);
   await db().from('oficina_solucoes').delete().eq('game_id', gameId);
@@ -523,9 +625,17 @@ export async function executarAcao(input: AcaoJogadorInput): Promise<AcaoJogador
   // `acoes_usadas = base lida` é um CAS: se outra ação da MESMA equipe (dois
   // celulares do time, por exemplo) gravou efeitos entre a nossa leitura e
   // este update, nenhuma linha bate e o state dela NÃO é sobrescrito.
+  //
+  // O incremento é o CUSTO da ação, não 1: `solucao_conjunta` custa 2 e a
+  // validação já cobrava 2 do orçamento (`validarAcao`), então somar 1 dava
+  // uma ação de graça a cada uso — o limite por estágio nunca valia o que a
+  // tela dizia que valia.
   const { data: acaoRow, error: aplicarError } = await db()
     .from('oficina_equipes')
-    .update({ indicadores: novosIndicadores, acoes_usadas: equipe.acoes_usadas + 1 })
+    .update({
+      indicadores: novosIndicadores,
+      acoes_usadas: equipe.acoes_usadas + acaoDef.custo_acoes,
+    })
     .eq('team_id', teamId)
     .eq('acoes_usadas', equipe.acoes_usadas)
     .select()
@@ -603,13 +713,25 @@ function deltaOf(de: OficinaIndicadores, para: OficinaIndicadores): Partial<Ofic
   return delta;
 }
 
+/**
+ * Acumula marcadores na equipe conforme ela executa ações.
+ *
+ * Cache incremental: o motor `derivarMarcadores` recalcula tudo a partir de
+ * pistas/ações/solução quando o resultado é calculado (ver
+ * `calcularResultadosOficina`), então uma divergência aqui não contamina o
+ * resultado final. Os nomes são os de `OficinaMarcador` — `tech_usada` era
+ * nome solto que nenhuma categoria lia.
+ */
 async function marcarTagsPista(teamId: string, tags: TagOficina[]) {
   const equipe = await getEquipe(teamId);
   if (!equipe) return;
 
   const novosMarcadores = new Set(equipe.marcadores);
-  if (tags.includes('tecnologia') || tags.includes('conectividade')) novosMarcadores.add('tech_usada');
+  if (tags.includes('tecnologia') || tags.includes('conectividade')) novosMarcadores.add('tecnologia_usada');
   if (tags.includes('capacitacao')) novosMarcadores.add('capacitacao_feita');
+  if (tags.includes('organizacao') || tags.includes('politicas')) novosMarcadores.add('solucao_conjunta');
+  if (tags.includes('sustentabilidade')) novosMarcadores.add('cuidado_ambiental');
+  if (tags.includes('inclusao')) novosMarcadores.add('publico_prioritario');
 
   if (novosMarcadores.size !== equipe.marcadores.length) {
     const { error } = await db()
@@ -623,19 +745,75 @@ async function marcarTagsPista(teamId: string, tags: TagOficina[]) {
   }
 }
 
+/** Acrescenta marcadores a uma equipe (usado ao compartilhar pista). */
+async function acrescentarMarcadores(teamId: string, marcadores: OficinaMarcador[]) {
+  if (marcadores.length === 0) return;
+  const equipe = await getEquipe(teamId);
+  if (!equipe) return;
+
+  const atuais = new Set(equipe.marcadores);
+  for (const marcador of marcadores) atuais.add(marcador);
+  if (atuais.size === equipe.marcadores.length) return;
+
+  const { error } = await db()
+    .from('oficina_equipes')
+    .update({ marcadores: [...atuais] })
+    .eq('team_id', teamId);
+
+  if (error) {
+    console.error('[safra-df] falha ao acrescentar marcadores:', error.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Compartilhar pista
 // ---------------------------------------------------------------------------
 
-export async function compartilharPista(gameId: string, teamId: string, pistaId: string): Promise<OficinaPistaRow> {
+export interface CompartilharPistaResult {
+  /** A linha da equipe que publicou. */
+  pista: OficinaPistaRow;
+  /** Quantas equipes receberam a pista agora. */
+  equipesRecebedoras: number;
+  /** Ids das equipes que já tinham a pista (o cliente resolve o nome). */
+  jaTinham: string[];
+}
+
+/**
+ * Publica uma descoberta da equipe para TODAS as outras equipes.
+ *
+ * Antes esta função carimbava `compartilhada_em` na própria linha e não
+ * gravava mais nada: nenhuma outra equipe recebia a pista. Como
+ * `validarAcao` só olha as pistas da própria equipe, "Compartilhar descoberta"
+ * — a mecânica que dá nome ao modo colaborativo — custava 1 de 7 ações e não
+ * destravava nada em lugar nenhum. O botão aparecia duas vezes na tela.
+ *
+ * O que esta versão faz:
+ * 1. carimba a publicação na linha da equipe que descobriu
+ * 2. insere a pista na `oficina_pistas` de cada outra equipe que ainda não a
+ *    tem, com `recebida_de = teamId` — é essa inserção que destrava ações lá,
+ *    porque a validação lê as linhas da própria equipe
+ * 3. dá o marcador `pista_compartilhada` a quem publicou, que é o que a
+ *    categoria `mais_colaborativa` pontua
+ *
+ * `compartilhavel: false` no conteúdo bloqueia a publicação.
+ */
+export async function compartilharPista(gameId: string, teamId: string, pistaId: string): Promise<CompartilharPistaResult> {
   const sessao = await getSessao(gameId);
   if (!sessao) throw new ApiError('not_found', 'Sessão não encontrada.');
   requireActive(sessao);
   requireStage(sessao, 'investigacao');
 
+  const pistaDef = OFICINA_CONTENT.pistas.find((p) => p.id === pistaId);
+  if (!pistaDef) throw new ApiError('not_found', 'Descoberta desconhecida.');
+  if (!pistaDef.compartilhavel) {
+    throw new ApiError('conflict', 'Esta descoberta não pode ser compartilhada.');
+  }
+
+  // 1. Publicação na equipe descobridora.
+  const agora = new Date().toISOString();
   const { data, error } = await db()
     .from('oficina_pistas')
-    .update({ compartilhada_em: new Date().toISOString() })
+    .update({ compartilhada_em: agora })
     .eq('game_id', gameId)
     .eq('team_id', teamId)
     .eq('pista_id', pistaId)
@@ -643,10 +821,64 @@ export async function compartilharPista(gameId: string, teamId: string, pistaId:
     .maybeSingle();
 
   if (error) throw new ApiError('server_error', 'Falha ao compartilhar pista.', error.message);
-  if (!data) throw new ApiError('not_found', 'Pista não encontrada para esta equipe.');
+  if (!data) throw new ApiError('not_found', 'Descoberta não encontrada para esta equipe.');
 
-  await emitOficinaEvent(gameId, 'OFICINA_CLUE_SHARED', { teamId, pistaId });
-  return data as OficinaPistaRow;
+  // 2. Destino: todas as outras equipes que ainda não têm a pista.
+  const { data: equipes } = await db()
+    .from('oficina_equipes')
+    .select('team_id')
+    .eq('game_id', gameId);
+  const todosOsTimes = (equipes ?? []).map((e) => e.team_id as string);
+  const outras = todosOsTimes.filter((id) => id !== teamId);
+
+  const { data: linhasPista } = await db()
+    .from('oficina_pistas')
+    .select('team_id')
+    .eq('game_id', gameId)
+    .eq('pista_id', pistaId);
+  const quemJaTem = new Set((linhasPista ?? []).map((l) => l.team_id as string));
+
+  const destino = outras.filter((id) => !quemJaTem.has(id));
+  const jaTinham = outras.filter((id) => quemJaTem.has(id));
+
+  if (destino.length > 0) {
+    const { error: insertError } = await db()
+      .from('oficina_pistas')
+      .insert(
+        destino.map((destinataria) => ({
+          game_id: gameId,
+          team_id: destinataria,
+          pista_id: pistaId,
+          descoberta_em: agora,
+          compartilhada_em: null,
+          recebida_de: teamId,
+        })),
+      );
+
+    if (insertError) {
+      // 23505 = corrida: outra equipe recebeu no mesmo instante. O compartilhamento
+      // da equipe que publicou já está gravado, então não é para desfazer.
+      if (insertError.code !== '23505') {
+        throw new ApiError('server_error', 'Falha ao entregar a descoberta.', insertError.message);
+      }
+    } else {
+      // Quem recebe também vale a marcação: a equipe aprendeu algo novo.
+      for (const destinataria of destino) {
+        await marcarTagsPista(destinataria, pistaDef.tags);
+      }
+    }
+  }
+
+  // 3. Crédito de quem publicou.
+  await acrescentarMarcadores(teamId, ['pista_compartilhada']);
+
+  await emitOficinaEvent(gameId, 'OFICINA_CLUE_SHARED', {
+    teamId,
+    pistaId,
+    equipesRecebedoras: destino.length,
+  });
+
+  return { pista: data as OficinaPistaRow, equipesRecebedoras: destino.length, jaTinham };
 }
 
 // ---------------------------------------------------------------------------
@@ -660,6 +892,23 @@ export interface VotarEventoInput {
   opcaoKey: string;
 }
 
+/**
+ * Registra o voto de UMA equipe no evento atual.
+ *
+ * Ordem deliberada: o voto entra na tabela PRIMEIRO e o delta só é aplicado
+ * depois que a inserção vence. Com o jsonb, a checagem de "já votou" e a
+ * gravação do voto eram a mesma operação, e o delta era aplicado antes de
+ * qualquer guarda — dois cliques do mesmo time aplicavam dois deltas e gravavam
+ * um voto só.
+ *
+ * `oficina_votos` (migração 0006) tem unique (game_id, event_key, team_id): o
+ * banco garante um voto por equipe, sem read-modify-write. Duas equipes votando
+ * no mesmo instante não se atrapalham.
+ *
+ * `oficina_eventos.contribuicoes` continua sendo escrito porque a parede e a
+ * projeção leem dele, mas passa a ser RECONSTRUÍDO a partir de `oficina_votos`
+ * (overwrite total). Reconstruir é idempotente; mesclar era a origem da corrida.
+ */
 export async function votarEvento(input: VotarEventoInput): Promise<{ opcao: OficinaEventoOpcao; efeitos: Partial<OficinaIndicadores> }> {
   const { gameId, teamId, eventKey, opcaoKey } = input;
 
@@ -675,48 +924,90 @@ export async function votarEvento(input: VotarEventoInput): Promise<{ opcao: Ofi
   const opcao = eventoDef.opcoes.find((o) => o.key === opcaoKey);
   if (!opcao) throw new ApiError('bad_request', 'Opção inválida.');
 
-  const { data: existente } = await db()
-    .from('oficina_eventos')
-    .select('contribuicoes')
-    .eq('game_id', gameId)
-    .eq('event_key', eventKey)
-    .maybeSingle();
-
-  const contribuicoes = (existente?.contribuicoes ?? {}) as Record<string, { opcao_key: string; efeitos: Partial<OficinaIndicadores> }>;
-  if (contribuicoes[teamId]) throw new ApiError('conflict', 'Esta equipe já contribuiu neste evento.');
-
   const equipe = await getEquipe(teamId);
   if (!equipe) throw new ApiError('not_found', 'Equipe não encontrada.');
 
   const efeitosIndividuais = eventoContribuicao(equipe.indicadores, opcao, eventoDef.efeito_coletivo);
+
+  // 1. Voto primeiro: é a barreira contra o duplo voto.
+  const { error: votoError } = await db().from('oficina_votos').insert({
+    game_id: gameId,
+    event_key: eventKey,
+    team_id: teamId,
+    opcao_key: opcaoKey,
+    efeitos: efeitosIndividuais,
+  });
+
+  if (votoError) {
+    if (votoError.code === '23505') {
+      throw new ApiError('conflict', 'Esta equipe já votou neste evento.');
+    }
+    throw new ApiError('server_error', 'Falha ao registrar o voto.', votoError.message);
+  }
+
+  // 2. Delta nos indicadores, com CAS no valor lido: duas ações da mesma equipe
+  //    não podem sobrescrever o resultado uma da outra.
   const novosIndicadores = aplicarDelta(equipe.indicadores, efeitosIndividuais);
-
-  await db().from('oficina_equipes').update({ indicadores: novosIndicadores }).eq('team_id', teamId);
-
-  const novasContribuicoes = { ...contribuicoes, [teamId]: { opcao_key: opcaoKey, efeitos: efeitosIndividuais } };
-
-  // Guarda otimista contra clique duplo: o update só casa se a equipe ainda
-  // NÃO estiver nas contribuições. Se outro clique já gravou, o filter não
-  // casa, data vem null e tratamos como conflito (idempotente, sem duplo delta).
-  const { data: atualizado } = await db()
-    .from('oficina_eventos')
-    .update({ contribuicoes: novasContribuicoes })
-    .eq('game_id', gameId)
-    .eq('event_key', eventKey)
-    .not('contribuicoes', 'contains', { [teamId]: { opcao_key: opcaoKey, efeitos: efeitosIndividuais } })
-    .select('id')
+  const { data: equipeAtualizada } = await db()
+    .from('oficina_equipes')
+    .update({ indicadores: novosIndicadores })
+    .eq('team_id', teamId)
+    .eq('indicadores', equipe.indicadores)
+    .select('indicadores')
     .maybeSingle();
 
-  if (!atualizado) {
-    return {
-      opcao,
-      efeitos: {},
+  if (!equipeAtualizada) {
+    // A equipe mudou de estado entre a leitura e a escrita. O voto fica
+    // registrado (é imutável, é auditoria) e o cliente reenvia com o estado novo.
+    throw new ApiError(
+      'conflict',
+      'O estado da sua equipe mudou no mesmo instante. Vote de novo.',
+    );
+  }
+
+  // 3. Cache de leitura para a parede, reconstruído do zero.
+  await reconstruirContribuicoes(gameId, eventKey);
+
+  await emitOficinaEvent(gameId, 'OFICINA_EVENT_VOTED', { teamId, eventKey, opcaoKey });
+
+  return { opcao, efeitos: efeitosIndividuais };
+}
+
+/**
+ * Reescreve `oficina_eventos.contribribuicoes` a partir de `oficina_votos`.
+ *
+ * Overwrite deliberado: o jsonb é um cache de leitura, e cache que se atualiza
+ * por merge é o que produz lost update.
+ */
+async function reconstruirContribuicoes(gameId: string, eventKey: string): Promise<void> {
+  const { data: votos, error: leituraError } = await db()
+    .from('oficina_votos')
+    .select('team_id, opcao_key, efeitos')
+    .eq('game_id', gameId)
+    .eq('event_key', eventKey);
+
+  if (leituraError) {
+    console.error('[safra-df] falha ao ler votos do evento:', leituraError.message);
+    return;
+  }
+
+  const contribuicoes: Record<string, { opcao_key: string; efeitos: Partial<OficinaIndicadores> }> = {};
+  for (const voto of votos ?? []) {
+    contribuicoes[voto.team_id as string] = {
+      opcao_key: voto.opcao_key as string,
+      efeitos: (voto.efeitos ?? {}) as Partial<OficinaIndicadores>,
     };
   }
 
-  await emitOficinaEvent(gameId, 'OFICINA_EVENT_RESOLVED', { teamId, eventKey, opcaoKey });
+  const { error: escritaError } = await db()
+    .from('oficina_eventos')
+    .update({ contribuicoes })
+    .eq('game_id', gameId)
+    .eq('event_key', eventKey);
 
-  return { opcao, efeitos: efeitosIndividuais };
+  if (escritaError) {
+    console.error('[safra-df] falha ao reconstruir contribuições:', escritaError.message);
+  }
 }
 
 export async function abrirProximoEvento(gameId: string): Promise<{ sessao: OficinaSessaoRow; evento?: OficinaEvento }> {
@@ -826,45 +1117,116 @@ export async function submeterSolucao(gameId: string, teamId: string, solucao: O
 // Avaliação de coerência da solução (apoio ao professor, não bloqueio)
 // ---------------------------------------------------------------------------
 
-export function avaliarCoerencia(solucao: OficinaSolucao): { score: number; avisos: string[]; alinhados: string[]; desalinhados: string[] } {
-  const problemaEscolhido = solucao.blocos.problema_principal;
-  const problemaTags = OFICINA_CONTENT.pistas.find((p) => p.id === problemaEscolhido)?.tags ?? [];
-  return coerenciaSolucao(solucao, problemaEscolhido ?? '', problemaTags, OFICINA_CONTENT.cartoes);
+/**
+ * Coerência da solução de uma equipe, para o professor.
+ *
+ * As tags de referência vêm do CARTÃO `problema_principal`, não da pista. O
+ * bloco guarda a CHAVE DA OPÇÃO do cartão (`'a'`, `'b'`, …), enquanto as pistas
+ * do conteúdo têm id (`'p1'`, `'p2'`, …): a busca antiga nunca encontrava e
+ * `problemaTags` saía vazio, o que fazia `tagsEmComum.length > 0` ser sempre
+ * falso. Toda solução recebia "desalinhado" em todos os blocos, sem exceção.
+ */
+export function avaliarCoerencia(solucao: OficinaSolucao): CoerenciaResultado {
+  const problemaEscolhido = solucao.blocos.problema_principal ?? '';
+  const cartaoProblema = OFICINA_CONTENT.cartoes.find(
+    (c) => c.bloco === 'problema_principal',
+  );
+  const opcaoProblema = cartaoProblema?.opcoes.find((o) => o.key === problemaEscolhido);
+  return coerenciaSolucao(solucao, opcaoProblema?.tags ?? [], OFICINA_CONTENT.cartoes);
 }
 
 // ---------------------------------------------------------------------------
 // Cálculo de resultados
 // ---------------------------------------------------------------------------
 
+/**
+ * Calcula e grava o destaque de cada equipe.
+ *
+ * Os marcadores NÃO são lidos da coluna: são derivados das pistas publicadas,
+ * das ações executadas e da solução enviada. A coluna `oficina_equipes.marcadores`
+ * continua sendo mantida (a projeção e a IA leem), mas a verdade é o derivador —
+ * ele não depende de alguém lembrar de marcar na hora certa.
+ *
+ * Sem isso, `mais_inovadora` dependia de um marcador `tech_usada` que só era
+ * escrito por efeito colateral de tags, e as seis equipes caíam no mesmo
+ * desempate com o mesmo indicador quase igual.
+ */
 export async function calcularResultadosOficina(gameId: string): Promise<void> {
   const equipes = await getEquipesDoJogo(gameId);
 
+  // Uma consulta para todas as soluções, em vez de uma por equipe.
+  const { data: solucoesRaw } = await db()
+    .from('oficina_solucoes')
+    .select('team_id, blocos')
+    .eq('game_id', gameId);
+
   const solucoes: Record<string, OficinaSolucao> = {};
-  for (const eq of equipes) {
-    const { data: sol } = await db()
-      .from('oficina_solucoes')
-      .select('blocos')
-      .eq('game_id', gameId)
-      .eq('team_id', eq.team_id)
-      .maybeSingle();
-    if (sol) solucoes[eq.team_id] = sol.blocos as OficinaSolucao;
+  for (const sol of solucoesRaw ?? []) {
+    solucoes[sol.team_id as string] = sol.blocos as OficinaSolucao;
   }
 
-  const problemaTagsPorEquipe: Record<string, TagOficina[]> = {};
-  for (const [teamId, sol] of Object.entries(solucoes)) {
-    const probKey = sol.blocos.problema_principal;
-    const prob = OFICINA_CONTENT.pistas.find((p) => p.id === probKey);
-    problemaTagsPorEquipe[teamId] = prob?.tags ?? [];
+  // Ações executadas por equipe (qualquer estágio) — o que a equipe FEZ.
+  const { data: acoesRaw } = await db()
+    .from('oficina_acoes')
+    .select('team_id, acao_key')
+    .eq('game_id', gameId);
+
+  const acoesPorEquipe = new Map<string, OficinaAcaoKey[]>();
+  for (const ac of acoesRaw ?? []) {
+    const teamId = ac.team_id as string;
+    const lista = acoesPorEquipe.get(teamId) ?? [];
+    lista.push(ac.acao_key as OficinaAcaoKey);
+    acoesPorEquipe.set(teamId, lista);
   }
 
-  const inputs: EquipeInput[] = equipes.map((e) => ({
-    team_id: e.team_id,
-    indicadores: e.indicadores,
-    marcadores: e.marcadores,
-    solucao: solucoes[e.team_id],
-  }));
+  // Pistas publicadas — é o que dá o marcador `pista_compartilhada`.
+  const { data: publicadas } = await db()
+    .from('oficina_pistas')
+    .select('team_id')
+    .eq('game_id', gameId)
+    .not('compartilhada_em', 'is', null);
 
-  const resultados = calcularResultados(inputs, OFICINA_CONTENT.cartoes, problemaTagsPorEquipe);
+  const quemCompartilhou = new Set((publicadas ?? []).map((p) => p.team_id as string));
+
+  const inputs: EquipeInput[] = equipes.map((e) => {
+    const acoesExecutadas = acoesPorEquipe.get(e.team_id) ?? [];
+    const acaoTags = acoesExecutadas
+      .map((key) => OFICINA_CONTENT.acoes.find((a) => a.key === key)?.tags ?? [])
+      .flat();
+
+    const marcadores = derivarMarcadores({
+      solucao: solucoes[e.team_id] ?? null,
+      cartoes: OFICINA_CONTENT.cartoes,
+      acoesExecutadas,
+      acaoTags,
+      compartilhou: quemCompartilhou.has(e.team_id),
+    });
+
+    return {
+      team_id: e.team_id,
+      indicadores: e.indicadores,
+      marcadores,
+      solucao: solucoes[e.team_id],
+    };
+  });
+
+  // Sincroniza a coluna com o derivado, para projeção e IA lerem o mesmo valor.
+  for (const input of inputs) {
+    const antes = equipes.find((e) => e.team_id === input.team_id)?.marcadores ?? [];
+    const mudou = antes.length !== input.marcadores.length ||
+      input.marcadores.some((m) => !antes.includes(m));
+    if (mudou) {
+      const { error } = await db()
+        .from('oficina_equipes')
+        .update({ marcadores: input.marcadores })
+        .eq('team_id', input.team_id);
+      if (error) {
+        console.error('[safra-df] falha ao sincronizar marcadores:', error.message);
+      }
+    }
+  }
+
+  const resultados = calcularResultados(inputs, OFICINA_CONTENT.cartoes, {});
 
   for (const eq of equipes) {
     const catEquipe = resultados.filter((r) => r.team_id === eq.team_id);
@@ -1059,20 +1421,7 @@ async function emitOficinaEvent(gameId: string, type: string, payload: Record<st
 // View pública (leitura RLS anon + conteúdo estático)
 // ---------------------------------------------------------------------------
 
-export interface OficinaEquipeComNome extends OficinaEquipeRow {
-  nome: string;
-}
-
-export interface OficinaPublicView {
-  gameId: string;
-  sessao: OficinaSessaoRow | null;
-  equipes: OficinaEquipeComNome[];
-  pistas: OficinaPistaRow[];
-  eventos: OficinaEventoRow[];
-  solucoes: OficinaSolucaoRow[];
-  resultados: OficinaResultadoRow[];
-}
-
+/** View pública: a parede da sala. Contém TUDO, de propósito. */
 export async function getOficinaPublicView(gameId: string): Promise<OficinaPublicView> {
   const [sessao, equipes, pistas, eventos, solucoes, resultados, teamRows] = await Promise.all([
     getSessao(gameId),
@@ -1099,5 +1448,59 @@ export async function getOficinaPublicView(gameId: string): Promise<OficinaPubli
     eventos: (eventos.data ?? []) as OficinaEventoRow[],
     solucoes: (solucoes.data ?? []) as OficinaSolucaoRow[],
     resultados: (resultados.data ?? []) as OficinaResultadoRow[],
+  };
+}
+
+/**
+ * View do ALUNO: a mesma partida, escopada à equipe dele.
+ *
+ * Não é `getOficinaPublicView` com campos removidos — é outra consulta, com
+ * filtros aplicados no banco. A rota do jogador usava a visão pública, o que
+ * entregava no payload do navegador a solução e o resultado de TODAS as equipes:
+ * quem abria o DevTools no meio da etapa de solução via a proposta do vizinho.
+ *
+ * O que a equipe enxerga das outras: nome, perfil e indicadores (o painel
+ * comunitário já mostrava isso antes, e é o que move a cooperação). O que NÃO
+ * enxerga: solução e resultado alheios.
+ */
+export async function getOficinaAlunoView(gameId: string, teamId: string): Promise<OficinaAlunoView> {
+  const [sessao, equipes, pistas, eventos, teamRows] = await Promise.all([
+    getSessao(gameId),
+    getEquipesDoJogo(gameId),
+    db().from('oficina_pistas').select('*').eq('game_id', gameId).order('descoberta_em'),
+    db().from('oficina_eventos').select('*').eq('game_id', gameId).order('aberto_em'),
+    db().from('teams').select('id, name').eq('game_id', gameId),
+  ]);
+
+  const nomePorTeam = new Map((teamRows.data ?? []).map((t) => [t.id, t.name]));
+
+  const equipesComNome: OficinaEquipeComNome[] = equipes.map((e) => ({
+    ...e,
+    nome: nomePorTeam.get(e.team_id) ?? 'Equipe',
+  }));
+
+  const minha = equipesComNome.find((e) => e.team_id === teamId) ?? null;
+
+  // As duas leituras escopadas: nunca `in` com lista de outras equipes.
+  const [solucaoRaw, resultadoRaw] = await Promise.all([
+    db().from('oficina_solucoes').select('*').eq('game_id', gameId).eq('team_id', teamId).maybeSingle(),
+    db().from('oficina_resultados').select('*').eq('game_id', gameId).eq('team_id', teamId).maybeSingle(),
+  ]);
+
+  return {
+    gameId,
+    equipeId: teamId,
+    sessao: sessao as OficinaSessaoRow | null,
+    equipe: minha,
+    equipes: equipesComNome.map((e) => ({
+      team_id: e.team_id,
+      nome: e.nome,
+      perfil: e.perfil,
+      indicadores: e.indicadores,
+    })),
+    pistas: (pistas.data ?? []) as OficinaPistaRow[],
+    eventos: (eventos.data ?? []) as OficinaEventoRow[],
+    minhaSolucao: (solucaoRaw.data ?? null) as OficinaSolucaoRow | null,
+    meuResultado: (resultadoRaw.data ?? null) as OficinaResultadoRow | null,
   };
 }

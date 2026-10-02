@@ -1,7 +1,7 @@
 import { adminClient } from '@/lib/supabase';
 import { ApiError, ok, requireUuid, toResponse } from '@/lib/http';
-import { getOficinaPublicView, type OficinaPublicView } from '@/lib/oficina-service';
-import type { GameMode } from '@/types/oficina';
+import { getOficinaPublicView } from '@/lib/oficina-service';
+import type { GameMode, OficinaPublicView } from '@/types/oficina';
 
 /**
  * GET /api/oficina/[gameId]/projecao · o telão da Oficina Safra DF.

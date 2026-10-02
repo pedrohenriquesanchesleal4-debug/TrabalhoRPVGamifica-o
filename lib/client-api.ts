@@ -1,9 +1,18 @@
 'use client';
 
 import type { HostView, PlayerView } from '@/lib/game-service';
-import type { OficinaPublicView } from '@/lib/oficina-service';
 import type { GameConfig } from '@/types/game';
-import type { GameMode, OficinaIndicadores, OficinaSolucao } from '@/types/oficina';
+import type {
+  GameMode,
+  OficinaAcaoRow,
+  OficinaAlunoView,
+  OficinaEventoOpcao,
+  OficinaIndicadores,
+  OficinaPistaRow,
+  OficinaPublicView,
+  OficinaSolucao,
+  OficinaSolucaoRow,
+} from '@/types/oficina';
 
 /**
  * Cliente HTTP da interface.
@@ -243,6 +252,15 @@ export function sendHeartbeat(token: string) {
 // Modo Oficina · aluno
 // ---------------------------------------------------------------------------
 
+/**
+ * O aluno, do ponto de vista dele.
+ *
+ * `maxAcoes` é o teto do estágio e vem do servidor: a constante do contrato é
+ * o valor de projeto, e quem manda o número em uma partida é o host. Fica
+ * opcional de propósito — uma partida já aberta por uma rota que ainda não
+ * publica o campo precisa continuar mostrando um saldo verdadeiro em vez de
+ * `undefined` na tela (a tela cai em `MAX_ACOES_POR_ESTAGIO`).
+ */
 export interface OficinaEu {
   playerId: string;
   name: string;
@@ -252,23 +270,36 @@ export interface OficinaEu {
   indicadores: OficinaIndicadores | null;
   marcadores: string[];
   acoesUsadas: number;
+  maxAcoes?: number;
   solucao: OficinaSolucao | null;
 }
 
+/**
+ * GET /api/player/oficina.
+ *
+ * `view` é a visão do ALUNO (`OficinaAlunoView`), não a pública: a tela do aluno
+ * nunca recebe `solucoes` nem `resultados` das outras equipes. Tipar isso como
+ * `OficinaPublicView` é o que autorizava a tela a ler `view.resultados` e
+ * exibir a proposta de quem ainda não enviou.
+ */
 export interface OficinaPanelResponse {
   game: { id: string; code: string; status: string };
   briefing: { narrativaInicial: string | null };
   eu: OficinaEu;
-  view: OficinaPublicView;
+  view: OficinaAlunoView;
 }
 
 export function fetchOficinaPanel(token: string) {
   return request<OficinaPanelResponse>('/api/player/oficina', { token, cache: 'no-store' });
 }
 
+/**
+ * `acao.efeitos` é o DELTA gravado no log da ação, não o estado novo: é o que a
+ * tela precisa mostrar para o aluno entender o que o gesto dele mudou.
+ */
 export interface OficinaAcaoResult {
-  acao: { id: string; acao_key: string; stage: string; efeitos: Partial<OficinaIndicadores> };
-  pistaDescoberta?: { id: string; pista_id: string; team_id: string } | null;
+  acao: OficinaAcaoRow;
+  pistaDescoberta?: OficinaPistaRow | null;
   indicadoresAtualizados: OficinaIndicadores;
   aviso?: string;
 }
@@ -281,22 +312,31 @@ export function executarOficinaAcao(token: string, acaoKey: string, alvoId?: str
   });
 }
 
+/** `pista` é a linha completa: a tela precisa saber se ela já foi publicada. */
 export function compartilharOficinaPista(token: string, pistaId: string) {
-  return request<{ pista: { id: string; titulo: string; texto_pista: string } }>(
+  return request<{ pista: OficinaPistaRow }>(
     '/api/player/oficina',
     { method: 'POST', token, body: JSON.stringify({ action: 'compartilhar', pistaId }) },
   );
 }
 
+/**
+ * O servidor devolve a OPÇÃO escolhida (`opcao`), não a chave: a tela quer o
+ * rótulo para confirmar a escolha da equipe, e `contribuicao.opcaoKey` nunca
+ * existiu no payload.
+ */
 export function votarOficinaEvento(token: string, eventKey: string, opcaoKey: string) {
-  return request<{ contribuicao: { opcaoKey: string; efeitos: Partial<OficinaIndicadores> } }>(
+  return request<{
+    contribuicao: { opcao: OficinaEventoOpcao; efeitos: Partial<OficinaIndicadores> };
+  }>(
     '/api/player/oficina',
     { method: 'POST', token, body: JSON.stringify({ action: 'votar', eventKey, opcaoKey }) },
   );
 }
 
+/** `solucao` é a linha persistida, com `enviada_em` para confirmar o salvamento. */
 export function submeterOficinaSolucao(token: string, solucao: OficinaSolucao) {
-  return request<{ solucao: { blocos: OficinaSolucao } }>('/api/player/oficina', {
+  return request<{ solucao: OficinaSolucaoRow }>('/api/player/oficina', {
     method: 'POST',
     token,
     body: JSON.stringify({ action: 'solucao', solucao }),

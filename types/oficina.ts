@@ -33,6 +33,89 @@ export const OFICINA_STAGES_ORDEM: OficinaStage[] = [
   'encerrada',
 ];
 
+/**
+ * Objetivo de cada estágio, escrito para ser lido em tela.
+ *
+ * Motivo existencial: sem isso o aluno nunca sabe o que tem que fazer, e o
+ * professor só tem o botão "Avançar etapa". O objetivo é o contrato pedagógico
+ * do estágio — a UI mostra, o painel do professor conduz por ele.
+ */
+export interface OficinaStageMeta {
+  /** Nome curto da etapa (1 linha). */
+  titulo: string;
+  /** O que a equipe DEVE fazer aqui, em 1 frase. */
+  objetivo: string;
+  /** Como o aluno sabe que cumpriu (ou não). `null` = sem meta mensurável. */
+  meta: string | null;
+  /** Frase que o professor diz para abrir a etapa. */
+  abertura: string;
+  /** Frase curta que explica o que o professor precisa fazer agora. */
+  conducting: string;
+}
+
+export const OFICINA_STAGE_META: Record<OficinaStage, OficinaStageMeta> = {
+  briefing: {
+    titulo: 'Boa Vista do Cerrado',
+    objetivo: 'Descobrir quem é essa comunidade e por que ela precisa de vocês.',
+    meta: null,
+    abertura:
+      'Cada equipe representa um setor da Boa Vista do Cerrado. Escute o personagem e descubra o que já existe de bom aqui.',
+    conducting: 'Abra a leitura do cenário. Só avance quando todas as equipes estiverem no mapa.',
+  },
+  investigacao: {
+    titulo: 'Investigação',
+    objetivo: 'Achar as pistas que travam a comunidade e agir sobre elas.',
+    meta: 'Investigue lugares e execute ações para mudar os indicadores da sua equipe.',
+    abertura:
+      'Cada equipe tem 7 ações. Investigue o que interessa ao seu setor, converse com quem sabe e compartilhe o que descobrir com o resto.',
+    conducting:
+      'Deixe as equipes jogarem. Só avance quando a maioria já agir (ou as 7 ações acabarem).',
+  },
+  eventos: {
+    titulo: 'Situações coletivas',
+    objetivo: 'Responder às situações que a comunidade precisa enfrentar.',
+    meta: 'Escolher 1 resposta para cada situação que aparecer na parede.',
+    abertura:
+      'A Boa Vista passou por uma situação. A parede mostra o evento e cada equipe escolhe como responder.',
+    conducting:
+      'Abra um evento por vez. Só abra o próximo quando todas as equipes tiverem voted.',
+  },
+  solucao: {
+    titulo: 'Proposta de solução',
+    objetivo: 'Montar a solução da sua equipe em 13 cartões.',
+    meta: 'Preencher os 13 blocos da solução e enviar.',
+    abertura:
+      'Agora cada equipe escreve a solução: qual problema ela resolve, com quem, usando o que já existe na comunidade.',
+    conducting:
+      'Deixe as equipes montarem os 13 cartões. Só avance quando todas enviarem (ou o tempo acabar).',
+  },
+  resultado: {
+    titulo: 'Resultado',
+    objetivo: 'Ver o que a oficina construiu e o que cada equipe aprendeu.',
+    meta: null,
+    abertura:
+      'A parede mostra o que cada equipe construiu e qual foi seu destaque. Não há vencedor: há seis soluções para a mesma comunidade.',
+    conducting: 'Mostre os destaques e chame cada equipe para contar o que aprendeu.',
+  },
+  encerrada: {
+    titulo: 'Encerramento',
+    objetivo: 'Fechar a oficina e levar a conversa para a comunidade real.',
+    meta: null,
+    abertura:
+      'Oficina encerrada. Use o roteiro de debate para conversar com a turma sobre o que dá para fazer no DF.',
+    conducting: 'Rode o roteiro de debate. Encerre a sessão quando terminar.',
+  },
+};
+
+/**
+ * Limite de ações por estágio (reinicia a cada estágio, ver `avancarStage`).
+ *
+ * Fica AQUI e não no serviço nem no componente: o painel do professor exibia
+ * "/4" hardcoded enquanto o servidor validava outro número — o mesmo número em
+ * três lugares sempre diverge.
+ */
+export const MAX_ACOES_POR_ESTAGIO = 7;
+
 // ---------------------------------------------------------------------------
 // Perfis (perspectivas de equipe — não limitam, apenas orientam)
 // ---------------------------------------------------------------------------
@@ -111,16 +194,27 @@ export const OFICINA_INDICADORES_INFO: Record<
 
 export type OficinaIndicadores = Record<OficinaIndicador, number>;
 
+/**
+ * Indicador inicial: 42, não 50.
+ *
+ * 50 é "metade" — um número que não quer dizer nada, porque não existe 50% de
+ * comunidade. 42 diz "aqui existe base, mas ainda não dá conta". Como
+ * cada ação move de 1 a 4 pontos e cabem 7 ações por estágio, uma boa jogada
+ * fecha o estágio entre 55 e 70: arco visível na barra, em vez das seis
+ * equipes empatadas em 50.
+ */
+export const OFICINA_INDICADOR_BASE = 42;
+
 export function criarOficinaIndicadores(): OficinaIndicadores {
   return {
-    cooperacao: 50,
-    organizacao: 50,
-    mercado: 50,
-    conhecimento: 50,
-    sustentabilidade: 50,
-    confianca: 50,
-    inclusao: 50,
-    viabilidade: 50,
+    cooperacao: OFICINA_INDICADOR_BASE,
+    organizacao: OFICINA_INDICADOR_BASE,
+    mercado: OFICINA_INDICADOR_BASE,
+    conhecimento: OFICINA_INDICADOR_BASE,
+    sustentabilidade: OFICINA_INDICADOR_BASE,
+    confianca: OFICINA_INDICADOR_BASE,
+    inclusao: OFICINA_INDICADOR_BASE,
+    viabilidade: OFICINA_INDICADOR_BASE,
   };
 }
 
@@ -168,7 +262,11 @@ export interface OficinaPista {
   texto: string;
   origem: string;
   tags: TagOficina[];
-  unica: boolean;
+  /**
+   * Se false, a pista NÃO pode ser compartilhada entre equipes (fica como
+   * descoberta privada). Honrado por `compartilharPista` — antes o campo era
+   * lido só por teste, e todas as pistas eram true mesmo assim.
+   */
   compartilhavel: boolean;
 }
 
@@ -288,24 +386,68 @@ export interface OficinaSolucao {
 // Resultados
 // ---------------------------------------------------------------------------
 
+/**
+ * Categorias de resultado.
+ *
+ * `mais_viability` era o ID persistido — "viability" é inglês, o resto do jogo
+ * é PT-BR, e o ID errado sobrevivia no `oficina_resultados.categorias` jsonb.
+ * O `OFICINA_CATEGORIAS_INFO[cat]` com fallback em `calcularResultados` tolera
+ * linha antiga sem quebrar a tela.
+ */
 export type OficinaCategoriaResultado =
-  | 'mais_viability'
+  | 'mais_viavel'
   | 'mais_colaborativa'
   | 'mais_inclusiva'
   | 'mais_sustentavel'
   | 'mais_inovadora'
   | 'destaque_comunidade';
 
+/** ID legado, aceito só na LEITURA de dados antigos. */
+export const OFICINA_CATEGORIA_LEGADA = 'mais_viability';
+
+export const OFICINA_CATEGORIAS_ORDEM: OficinaCategoriaResultado[] = [
+  'mais_viavel',
+  'mais_colaborativa',
+  'mais_inclusiva',
+  'mais_sustentavel',
+  'mais_inovadora',
+  'destaque_comunidade',
+];
+
 export const OFICINA_CATEGORIAS_INFO: Record<
   OficinaCategoriaResultado,
   { rotulo: string; icone: string; explicacao: string }
 > = {
-  mais_viability: { rotulo: 'Solução mais viável', icone: 'Compass', explicacao: 'Se sustenta sozinha: equilíbrio entre organização, mercado e viabilidade.' },
-  mais_colaborativa: { rotulo: 'Solução mais colaborativa', icone: 'HeartHandshake', explicacao: 'A comunidade inteira agiu junta: cooperação e confiança.' },
-  mais_inclusiva: { rotulo: 'Solução mais inclusiva', icone: 'Accessibility', explicacao: 'Ninguém ficou de fora: inclusão e confiança.' },
-  mais_sustentavel: { rotulo: 'Solução mais sustentável', icone: 'Leaf', explicacao: 'Cuidado com o Cerrado como pilar da proposta.' },
-  mais_inovadora: { rotulo: 'Solução mais inovadora', icone: 'Cpu', explicacao: 'Uso inteligente de conhecimento e tecnologia apropriada.' },
-  destaque_comunidade: { rotulo: 'Destaque da comunidade', icone: 'Star', explicacao: 'Equilíbrio geral entre todos os indicadores.' },
+  mais_viavel: {
+    rotulo: 'Solução mais viável',
+    icone: 'Compass',
+    explicacao: 'Se sustenta sozinha: equilíbrio entre organização, mercado e viabilidade.',
+  },
+  mais_colaborativa: {
+    rotulo: 'Solução mais colaborativa',
+    icone: 'HeartHandshake',
+    explicacao: 'A comunidade inteira agiu junta: cooperação e confiança.',
+  },
+  mais_inclusiva: {
+    rotulo: 'Solução mais inclusiva',
+    icone: 'Accessibility',
+    explicacao: 'Ninguém ficou de fora: inclusão e confiança.',
+  },
+  mais_sustentavel: {
+    rotulo: 'Solução mais sustentável',
+    icone: 'Leaf',
+    explicacao: 'Cuidado com o Cerrado como pilar da proposta.',
+  },
+  mais_inovadora: {
+    rotulo: 'Solução mais inovadora',
+    icone: 'Cpu',
+    explicacao: 'Uso inteligente de conhecimento e tecnologia apropriada.',
+  },
+  destaque_comunidade: {
+    rotulo: 'Destaque da comunidade',
+    icone: 'Star',
+    explicacao: 'Equilíbrio geral entre todos os indicadores.',
+  },
 };
 
 export interface OficinaResultadoCategoria {
@@ -314,6 +456,41 @@ export interface OficinaResultadoCategoria {
   nota: number;
   razao: string;
 }
+
+// ---------------------------------------------------------------------------
+// Marcadores
+//
+// O motor antigo dava categoria só por indicador, e como todas as equipes
+// começam iguais e recebem deltas parecidos, as seis caíam no mesmo desempate.
+// O marcador é o que a equipe FEZ, não o que ela ficou: é ele que separa as
+// categorias de verdade.
+// ---------------------------------------------------------------------------
+
+export type OficinaMarcador =
+  /** Publicou ao menos uma pista para as outras equipes. */
+  | 'pista_compartilhada'
+  /** Executou ação com tag `capacitacao` ou preencheu o bloco de capacitação. */
+  | 'capacitacao_feita'
+  /** Executou ação com tag `tecnologia`/`conectividade` ou escolheu opção tecnológica. */
+  | 'tecnologia_usada'
+  /** Escolheu na solução opção com tag `sustentabilidade`. */
+  | 'cuidado_ambiental'
+  /** Escolheu na solução opção com tag `inclusao`. */
+  | 'publico_prioritario'
+  /** Preencheu o bloco `parceiros` ou executou a ação `solucao_conjunta`. */
+  | 'solucao_conjunta'
+  /** Enviou a solução com os 13 blocos preenchidos. */
+  | 'plano_completo';
+
+export const OFICINA_MARCADORES_INFO: Record<OficinaMarcador, string> = {
+  pista_compartilhada: 'Compartilhou descoberta com outra equipe',
+  capacitacao_feita: 'Trabalhou capacitação',
+  tecnologia_usada: 'Usou tecnologia ou ferramenta',
+  cuidado_ambiental: 'Cuidou do Cerrado',
+  publico_prioritario: 'Atendeu quem é mais vulnerável',
+  solucao_conjunta: 'Montou solução com parceiros',
+  plano_completo: 'Entregou a proposta completa',
+};
 
 // ---------------------------------------------------------------------------
 // Linhas do banco (modo oficina)
@@ -348,7 +525,20 @@ export interface OficinaPistaRow {
   team_id: string;
   pista_id: string;
   descoberta_em: string;
+  /**
+   * Instante em que a equipe PUBLICAU esta pista. Preenchido apenas na equipe
+   * descobridora.
+   */
   compartilhada_em: string | null;
+  /**
+* team_id de quem trouxe a pista (null = descoberta pela própria equipe).
+      *
+      * Sem esta coluna não existe como dizer "esta pista eu achei" de "esta
+      * pista me chegou", e o compartilhamento não tinha destino: a tabela é
+      * per-team, então inserir a pista na equipe receptora é o que faz a
+      * descoberta unlockar ação lá.
+   */
+  recebida_de: string | null;
 }
 
 export interface OficinaAcaoRow {
@@ -389,6 +579,51 @@ export interface OficinaResultadoRow {
 }
 
 // ---------------------------------------------------------------------------
+// Visões: pública (tela da sala) vs. escopada (aluno)
+// ---------------------------------------------------------------------------
+
+export interface OficinaEquipeComNome extends OficinaEquipeRow {
+  nome: string;
+}
+
+/** Tudo que a parede da sala pode mostrar. */
+export interface OficinaPublicView {
+  gameId: string;
+  sessao: OficinaSessaoRow | null;
+  equipes: OficinaEquipeComNome[];
+  pistas: OficinaPistaRow[];
+  eventos: OficinaEventoRow[];
+  solucoes: OficinaSolucaoRow[];
+  resultados: OficinaResultadoRow[];
+}
+
+/**
+ * O que a equipe do aluno recebe.
+ *
+ * Não é a visão pública com campos a menos: é outra consulta. A visão pública
+ * carrega `solucoes` e `resultados` de TODAS as equipes porque a parede precisa
+ * mostrar a galeria; entregar isso ao painel do aluno dava spoiler da proposta
+ * de quem ainda não enviou e matava a etapa de solução.
+ */
+export interface OficinaAlunoView {
+  gameId: string;
+  /** null = spectator (entrou pela URL de projeção sem ser equipe). */
+  equipeId: string | null;
+  sessao: OficinaSessaoRow | null;
+  equipe: OficinaEquipeComNome | null;
+  /** Só as equipes, só os indicadores: o suficiente para "como vão as outras". */
+  equipes: Pick<OficinaEquipeComNome, 'team_id' | 'nome' | 'perfil' | 'indicadores'>[];
+  /** Pistas da própria equipe + as publicadas por outras. */
+  pistas: OficinaPistaRow[];
+  /** Eventos: o atual e os resolvidos, para a equipe ver a própria história. */
+  eventos: OficinaEventoRow[];
+  /** A SOLUÇÃO DA PRÓPRIA EQUIPE — nunca a de outra. */
+  minhaSolucao: OficinaSolucaoRow | null;
+  /** Só o resultado da própria equipe. A galeria completa é da parede. */
+  meuResultado: OficinaResultadoRow | null;
+}
+
+// ---------------------------------------------------------------------------
 // Realtime (extensão do barramento existente)
 // ---------------------------------------------------------------------------
 
@@ -397,6 +632,8 @@ export type OficinaRealtimeEventType =
   | 'OFICINA_CLUE_FOUND'
   | 'OFICINA_CLUE_SHARED'
   | 'OFICINA_EVENT_OPENED'
+  /** Uma equipe votou no evento aberto. Distinto de RESOLVED: o evento continua. */
+  | 'OFICINA_EVENT_VOTED'
   | 'OFICINA_EVENT_RESOLVED'
   | 'OFICINA_SOLUTION_SUBMITTED'
   | 'OFICINA_FINISHED';
@@ -426,4 +663,47 @@ export interface OficinaIaFallbacks {
   feedback_por_perfil: Record<OficinaPerfil, string>;
   reflexao_perguntas: string[];
   provocacao: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers compartilhados por engine, serviço e UI
+//
+// Ficam aqui porque os três precisam concordar. Duas implementação de "como
+// calculo a nota desta equipe" é uma implementação errada esperando um bug.
+// ---------------------------------------------------------------------------
+
+/** `marcadores` vem de jsonb: é `string[]` do ponto de vista do servidor. */
+export function temMarcador(marcadores: readonly string[], marcador: OficinaMarcador): boolean {
+  return marcadores.includes(marcador);
+}
+
+/**
+ * Aceita o ID legado gravado antes da correção do typo e devolve o atual.
+ * Sem isso, uma partida já jogada renderiza `undefined` no lugar do rótulo.
+ */
+export function normalizarCategoria(cat: string): OficinaCategoriaResultado | null {
+  if (cat === OFICINA_CATEGORIA_LEGADA) return 'mais_viavel';
+  return (OFICINA_CATEGORIAS_ORDEM as string[]).includes(cat)
+    ? (cat as OficinaCategoriaResultado)
+    : null;
+}
+
+/**
+ * Rótulo seguro de categoria: nunca `undefined` na tela, mesmo com dado velho.
+ */
+export function rotuloCategoria(cat: string): string {
+  const normal = normalizarCategoria(cat);
+  return normal ? OFICINA_CATEGORIAS_INFO[normal].rotulo : 'Destaque da proposta';
+}
+
+/** `[{viabilidade: 3, mercado: -1}]` → `"viabilidade +3, mercado −1"`. */
+export function formatarDelta(
+  delta: Partial<OficinaIndicadores>,
+  info: Record<OficinaIndicador, { rotulo: string }> = OFICINA_INDICADORES_INFO,
+): string {
+  const partes = (Object.keys(delta) as OficinaIndicador[])
+    .filter((k) => typeof delta[k] === 'number' && delta[k] !== 0)
+    .sort((a, b) => (delta[b] ?? 0) - (delta[a] ?? 0))
+    .map((k) => `${info[k].rotulo.toLowerCase()} ${(delta[k] ?? 0) > 0 ? '+' : '−'}${Math.abs(delta[k] ?? 0)}`);
+  return partes.join(', ');
 }

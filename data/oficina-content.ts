@@ -286,7 +286,6 @@ const PISTAS: OficinaPista[] = [
       'As famílias colhem bem, mas cada uma entrega separada, de carroça ou de carona. Muita caixa chega atrasada na feira — e verdura atrasada vende por menos, ou não vende.',
     origem: 'Personagem Dona Rosa',
     tags: ['logistica', 'mercado', 'producao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -296,7 +295,6 @@ const PISTAS: OficinaPista[] = [
       'Seu Antônio quer montar rota única e horário fixo para as entregas da cooperativa. Câmara fria e balança já existem; falta o combinado entre as famílias.',
     origem: 'Personagem Seu Antônio',
     tags: ['organizacao', 'logistica'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -306,7 +304,6 @@ const PISTAS: OficinaPista[] = [
       'A feira do sábado repete vinte bancas, mas o movimento depende do tempo. Brasília fica a menos de uma hora e quase ninguém sabe da feira: a divulgação é um cartaz na praça.',
     origem: 'Personagem Seu Nestor',
     tags: ['mercado', 'organizacao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -316,7 +313,6 @@ const PISTAS: OficinaPista[] = [
       'A Escola Classe recebe verdura de fora, mas a lei permite comprar da agricultura familiar da região. A cozinha quer, a diretora quer; falta produção e entrega em dia certinho.',
     origem: 'Personagem Professora Cláudia',
     tags: ['politicas', 'mercado'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -326,7 +322,6 @@ const PISTAS: OficinaPista[] = [
       'Mercadinhos e quitandas do entorno compram verdura toda semana, mas de atravessador. Eles aceitariam a comunidade como fornecedora fixa — com nota, horário e constância.',
     origem: 'Local Mercado do entorno',
     tags: ['mercado', 'organizacao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -336,7 +331,6 @@ const PISTAS: OficinaPista[] = [
       'São seis quilômetros de terra entre a BR e a comunidade. Na chuva a estrada vira lama: o que sai de madrugada chega com a feira já no meio, produto amassado, comprador desistindo.',
     origem: 'Local Estrada de acesso',
     tags: ['logistica'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -346,7 +340,6 @@ const PISTAS: OficinaPista[] = [
       'A técnica Marina atende o núcleo toda semana, de graça, na propriedade ou na sede. Orientação de solo, de praga e de gestão não falta: falta a comunidade chamar.',
     origem: 'Personagem Técnica Marina',
     tags: ['politicas', 'capacitacao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -356,7 +349,6 @@ const PISTAS: OficinaPista[] = [
       'O galpão da associação, com energia, banheiro e espaço para quarenta caixas, só abre na terça-feira. No resto da semana, o espaço vazio vê a produção passar na rua sem entrar.',
     origem: 'Local Centro de distribuição',
     tags: ['logistica', 'organizacao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -366,7 +358,6 @@ const PISTAS: OficinaPista[] = [
       'A antena de rádio da sede alcança quem mora perto; o fim da estrada fica sem sinal. Metade da comunidade não acessa aplicativo, pedido nem previsão de chuva.',
     origem: 'Local Antena comunitária',
     tags: ['conectividade', 'tecnologia'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -376,7 +367,6 @@ const PISTAS: OficinaPista[] = [
       'Existe aplicativo de feira que organiza pedido e banca, e o Lucas sabe ensinar. Mas sem conectividade metade dos produtores instala, desiste e volta ao caderno.',
     origem: 'Personagem Lucas',
     tags: ['tecnologia', 'conectividade', 'inclusao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -386,7 +376,6 @@ const PISTAS: OficinaPista[] = [
       'Chamadas do PAA e do PNAE passam pela região, pagam em dia e compram da agricultura familiar. A comunidade perde prazo por falta de documentação e de alguém organizando a inscrição.',
     origem: 'Personagem Dona Ivonete',
     tags: ['politicas', 'capacitacao', 'inclusao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -396,7 +385,6 @@ const PISTAS: OficinaPista[] = [
       'O caminhão da associação entrega no dia de cada família — e sai com meia carga, pagando frete cheio. Carga agrupada em um dia só corta o custo pela metade.',
     origem: 'Personagem Dija',
     tags: ['logistica', 'organizacao'],
-    unica: true,
     compartilhavel: true,
   },
   {
@@ -406,7 +394,6 @@ const PISTAS: OficinaPista[] = [
       'Paula vem de Brasília toda semana pela verdura da feira. Quando a banca falta no sábado, ela volta ao mercadinho — e o hábito da feira esfria.',
     origem: 'Personagem Paula',
     tags: ['mercado', 'inclusao'],
-    unica: true,
     compartilhavel: true,
   },
 ];
