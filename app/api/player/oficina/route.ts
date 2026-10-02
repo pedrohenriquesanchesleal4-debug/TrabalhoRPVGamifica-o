@@ -7,8 +7,9 @@ import {
   compartilharPista,
   votarEvento,
   submeterSolucao,
-  getOficinaPublicView,
+  getOficinaAlunoView,
 } from '@/lib/oficina-service';
+import { MAX_ACOES_POR_ESTAGIO } from '@/types/oficina';
 import type { OficinaIndicadores, OficinaPerfil, OficinaSolucao } from '@/types/oficina';
 
 /**
@@ -17,7 +18,8 @@ import type { OficinaIndicadores, OficinaPerfil, OficinaSolucao } from '@/types/
  * O `teamId` do jogador é sempre derivado da SESSÃO (token Bearer), nunca do
  * corpo da requisição: um aluno não pode agir como outra equipe.
  *
- * GET  → { game, eu, view }  (perfil, indicadores, pista da equipe via view)
+ * GET  → { game, briefing, eu, view }  (`view` é a `OficinaAlunoView`, escopada
+ *        à equipe — a visão pública de professor NÃO vai para o navegador)
  * POST → { action } com 'acao' | 'compartilhar' | 'votar' | 'solucao'
  */
 export async function GET(request: Request) {
@@ -53,8 +55,10 @@ export async function POST(request: Request) {
         return ok(resultado);
       }
       case 'compartilhar': {
-        const pista = await compartilharPista(gameId, teamId, body.pistaId);
-        return ok({ pista });
+        const compartilhamento = await compartilharPista(gameId, teamId, body.pistaId);
+        // A entrega é o retorno que importa: o aluno precisa saber quantas
+        // equipes receberam, senão o clique parece não ter acontecido.
+        return ok(compartilhamento);
       }
       case 'votar': {
         const contribuicao = await votarEvento({ gameId, teamId, eventKey: body.eventKey, opcaoKey: body.opcaoKey });
@@ -105,7 +109,7 @@ async function carregarPainelOficina(session: Awaited<ReturnType<typeof authenti
   const [equipe, solucao, view, narrativa] = await Promise.all([
     queryEquipe(member.team_id),
     querySolucao(member.team_id),
-    getOficinaPublicView(game.id),
+    getOficinaAlunoView(game.id, member.team_id),
     queryNarrativaInicial(game.id),
   ]);
 
@@ -119,8 +123,9 @@ async function carregarPainelOficina(session: Awaited<ReturnType<typeof authenti
       teamName: team.name,
       perfil: (member.role as OficinaPerfil) ?? null,
       indicadores: (equipe?.indicadores ?? null) as OficinaIndicadores | null,
-      marcadores: equipe?.marcadores ?? [],
+      marcadores: view.equipe?.marcadores ?? equipe?.marcadores ?? [],
       acoesUsadas: equipe?.acoes_usadas ?? 0,
+      maxAcoes: MAX_ACOES_POR_ESTAGIO,
       solucao: solucao ?? null,
     },
     view,

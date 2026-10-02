@@ -13,15 +13,23 @@
 
 import type {
   OficinaAcao,
+  OficinaAcaoKey,
   OficinaBlocoSolucao,
   OficinaCartao,
   OficinaCategoriaResultado,
   OficinaEventoOpcao,
   OficinaIndicador,
   OficinaIndicadores,
+  OficinaMarcador,
   OficinaResultadoCategoria,
   OficinaSolucao,
   TagOficina,
+} from '@/types/oficina';
+import {
+  MAX_ACOES_POR_ESTAGIO,
+  OFICINA_BLOCOS_INFO,
+  OFICINA_CATEGORIAS_INFO,
+  OFICINA_CATEGORIAS_ORDEM,
 } from '@/types/oficina';
 import { hashSeed, mulberry32 } from './rng';
 
@@ -81,14 +89,18 @@ export interface ValidarAcaoResultado {
 /**
  * Valida se uma ação pode ser executada por uma equipe.
  *
- * Regras:
- * - custo_acoes + acoes_usadas > max → nega (limite de ações do estágio)
+ * Regras, nesta ordem:
+ * - custo_acoes + acoesUsadas > max → nega, dizendo quantas ações sobram
  * - requisito_tags não-vazio exige que a equipe tenha pelo menos UMA pista cuja
  *   interseção com requisito_tags não seja vazia
  * - NUNCA valida estado do banco (isso é responsabilidade do service layer)
  *
+ * O `custo_acoes` é respeitado aqui e no service layer: antes a validação
+ * cobrava o custo certo (`custo + usadas > max`) mas a escrita somava sempre
+ * `1`, então uma ação de custo 2 nunca era cobrada.
+ *
  * @returns { ok: true } quando a ação pode prosseguir, { ok: false, motivo }
- *          quando bloqueada.
+ *          quando bloqueada. O motivo é frase para o jogador, não código.
  */
 export function validarAcao({
   acao,
@@ -96,13 +108,17 @@ export function validarAcao({
   indicadores: _indicadores,
   pistasTags,
   acoesUsadas,
-  maxAcoesPorEstagio = 4,
+  maxAcoesPorEstagio = MAX_ACOES_POR_ESTAGIO,
 }: ValidarAcaoInput): ValidarAcaoResultado {
   // Limite de ações do estágio.
-  if (acao.custo_acoes + acoesUsadas > maxAcoesPorEstagio) {
+  const restantes = maxAcoesPorEstagio - acoesUsadas;
+  if (acao.custo_acoes > restantes) {
     return {
       ok: false,
-      motivo: 'Limite de ações do estágio',
+      motivo:
+        restantes <= 0
+          ? `Você usou as ${maxAcoesPorEstagio} ações deste estágio.`
+          : `Esta ação custa ${acao.custo_acoes} e você tem ${restantes} restante${restantes === 1 ? '' : 's'}.`,
     };
   }
 
@@ -114,7 +130,7 @@ export function validarAcao({
     if (!temPista) {
       return {
         ok: false,
-        motivo: 'Falta uma pista para isso',
+        motivo: 'Investigue ou receba uma descoberta com essa característica antes.',
       };
     }
   }
@@ -258,6 +274,16 @@ export interface CoerenciaResultado {
   avisos: string[];
   alinhados: string[];
   desalinhados: string[];
+  /**
+   * Chaves que a equipe enviou e que não existem em nenhum cartão.
+   *
+   * Antes estes `continue` sumiam: uma equipe podia digitar 13 chaves
+   * inventadas, `blocosPreenchidos` contava 13, e o score subia como se a
+   * solução estivesse completa. Agora elas são nomeadas e a UI mostra.
+   */
+  blocosDesconhecidos: string[];
+  /** Blocos preenchidos em bloco de texto livre (não julgados por tag). */
+  camposLivres: string[];
 }
 
 /**
@@ -266,17 +292,24 @@ export interface CoerenciaResultado {
  *
  * Para cada bloco preenchido, localiza a opção correspondente no cartão e compara
  * as tags daquela opção com as tags do problema escolhido:
- * - 1+ tag em comum → alinhado (+peso ao score)
+ * - 1+ tag em comum → alinhado
  * - 0 tags em comum → desalinhado (aviso suave, NUNCA bloqueio)
+ * - bloco de texto livre → conta como preenchido, sem julgamento de tag
+ * - chave que não existe em nenhum cartão → `blocosDesconhecidos`, não conta
  *
- * Score = 50 base + 15 por bloco alinhado + 5 por bloco preenchido (cap 100).
+ * Score = 70 × taxa de alinhamento + 30 × completude.
+ *
+ * A fórmula antiga (`50 + 15/alinhado + 5/preenchido`, cap 100) estourava o teto
+ * em qualquer proposta razoável: com 13 blocos preenchidos dava 100 para todo
+ * mundo, então o número não distinguia nada. Agora os dois eixos são-explícitos
+ * e a taxa de alinhamento pesa mais: acertar o encadeamento vale mais do que
+ * encher todos os campos.
  *
  * Os avisos são pedagógicos e em PT-BR: NUNCA rotulam "certo/errado", apenas
  * convidam o professor a revisar com a equipe.
  */
 export function coerenciaSolucao(
   solucao: OficinaSolucao,
-  problemaEscolhido: string,
   problemaTags: TagOficina[],
   cartoes: OficinaCartao[],
 ): CoerenciaResultado {
@@ -284,17 +317,35 @@ export function coerenciaSolucao(
   const alinhados: string[] = [];
   const desalinhados: string[] = [];
   const avisos: string[] = [];
+  const blocosDesconhecidos: string[] = [];
+  const camposLivres: string[] = [];
+
+  // Blocos com opção fechada: só estes são julgados por alinhamento de tag.
+  let julgados = 0;
 
   for (const bloco of blocosPreenchidos) {
     const valor = solucao.blocos[bloco];
     if (!valor || valor.trim() === '') continue;
 
     const cartao = cartoes.find((c) => c.bloco === bloco);
-    if (!cartao) continue;
+    if (!cartao) {
+      blocosDesconhecidos.push(bloco);
+      continue;
+    }
+
+    if (cartao.campo_livre) {
+      camposLivres.push(bloco);
+      continue;
+    }
 
     // Encontra a opção cujo key corresponde ao valor preenchido no bloco.
     const opcaoEscolhida = cartao.opcoes.find((o) => o.key === valor);
-    if (!opcaoEscolhida) continue;
+    if (!opcaoEscolhida) {
+      blocosDesconhecidos.push(bloco);
+      continue;
+    }
+
+    julgados += 1;
 
     // Compara tags da opção com tags do problema.
     const tagsEmComum = opcaoEscolhida.tags.filter((t) => problemaTags.includes(t));
@@ -304,18 +355,130 @@ export function coerenciaSolucao(
     } else {
       desalinhados.push(bloco);
       avisos.push(
-        `Revistam o cartão "${cartao.bloco}": as opções escolhidas conversam pouco com o problema principal.`,
+        `Revistam o cartão "${OFICINA_BLOCOS_INFO[bloco]?.rotulo ?? bloco}": as opções escolhidas conversam pouco com o problema principal.`,
       );
     }
   }
 
-  // Score: 50 base + 15 por alinhado + 5 por preenchido (cap 100).
-  const score = Math.min(
-    100,
-    50 + alinhados.length * 15 + blocosPreenchidos.length * 5,
-  );
+  const totalCartoes = cartoes.length;
+  const taxaAlinhamento = julgados > 0 ? alinhados.length / julgados : 0;
+  const completude = totalCartoes > 0 ? blocosPreenchidos.length / totalCartoes : 0;
+  const score = Math.round(70 * taxaAlinhamento + 30 * completude);
 
-  return { score, avisos, alinhados, desalinhados };
+  if (julgados === 0 && blocosPreenchidos.length > 0) {
+    avisos.push(
+      'Nenhum cartão de opção fechada foi preenchido: revisem as escolhas e escrevam os textos livres.',
+    );
+  }
+  if (blocosDesconhecidos.length > 0) {
+    avisos.push(
+      `${blocosDesconhecidos.length} bloco(s) foram preenchidos com escolhas fora dos cartões e não entram na nota de coerência.`,
+    );
+  }
+
+  return { score, avisos, alinhados, desalinhados, blocosDesconhecidos, camposLivres };
+}
+
+/**
+ * Deriva os marcadores da equipe a partir do que ela REALMENTE fez.
+ *
+ * Existe como função pura e não como campo gravado porque não é preciso
+ * persistir nada: as pistas publicadas, as ações executadas e a solução enviada
+ * já estão no banco, e derivar de novo é mais barato que sincronizar. A
+ * `oficina_equipes.marcadores` continua sendo escrita (é a coluna que a IA e
+ * a projeção leem), mas a verdade é esta função.
+ *
+ * Sem isso, `mais_inovadora` dependia de um marcador `tech_usada` que o engine
+ * nunca produzia — a categoria era inalcançável na prática.
+ */
+export interface DerivarMarcadoresInput {
+  /** null enquanto a equipe não enviou proposta. */
+  solucao: OficinaSolucao | null;
+  cartoes: OficinaCartao[];
+  /** Keys das ações executadas pela equipe (qualquer estágio). */
+  acoesExecutadas: OficinaAcaoKey[];
+  /** Tags das ações executadas (para reconhecer opção tecnológica/capacitação). */
+  acaoTags: TagOficina[];
+  /** A equipe publicou ao menos uma pista para as outras? */
+  compartilhou: boolean;
+}
+
+export function derivarMarcadores({
+  solucao,
+  cartoes,
+  acoesExecutadas,
+  acaoTags,
+  compartilhou,
+}: DerivarMarcadoresInput): OficinaMarcador[] {
+  const marcadores: OficinaMarcador[] = [];
+
+  if (compartilhou) marcadores.push('pista_compartilhada');
+
+  const acaoTem = (tag: TagOficina) => acaoTags.includes(tag);
+
+  if (acaoTem('capacitacao') || temBlocoPreenchido(solucao, 'capacitacao')) {
+    marcadores.push('capacitacao_feita');
+  }
+
+  // Tags das OPÇÕES escolhidas na solução — é a prova de que a escolha foi feita.
+  const tagsEscolhidas = tagsDasOpcoesEscolhidas(solucao, cartoes);
+
+  if (
+    acaoTem('tecnologia') ||
+    acaoTem('conectividade') ||
+    tagsEscolhidas.includes('tecnologia') ||
+    tagsEscolhidas.includes('conectividade')
+  ) {
+    marcadores.push('tecnologia_usada');
+  }
+
+  if (tagsEscolhidas.includes('sustentabilidade')) {
+    marcadores.push('cuidado_ambiental');
+  }
+
+  if (tagsEscolhidas.includes('inclusao')) {
+    marcadores.push('publico_prioritario');
+  }
+
+  if (acoesExecutadas.includes('solucao_conjunta') || temBlocoPreenchido(solucao, 'parceiros')) {
+    marcadores.push('solucao_conjunta');
+  }
+
+  if (
+    solucao &&
+    cartoes.every((c) => {
+      const valor = solucao.blocos[c.bloco];
+      return typeof valor === 'string' && valor.trim() !== '';
+    })
+  ) {
+    marcadores.push('plano_completo');
+  }
+
+  return marcadores;
+}
+
+function temBlocoPreenchido(
+  solucao: OficinaSolucao | null,
+  bloco: OficinaBlocoSolucao,
+): boolean {
+  const valor = solucao?.blocos[bloco];
+  return typeof valor === 'string' && valor.trim() !== '';
+}
+
+/** União das tags de todas as opções fechadas que a equipe escolheu. */
+function tagsDasOpcoesEscolhidas(
+  solucao: OficinaSolucao | null,
+  cartoes: OficinaCartao[],
+): TagOficina[] {
+  if (!solucao) return [];
+  const tags: TagOficina[] = [];
+  for (const cartao of cartoes) {
+    const valor = solucao.blocos[cartao.bloco];
+    if (typeof valor !== 'string' || cartao.campo_livre) continue;
+    const opcao = cartao.opcoes.find((o) => o.key === valor);
+    if (opcao) tags.push(...opcao.tags);
+  }
+  return tags;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,21 +493,22 @@ export interface EquipeInput {
 }
 
 /**
- * Calcula os resultados da oficina: uma categoria de destaque por equipe,
- * sem empate, sem vencedor.
+ * Calcula os resultados da oficina: UM destaque por equipe, sem repetição,
+ * sem vencedor.
  *
- * Métricas por categoria:
- * - mais_viability: viabilidade×0.5 + organizacao×0.3 + mercado×0.2
- * - mais_colaborativa: cooperacao×0.6 + confianca×0.4
- * - mais_inclusiva: inclusao×0.6 + confianca×0.4
- * - mais_sustentavel: sustentabilidade×0.8 + viabilidade×0.2
- * - mais_inovadora: conhecimento×0.5 + 30 se 'tech_usada' + 20 se 'capacitacao_feita'
- * - destaque_comunidade: média simples dos 8 indicadores
+ * Por que o modelo anterior não funcionava: cada equipe recebia
+ * `argmax(categorias)`, e como todas partem do mesmo indicador base e recebem
+ * deltas parecidos, as seis empatavam e o desempate era ordem de array — as seis
+ * equipes saíam com `mais_viability`. Havia até teste certificando isso.
  *
- * Cada equipe recebe a categoria para a qual obteve maior pontuação.
- * Desempate por ordem lexicográfica do team_id (nunca aleatório).
- * A razão é uma frase curta em PT-BR baseada nos dois indicadores que mais
- * contribuíram, sem linguagem competitiva agressiva.
+ * Aqui a atribuição é uma alocação: as categorias são percorridas em ordem
+ * fixa e cada uma leva a equipe AINDA SEM destaque que melhor a pontua. Com 6
+ * equipes e 6 categorias o resultado é uma bijeção — cada equipe ganha uma e
+ * cada destaque vai para uma equipe. Com menos equipes, sobram categorias sem
+ * dono, que é o resultado honesto.
+ *
+ * Os marcadores entram na pontuação porque são o que distingue "cooperou" de
+ * "terminou acima da média": ver `pontuarCategoria`.
  */
 export function calcularResultados(
   equipes: EquipeInput[],
@@ -353,67 +517,94 @@ export function calcularResultados(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mantido por contrato de interface
   _problemaTagsPorEquipe: Record<string, TagOficina[]>,
 ): OficinaResultadoCategoria[] {
-  const categorias: OficinaCategoriaResultado[] = [
-    'mais_viability',
-    'mais_colaborativa',
-    'mais_inclusiva',
-    'mais_sustentavel',
-    'mais_inovadora',
-    'destaque_comunidade',
-  ];
+  // Ordem estável: define quem fica com a categoria disputada quando sobra uma.
+  const jaPremiadas = new Set<string>();
+  const resultados: OficinaResultadoCategoria[] = [];
 
-  return equipes.map((equipe) => {
-    // Calcula pontuação para cada categoria.
-    const pontuacoes = calcularPontuacoesPorCategoria(equipe);
+  for (const categoria of OFICINA_CATEGORIAS_ORDEM) {
+    let melhor: { equipe: EquipeInput; nota: number } | null = null;
 
-    // Escolhe a categoria com maior pontuação; desempate por ordem de categorias
-    // (que é estável e fixa).
-    let melhorCategoria: OficinaCategoriaResultado = categorias[0];
-    let melhorNota = -1;
-
-    for (const cat of categorias) {
-      const nota = pontuacoes[cat];
-      if (nota > melhorNota) {
-        melhorNota = nota;
-        melhorCategoria = cat;
+    for (const equipe of equipes) {
+      if (jaPremiadas.has(equipe.team_id)) continue;
+      const nota = pontuarCategoria(categoria, equipe);
+      // Empate interno resolve pelo team_id, que é estável e não aleatório.
+      if (
+        !melhor ||
+        nota > melhor.nota ||
+        (nota === melhor.nota && equipe.team_id < melhor.equipe.team_id)
+      ) {
+        melhor = { equipe, nota };
       }
     }
 
-    const nota = Math.round(melhorNota);
-    const razao = gerarRazao(melhorCategoria, equipe.indicadores, equipe.marcadores);
+    if (!melhor) break; // sobraram categorias, mas não sobraram equipes
+    jaPremiadas.add(melhor.equipe.team_id);
+    resultados.push({
+      categoria,
+      team_id: melhor.equipe.team_id,
+      nota: Math.max(0, Math.min(100, Math.round(melhor.nota))),
+      razao: gerarRazao(categoria, melhor.equipe),
+    });
+  }
 
-    return {
-      categoria: melhorCategoria,
-      team_id: equipe.team_id,
-      nota: Math.max(0, Math.min(100, nota)),
-      razao,
-    };
-  });
+  return resultados;
 }
 
-/** Calcula a pontuação bruta (0..100) de uma equipe em cada categoria. */
-function calcularPontuacoesPorCategoria(
+/**
+ * Pontuação (0..100) da equipe NA categoria.
+ *
+ * Cada categoria mistura os indicadores que a definem com o marcador que prova
+ * que a equipe fez a coisa. Sem o marcador a categoria ainda é alcançável —
+ * jogar bem os indicadores é o jogo — mas a equipe que agiu leva o destaque.
+ */
+function pontuarCategoria(
+  categoria: OficinaCategoriaResultado,
   equipe: EquipeInput,
-): Record<OficinaCategoriaResultado, number> {
+): number {
   const ind = equipe.indicadores;
-  const marcadores = new Set(equipe.marcadores);
+  const m = new Set(equipe.marcadores);
+  const bonus = (marcador: OficinaMarcador, pontos: number) =>
+    m.has(marcador) ? pontos : 0;
 
-  return {
-    mais_viability:
-      ind.viabilidade * 0.5 + ind.organizacao * 0.3 + ind.mercado * 0.2,
-    mais_colaborativa:
-      ind.cooperacao * 0.6 + ind.confianca * 0.4,
-    mais_inclusiva:
-      ind.inclusao * 0.6 + ind.confianca * 0.4,
-    mais_sustentavel:
-      ind.sustentabilidade * 0.8 + ind.viabilidade * 0.2,
-    mais_inovadora:
-      ind.conhecimento * 0.5 +
-      (marcadores.has('tech_usada') ? 30 : 0) +
-      (marcadores.has('capacitacao_feita') ? 20 : 0),
-    destaque_comunidade:
-      mediaSimples(ind),
-  };
+  switch (categoria) {
+    case 'mais_viavel':
+      return (
+        ind.viabilidade * 0.4 +
+        ind.organizacao * 0.25 +
+        ind.mercado * 0.15 +
+        bonus('plano_completo', 20)
+      );
+    case 'mais_colaborativa':
+      return (
+        ind.cooperacao * 0.35 +
+        ind.confianca * 0.2 +
+        ind.conhecimento * 0.1 +
+        bonus('pista_compartilhada', 35) +
+        bonus('solucao_conjunta', 15)
+      );
+    case 'mais_inclusiva':
+      return (
+        ind.inclusao * 0.45 +
+        ind.confianca * 0.2 +
+        bonus('publico_prioritario', 35) +
+        bonus('capacitacao_feita', 10)
+      );
+    case 'mais_sustentavel':
+      return (
+        ind.sustentabilidade * 0.5 +
+        ind.viabilidade * 0.15 +
+        bonus('cuidado_ambiental', 35)
+      );
+    case 'mais_inovadora':
+      return (
+        ind.conhecimento * 0.3 +
+        ind.organizacao * 0.1 +
+        bonus('tecnologia_usada', 40) +
+        bonus('capacitacao_feita', 20)
+      );
+    case 'destaque_comunidade':
+      return mediaSimples(ind) * 0.85 + bonus('plano_completo', 15);
+  }
 }
 
 /** Média simples dos 8 indicadores. */
@@ -423,47 +614,57 @@ function mediaSimples(ind: OficinaIndicadores): number {
 }
 
 /**
- * Gera uma frase curta em PT-BR a partir dos dois indicadores que mais
- * contribuíram para a categoria. Linguagem neutra: sem "venceu", "perdeu",
- * "melhor", "pior" — apenas destaque do que funcionou.
+ * Gera uma frase curta em PT-BR descrevendo o que a equipe fez para merecer o
+ * destaque. Linguagem neutra: sem "venceu", "perdeu", "melhor", "pior" —
+ * apenas o que funcionou.
  */
-function gerarRazao(
-  categoria: OficinaCategoriaResultado,
-  indicadores: OficinaIndicadores,
-  marcadores: string[],
-): string {
-  const marcSet = new Set(marcadores);
+function gerarRazao(categoria: OficinaCategoriaResultado, equipe: EquipeInput): string {
+  const m = new Set(equipe.marcadores);
+  const ind = equipe.indicadores;
 
   switch (categoria) {
-    case 'mais_viability': {
-      const top2 = topDois(indicadores, ['viabilidade', 'organizacao', 'mercado']);
-      return `Viabilidade sustentada por ${rotula(top2[0])} e ${rotula(top2[1])}.`;
+    case 'mais_viavel': {
+      const base = `Proposta que se sustenta sozinha, com ${rotula(
+        topDois(ind, ['viabilidade', 'organizacao', 'mercado'])[0],
+      )} em destaque.`;
+      return m.has('plano_completo')
+        ? `Proposta completa e viável: os 13 blocos foram preenchidos e ${rotula(
+            topDois(ind, ['viabilidade', 'organizacao', 'mercado'])[0],
+          )} sustentam o plano.`
+        : base;
     }
     case 'mais_colaborativa': {
-      const top2 = topDois(indicadores, ['cooperacao', 'confianca']);
-      return `Cooperação e confiança caminham juntas: ${rotula(top2[0])} e ${rotula(top2[1])}.`;
+      if (m.has('pista_compartilhada')) {
+        return `Abriu o jogo para as outras equipes: ${rotula('cooperacao')} subiu porque a descoberta circulou, não porque ficou guardada.`;
+      }
+      return `${rotula('cooperacao')} e ${rotula('confianca')} andaram juntos ao longo da oficina.`;
     }
     case 'mais_inclusiva': {
-      const top2 = topDois(indicadores, ['inclusao', 'confianca']);
-      return `Inclusão e confiança se reforçam: ${rotula(top2[0])} e ${rotula(top2[1])}.`;
+      if (m.has('publico_prioritario')) {
+        return `A proposta nomeia quem é mais vulnerável e traz ${rotula('inclusao')} como critério de escolha, não como apêndice.`;
+      }
+      return `${rotula('inclusao')} e ${rotula('confianca')} se reforçam: ninguém ficou de fora por acaso.`;
     }
     case 'mais_sustentavel': {
-      const top2 = topDois(indicadores, ['sustentabilidade', 'viabilidade']);
-      return `Sustentabilidade como pilar, com ${rotula(top2[0])} e ${rotula(top2[1])}.`;
+      if (m.has('cuidado_ambiental')) {
+        return `Cuidado com o Cerrado entrou como pilar da proposta, não como promessa de final de linha.`;
+      }
+      return `${rotula('sustentabilidade')} foi o eixo da proposta, com ${rotula('viabilidade')} em apoio.`;
     }
     case 'mais_inovadora': {
-      const inovacaoParts: string[] = [];
-      if (marcSet.has('tech_usada')) inovacaoParts.push('tecnologia apropriada');
-      if (marcSet.has('capacitacao_feita')) inovacaoParts.push('capacitação da equipe');
-      if (inovacaoParts.length > 0) {
-        return `Inovação via ${inovacaoParts.join(' e ')}, com ${rotula('conhecimento')} em destaque.`;
+      const partes: string[] = [];
+      if (m.has('tecnologia_usada')) partes.push('ferramenta adequada ao problema real');
+      if (m.has('capacitacao_feita')) partes.push('saber que circula na equipe');
+      if (partes.length > 0) {
+        return `Inovação por ${partes.join(' e ')}, com ${rotula('conhecimento')} em destaque.`;
       }
       return `Conhecimento técnico orientou as escolhas: ${rotula('conhecimento')} em destaque.`;
     }
     case 'destaque_comunidade': {
-      const todos = Object.entries(indicadores)
-        .sort((a, b) => b[1] - a[1]);
-      return `Equilíbrio geral entre todos os indicadores, com ${rotula(todos[0][0] as OficinaIndicador)} e ${rotula(todos[1][0] as OficinaIndicador)} em destaque.`;
+      const todos = (Object.entries(ind) as [OficinaIndicador, number][]).sort((a, b) => b[1] - a[1]);
+      return `Equilíbrio geral entre todos os indicadores, com ${rotula(todos[0][0])} e ${rotula(
+        todos[1][0],
+      )} em destaque.`;
     }
   }
 }
@@ -543,15 +744,6 @@ export function calcularResultadoOficinaResumo(
   const maisForte = ordenados[0];
   const maisFraco = ordenados[ordenados.length - 1];
 
-  // Contagem de categorias destacadas.
-  const catCount = new Map<string, number>();
-  for (const c of categorias) {
-    catCount.set(c.categoria, (catCount.get(c.categoria) ?? 0) + 1);
-  }
-  const catsMaisComuns = [...catCount.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2);
-
   const frases: string[] = [];
 
   // Frase 1: média geral.
@@ -569,20 +761,15 @@ export function calcularResultadoOficinaResumo(
 
   // Frase 3: indicador que precisa de atenção.
   frases.push(
-    `Já "${rotula(maisFraco[0])}" foi o que ficou abaixo, com média de ${maisFraco[1]} — vale discutir como melhorar.`,
+    `"${rotula(maisFraco[0])}" foi o que mais ficou para trás, com média de ${maisFraco[1]} — vale entender por quê.`,
   );
 
-  // Frase 4 (opcional): categorias que se destacaram.
-  if (catsMaisComuns.length > 0) {
-    const catsTexto = catsMaisComuns
-      .map(([cat]) => {
-        const info = categorias.find((c) => c.categoria === cat);
-        return info?.categoria.replace(/_/g, ' ') ?? cat;
-      })
-      .join(' e ');
-    frases.push(
-      `As categorias de destaque que mais apareceram foram: ${catsTexto}.`,
-    );
+  // Frase 4: os destaques que cada equipe ganhou.
+  const catsTexto = categorias
+    .map((c) => OFICINA_CATEGORIAS_INFO[c.categoria].rotulo.toLowerCase())
+    .join(', ');
+  if (catsTexto) {
+    frases.push(`Cada equipe ganhou um destaque pelo que fez de diferente: ${catsTexto}.`);
   }
 
   return { resumo_para_debate: frases.join(' ') };

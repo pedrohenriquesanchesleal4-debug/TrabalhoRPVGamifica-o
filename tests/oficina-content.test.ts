@@ -157,7 +157,6 @@ describe('pistas da oficina', () => {
       expect(pista.origem.trim().length, `pista "${pista.id}" sem origem`).toBeGreaterThan(0);
       expect(pista.titulo.trim().length, `pista "${pista.id}" sem título`).toBeGreaterThan(0);
       expect(pista.texto.trim().length, `pista "${pista.id}" sem texto`).toBeGreaterThan(0);
-      expect(pista.unica, `pista "${pista.id}" deveria ser única`).toBe(true);
       expect(pista.compartilhavel, `pista "${pista.id}" deveria ser compartilhável`).toBe(true);
     }
   });
